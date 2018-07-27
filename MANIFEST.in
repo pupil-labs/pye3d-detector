@@ -1,0 +1,11 @@
+# include all required files
+include CMakeLists.txt LICENSE MANIFEST.in pyproject.toml README.md setup.py
+recursive-include pye3d *
+recursive-include tests *
+
+# exclude build artifacts
+global-exclude *.dll *.so *.dylib
+
+# exclude other distribution/install artifacts
+recursive-exclude **/*.egg-info *
+recursive-exclude **/__pycache__ *
