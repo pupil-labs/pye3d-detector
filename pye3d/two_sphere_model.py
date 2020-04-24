@@ -234,7 +234,7 @@ class TwoSphereModel(object):
             input_features
         )[0]
 
-        refraction_corrected_gaze_vector = normalize(refraction_corrected_params)[:3]
+        refraction_corrected_gaze_vector = normalize(refraction_corrected_params[:3])
         refraction_corrected_radius = refraction_corrected_params[-1]
         refraction_corrected_pupil_center = (
             self.corrected_sphere_center
