@@ -181,3 +181,22 @@ search_3d_result search_3d_(const numpy_matrix_view & edges_on_sphere_raw,
         return result_second_iteration;
 
 }
+
+
+//Eigen::Vector3d correct_gaze_vector(
+//      const numpy_matrix_view & x,
+//      const numpy_matrix_view & powers_raw,
+//      const numpy_matrix_view & mean_var_raw,
+//      const numpy_matrix_view & coefs_raw,
+//){
+//
+//       Eigen::Map<Eigen::MatrixXd> powers_(powers_raw.data, powers_raw.rows, powers_raw.cols);
+//       Eigen::Map<Eigen::MatrixXd> mean_(mean_raw.data, mean_raw.rows, mean_raw.cols);
+//       Eigen::Map<Eigen::MatrixXd> mean_var_(mean_var_raw.data, mean_var_raw.rows, mean_var_raw.cols);
+//       Eigen::Map<Eigen::MatrixXd> coefs_(coefs_raw.data, coefs_raw.rows, coefs_raw.cols);
+//
+//       Eigen::Vector3d corrected_gaze_vector;
+//
+//       return corrected_gaze_vector;
+//
+//       }

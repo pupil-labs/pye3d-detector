@@ -66,6 +66,7 @@ cdef extern from "search_3d_cpp.h":
 
     search_3d_result search_3d_(numpy_matrix_view &, numpy_vector3d &, double &, numpy_vector3d &, double &, double &)
 
+    #Vector3d correct_gaze_vector(numpy_matrix_view &, numpy_matrix_view &, numpy_matrix_view &, numpy_matrix_view &)
 
 cdef eigen2np(MatrixXd data):
 
