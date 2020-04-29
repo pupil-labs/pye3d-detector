@@ -46,7 +46,14 @@ add_library(projections MODULE ${projections})
 python_extension_module(projections)
 target_link_libraries(projections Eigen3::Eigen)
 
+# Same for other cython modules, read comments above for explanation
+add_cython_target(refraction_correction CXX PY3)
+add_library(refraction_correction MODULE ${refraction_correction})
+python_extension_module(refraction_correction)
+target_link_libraries(refraction_correction Eigen3::Eigen)
+
+
 # install here
 install(
-    TARGETS pupil_detection_3d projections
+    TARGETS pupil_detection_3d projections refraction_correction
     LIBRARY DESTINATION ".")
