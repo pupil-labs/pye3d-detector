@@ -18,8 +18,8 @@ from .geometry.primitives import Circle, Ellipse, Line
 from .geometry.projections import (
     project_line_into_image_plane,
     project_point_into_image_plane,
+    unproject_ellipse,
 )
-from .cpp.search_3d import unproject_ellipse
 from .geometry.utilities import normalize
 from .observation import Observation, ObservationStorage
 from .refraction import Refractionizer

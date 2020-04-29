@@ -22,23 +22,31 @@ find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 # Find OpenCV. Needs to be on cmake search path, or specify OpenCV_DIR variable.
 find_package(OpenCV REQUIRED)
 
-# Note: add_cython_target does not actually add a target, but fills a variable with the
-# corresponding compiled source file, e.g. here 'search_3d.cxx'. If only the name is
-# specified, it will look for a cython file with the same base name: 'search_3d.pyx'.
-add_cython_target(search_3d CXX PY3)
-
-# Create a module library from the source file and wrap it with settings for
-# creating a python extension.
-add_library(search_3d MODULE ${search_3d})
-python_extension_module(search_3d)
-
-# include folder for search_3d_cpp.h
+# include cpp folder for finding headers
 include_directories(".")
 # include numpy headers
 include_directories(${NumPy_INCLUDE_DIRS})
+
+# Note: add_cython_target does not actually add a target, but fills a variable with the
+# corresponding compiled source file, e.g. here 'pupil_detection_3d.cxx'. If only the
+# name is specified, it will look for a cython file with the same base name:
+# 'pupil_detection_3d.pyx' in this case.
+add_cython_target(pupil_detection_3d CXX PY3)
+# Create a module library from the source file and wrap it with settings for
+# creating a python extension.
+add_library(pupil_detection_3d MODULE ${pupil_detection_3d})
+python_extension_module(pupil_detection_3d)
 # link against external libraries
-target_link_libraries(search_3d ${OpenCV_LIBS})
-target_link_libraries(search_3d Eigen3::Eigen)
+target_link_libraries(pupil_detection_3d ${OpenCV_LIBS})
+target_link_libraries(pupil_detection_3d Eigen3::Eigen)
+
+# Same for other cython modules, read comments above for explanation
+add_cython_target(projections CXX PY3)
+add_library(projections MODULE ${projections})
+python_extension_module(projections)
+target_link_libraries(projections Eigen3::Eigen)
 
 # install here
-install(TARGETS search_3d LIBRARY DESTINATION ".")
+install(
+    TARGETS pupil_detection_3d projections
+    LIBRARY DESTINATION ".")

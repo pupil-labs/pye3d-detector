@@ -15,8 +15,8 @@ import numpy as np
 
 from .background_helper import Task_Proxy
 from .constants import _EYE_RADIUS_DEFAULT
-from .cpp.search_3d import get_edges
-from .cpp.search_3d import search_3d_cpp as search_3d
+from .cpp.pupil_detection_3d import get_edges
+from .cpp.pupil_detection_3d import search_on_sphere as search_on_sphere
 from .geometry.primitives import Circle, Ellipse, Sphere
 from .geometry.projections import (
     project_circle_into_image_plane,
@@ -185,7 +185,7 @@ class Detector3D(object):
             )
 
             if len(edges) > 0:
-                gaze_vector, pupil_radius, final_edges, edges_on_sphere = search_3d(
+                gaze_vector, pupil_radius, final_edges, edges_on_sphere = search_on_sphere(
                     edges,
                     pupil_circle_kalman.normal,
                     pupil_circle_kalman.radius,

@@ -9,73 +9,25 @@ Lesser General Public License (LGPL v3.0).
 See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
-from libcpp.vector cimport vector
-from libcpp.pair cimport pair
-from cpython cimport array
-from cython.operator import dereference
-
+import cv2
 import numpy as np
 cimport numpy as np
-import cv2
 
-from pye3d.geometry.projections import unproject_edges_to_sphere, project_circle_into_image_plane, project_point_into_image_plane
-from pye3d.geometry.primitives import Circle, Conic, Conicoid
-from pye3d.geometry.utilities import normalize
-import warnings
+from .common_types cimport (
+    MatrixXd,
+    Vector3d,
+)
+from ..geometry.projections import (
+    unproject_edges_to_sphere,
+    project_circle_into_image_plane,
+    project_point_into_image_plane,
+)
+from ..geometry.utilities import normalize
+
 
 _EYE_RADIUS_DEFAULT: float = 10.392304845413264
 
-cdef extern from '<opencv2/core.hpp>':
-  int CV_8UC1
-  int CV_8UC3
-
-cdef extern from '<opencv2/core.hpp>' namespace 'cv':
-    cdef cppclass Mat :
-        Mat() except +
-        Mat(int height, int width, int type, void* data) except +
-        Mat(int height, int width, int type) except +
-        unsigned char* data
-
-cdef extern from '<Eigen/Eigen>' namespace 'Eigen':
-
-    cdef cppclass Vector3d "Eigen::Matrix<double, 3, 1>":
-        Matrix31d() except +
-        double& operator[](size_t)
-
-    cdef cppclass MatrixXd "Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>":
-        MatrixXd() except +
-        double * data()
-        double& operator[](size_t)
-        int rows()
-        int cols()
-        double coeff(int,int)
-        double * resize(int,int)
-        
-
-cdef extern from "unproject_conicoid_cpp.h":
-
-    cdef struct Circle3D:
-        Vector3d center
-        Vector3d normal
-        double radius
-
-    cdef pair[Circle3D, Circle3D] unproject_conicoid(
-        const double a,
-        const double b,
-        const double c,
-        const double f,
-        const double g,
-        const double h,
-        const double u,
-        const double v,
-        const double w,
-        const double focal_length,
-        const double circle_radius
-    )
-    
-
-
-cdef extern from "search_3d_cpp.h":
+cdef extern from "search_on_sphere.h":
 
     cdef struct numpy_matrix_view:
         double * data
@@ -92,7 +44,15 @@ cdef extern from "search_3d_cpp.h":
         Vector3d gaze_vector
         double pupil_radius
 
-    search_3d_result search_3d_(numpy_matrix_view &, numpy_vector3d &, double &, numpy_vector3d &, double &, double &)
+    # NOTE: This is basically `import search_on_sphere as c_search_on_sphere` in cython
+    search_3d_result c_search_on_sphere "search_on_sphere"(
+        numpy_matrix_view &,
+        numpy_vector3d &,
+        double &,
+        numpy_vector3d &,
+        double &,
+        double &
+    )
 
     #Vector3d correct_gaze_vector(numpy_matrix_view &, numpy_matrix_view &, numpy_matrix_view &, numpy_matrix_view &)
 
@@ -148,7 +108,7 @@ def get_edges(frame,
 
     return frame[ymin:ymax, xmin:xmax].copy(), frame_roi, edge_frame, edges, [ymin,ymax,xmin,xmax]
 
-def search_3d_cpp(edges,
+def search_on_sphere(edges,
                   predicted_gaze_vector,
                   predicted_pupil_radius,
                   sphere_center,
@@ -188,7 +148,7 @@ def search_3d_cpp(edges,
     sphere_center_struct.y = sphere_center[1]
     sphere_center_struct.z = sphere_center[2]
     
-    result = search_3d_(edges_on_sphere_memstruct,
+    result = c_search_on_sphere(edges_on_sphere_memstruct,
                       predicted_gaze_vector_struct,
                       predicted_pupil_radius,
                       sphere_center_struct,
@@ -203,41 +163,3 @@ def search_3d_cpp(edges,
 
     return gaze_vector, pupil_radius, inliers, edges_on_sphere
     
-
-def unproject_ellipse(ellipse, focal_length, radius=1.0):
-    cdef Circle3D c
-    with warnings.catch_warnings():
-        warnings.filterwarnings("error")
-        try:
-            conic = Conic(ellipse)
-            pupil_cone = Conicoid(conic, [0, 0, -focal_length])
-
-            circles = unproject_conicoid(
-                pupil_cone.A,
-                pupil_cone.B,
-                pupil_cone.C,
-                pupil_cone.F,
-                pupil_cone.G,
-                pupil_cone.H,
-                pupil_cone.U,
-                pupil_cone.V,
-                pupil_cone.W,
-                focal_length,
-                radius
-            )
-
-            # cannot iterate over C++ std::pair, that's why this looks so ugly
-            return [
-                Circle(
-                    center=(circles.first.center[0], circles.first.center[1], circles.first.center[2]),
-                    normal=(circles.first.normal[0], circles.first.normal[1], circles.first.normal[2]),
-                    radius=circles.first.radius
-                ),
-                Circle(
-                    center=(circles.second.center[0], circles.second.center[1], circles.second.center[2]),
-                    normal=(circles.second.normal[0], circles.second.normal[1], circles.second.normal[2]),
-                    radius=circles.second.radius
-                ),
-            ]
-        except Warning as e:
-            return False

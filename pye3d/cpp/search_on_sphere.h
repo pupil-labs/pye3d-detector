@@ -145,7 +145,7 @@ search_3d_result find_best_circle(const Eigen::MatrixXd & edges_on_sphere,
 
  }
 
-search_3d_result search_3d_(const numpy_matrix_view & edges_on_sphere_raw,
+search_3d_result search_on_sphere(const numpy_matrix_view & edges_on_sphere_raw,
                   const numpy_vector3d predicted_gaze_vector_raw,
                   const double predicted_pupil_radius,
                   const numpy_vector3d sphere_center_raw,
