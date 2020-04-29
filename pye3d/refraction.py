@@ -26,42 +26,42 @@ class RefractionizerBase(object):
 
 
 class Refractionizer(RefractionizerBase):
-    def __init__(self):
+    def __init__(self, degree=3):
 
         self.pipeline_radius = joblib.load(
-            os.path.join(LOAD_DIR, "default_refraction_model_radius_degree_3.save")
+            os.path.join(LOAD_DIR, f"default_refraction_model_radius_degree_{degree}.save")
         )
         self.pipeline_gaze_vector = joblib.load(
-            os.path.join(LOAD_DIR, "default_refraction_model_gaze_vector_degree_3.save")
+            os.path.join(LOAD_DIR, f"default_refraction_model_gaze_vector_degree_{degree}.save")
         )
         self.pipeline_sphere_center = joblib.load(
             os.path.join(
-                LOAD_DIR, "default_refraction_model_sphere_center_degree_3.save"
+                LOAD_DIR, f"default_refraction_model_sphere_center_degree_{degree}.save"
             )
         )
         self.pipeline_pupil_circle = joblib.load(
             os.path.join(
-                LOAD_DIR, "default_refraction_model_pupil_circle_degree_3.save"
+                LOAD_DIR, f"default_refraction_model_pupil_circle_degree_{degree}.save"
             )
         )
 
 
 class RefractionizerPhysio(RefractionizerBase):
-    def __init__(self):
+    def __init__(self, degree=3):
 
         self.pipeline_radius = joblib.load(
-            os.path.join(LOAD_DIR, "physio_refraction_model_radius_degree_3.save")
+            os.path.join(LOAD_DIR, f"physio_refraction_model_radius_degree_{degree}.save")
         )
         self.pipeline_gaze_vector = joblib.load(
-            os.path.join(LOAD_DIR, "physio_refraction_model_gaze_vector_degree_3.save")
+            os.path.join(LOAD_DIR, f"physio_refraction_model_gaze_vector_degree_{degree}.save")
         )
         self.pipeline_sphere_center = joblib.load(
             os.path.join(
-                LOAD_DIR, "physio_refraction_model_sphere_center_degree_3.save"
+                LOAD_DIR, f"physio_refraction_model_sphere_center_degree_{degree}.save"
             )
         )
         self.pipeline_pupil_circle = joblib.load(
-            os.path.join(LOAD_DIR, "physio_refraction_model_pupil_circle_degree_3.save")
+            os.path.join(LOAD_DIR, f"physio_refraction_model_pupil_circle_degree_{degree}.save")
         )
 
 
