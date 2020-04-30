@@ -1,7 +1,7 @@
 import abc
 import os
 from pathlib import Path
-from .cpp.refraction_correction import correct_gaze_vector_cpp
+from .cpp.refraction_correction import apply_correction_pipeline
 import numpy as np
 
 import joblib
@@ -9,23 +9,54 @@ import joblib
 LOAD_DIR = Path(__file__).parent / "refraction_models"
 
 
+def pipeline_to_list(pipeline):
+    return [pipeline[0].powers_.T.astype(np.float),
+            pipeline[1].mean_[np.newaxis, :].T,
+            pipeline[1].var_[np.newaxis, :].T,
+            pipeline[2].coef_.T,
+            pipeline[2].intercept_[:, np.newaxis].T]
+
+
 class RefractionizerBase(object):
     @abc.abstractmethod
     def __init__(self):
         pass
 
-    def correct_radius(self, X):
-        return self.pipeline_radius.predict(X)
+    @staticmethod
+    def _apply_correction_pipeline(X, pipeline_arrays):
+        return apply_correction_pipeline(np.asarray(X).T, *pipeline_arrays)
 
-    def correct_gaze_vector(self, X):
-        return self.pipeline_gaze_vector.predict(X)
+    def correct_radius(self, X, implementation="cpp"):
+        if implementation=="cpp":
+            y = self._apply_correction_pipeline(X, self.pipeline_radius_as_list)
+        else:
+            y = self.pipeline_radius.predict(X)
+        y.shape = -1, 1
+        return y
 
-    def correct_sphere_center(self, X):
-        return self.pipeline_sphere_center.predict(X)
+    def correct_gaze_vector(self, X, implementation="cpp"):
+        if implementation=="cpp":
+            y = self._apply_correction_pipeline(X, self.pipeline_gaze_vector_as_list)
+        else:
+            y = self.pipeline_gaze_vector.predict(X)
+        y.shape = -1, 3
+        return y
 
-    def correct_pupil_circle(self, X):
-        return self.pipeline_pupil_circle.predict(X)
+    def correct_sphere_center(self, X, implementation="cpp"):
+        if implementation=="cpp":
+            y = self._apply_correction_pipeline(X, self.pipeline_sphere_center_as_list)
+        else:
+            y = self.pipeline_sphere_center.predict(X)
+        y.shape = -1, 3
+        return y
 
+    def correct_pupil_circle(self, X, implementation="cpp"):
+        if implementation == "cpp":
+            y = self._apply_correction_pipeline(X, self.pipeline_pupil_circle_as_list)
+        else:
+            y = self.pipeline_pupil_circle.predict(X)
+        y.shape = -1, 4
+        return y
 
 class Refractionizer(RefractionizerBase):
     def __init__(self, degree=3):
@@ -33,32 +64,26 @@ class Refractionizer(RefractionizerBase):
         self.pipeline_radius = joblib.load(
             os.path.join(LOAD_DIR, f"default_refraction_model_radius_degree_{degree}.save")
         )
+        self.pipeline_radius_as_list = pipeline_to_list(self.pipeline_radius)
+
         self.pipeline_gaze_vector = joblib.load(
             os.path.join(LOAD_DIR, f"default_refraction_model_gaze_vector_degree_{degree}.save")
         )
+        self.pipeline_gaze_vector_as_list = pipeline_to_list(self.pipeline_gaze_vector)
 
         self.pipeline_sphere_center = joblib.load(
             os.path.join(
                 LOAD_DIR, f"default_refraction_model_sphere_center_degree_{degree}.save"
             )
         )
+        self.pipeline_sphere_center_as_list = pipeline_to_list(self.pipeline_sphere_center)
+
         self.pipeline_pupil_circle = joblib.load(
             os.path.join(
                 LOAD_DIR, f"default_refraction_model_pupil_circle_degree_{degree}.save"
             )
         )
-
-        self.mean_ = self.pipeline_gaze_vector.steps[1][1].mean_
-        self.var_ = self.pipeline_gaze_vector.steps[1][1].var_
-        self.powers_ = self.pipeline_gaze_vector.steps[0][1].powers_
-        self.coef_ = self.pipeline_gaze_vector.steps[2][1].coef_
-        self.intercept_ = self.pipeline_gaze_vector.steps[2][1].intercept_
-        self.mean_var_ = np.vstack((self.mean_, np.sqrt(self.var_)))
-        self.powers__ = self.powers_.astype(np.float)
-        self.intercept__ = self.intercept_[np.newaxis, :]
-
-    def correct_gaze_vector_v2(self, x):
-         return correct_gaze_vector_cpp(np.asarray(x).T, self.powers__.T, self.mean_var_.T, self.coef_.T, self.intercept__.T)
+        self.pipeline_pupil_circle_as_list = pipeline_to_list(self.pipeline_pupil_circle)
 
 
 class RefractionizerPhysio(RefractionizerBase):

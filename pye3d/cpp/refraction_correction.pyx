@@ -25,7 +25,7 @@ cdef extern from "refraction_correction_cpp.h":
         unsigned int rows
         unsigned int cols
 
-    Vector3d correct_gaze_vector(numpy_matrix_view &, numpy_matrix_view &, numpy_matrix_view &, numpy_matrix_view &, numpy_matrix_view &)
+    MatrixXd apply_correction_pipeline_cpp(numpy_matrix_view &, numpy_matrix_view &, numpy_matrix_view &, numpy_matrix_view &, numpy_matrix_view &, numpy_matrix_view &)
 
 
 cdef eigen2np(MatrixXd data):
@@ -41,7 +41,7 @@ cdef eigen2np(MatrixXd data):
     return data_np
 
 
-def correct_gaze_vector_cpp(x, powers_, mean_var_, coefs_, intercept_):
+def apply_correction_pipeline(x, powers_, mean_, var_, coefs_, intercept_):
 
     if not x.flags["C_CONTIGUOUS"]:
         x = np.ascontiguousarray(x)
@@ -59,13 +59,21 @@ def correct_gaze_vector_cpp(x, powers_, mean_var_, coefs_, intercept_):
     powers_memstruct.rows = powers_memview.shape[0]
     powers_memstruct.cols = powers_memview.shape[1]
 
-    if not mean_var_.flags["C_CONTIGUOUS"]:
-        mean_var_ = np.ascontiguousarray(mean_var_)
-    cdef double[:, ::1] mean_var_memview = mean_var_
-    cdef numpy_matrix_view mean_var_memstruct
-    mean_var_memstruct.data = &mean_var_memview[0, 0]
-    mean_var_memstruct.rows = mean_var_memview.shape[0]
-    mean_var_memstruct.cols = mean_var_memview.shape[1]
+    if not mean_.flags["C_CONTIGUOUS"]:
+        mean_ = np.ascontiguousarray(mean_)
+    cdef double[:, ::1] mean_memview = mean_
+    cdef numpy_matrix_view mean_memstruct
+    mean_memstruct.data = &mean_memview[0, 0]
+    mean_memstruct.rows = mean_memview.shape[0]
+    mean_memstruct.cols = mean_memview.shape[1]
+
+    if not var_.flags["C_CONTIGUOUS"]:
+        var_ = np.ascontiguousarray(var_)
+    cdef double[:, ::1] var_memview = var_
+    cdef numpy_matrix_view var_memstruct
+    var_memstruct.data = &var_memview[0, 0]
+    var_memstruct.rows = var_memview.shape[0]
+    var_memstruct.cols = var_memview.shape[1]
 
     if not coefs_.flags["C_CONTIGUOUS"]:
         coefs_ = np.ascontiguousarray(coefs_)
@@ -83,10 +91,11 @@ def correct_gaze_vector_cpp(x, powers_, mean_var_, coefs_, intercept_):
     intercept_memstruct.rows = intercept_memview.shape[0]
     intercept_memstruct.cols = intercept_memview.shape[1]
 
-    result = correct_gaze_vector(x_memstruct, powers_memstruct, mean_var_memstruct, coefs_memstruct, intercept_memstruct)
+    result = apply_correction_pipeline_cpp(x_memstruct,
+                                       powers_memstruct,
+                                       mean_memstruct,
+                                       var_memstruct,
+                                       coefs_memstruct,
+                                       intercept_memstruct)
 
-    corrected_gaze_vector = np.asarray([result[0],
-                                        result[1],
-                                        result[2]])
-
-    return corrected_gaze_vector
+    return eigen2np(result)
