@@ -38,19 +38,19 @@ Eigen::MatrixXd apply_correction_pipeline_cpp(
            Eigen::Map<Eigen::MatrixXd> coef_(coef_raw.data, coef_raw.cols, coef_raw.rows);
            Eigen::Map<Eigen::MatrixXd> intercept_(intercept_raw.data, intercept_raw.cols, intercept_raw.rows);
 
-           Eigen::Matrix<double, 119, 1> features;
-           for (int i=0; i<119; i++){
-               features(i,0) = 1.0;
-               for (int j=0;j<powers_.cols();j++){
-                     features(i,0) *= pow(x(0,j), powers_(i,j));
+           Eigen::MatrixXd features;
+           features.resize(powers_.rows(),x.rows());
+           for (int k=0;k<x.rows();k++){
+               for (int i=0; i<powers_.rows(); i++){
+                   features(i,k) = 1.0;
+                   for (int j=0;j<powers_.cols();j++){
+                         features(i,k) *= pow(x(k,j), powers_(i,j));
+                   }
+                   features(i,k) -= mean_(0, i);
+                   features(i,k) /= sqrt(var_(0, i));
                }
-               features(i,0) -= mean_(0, i);
-               features(i,0) /= sqrt(var_(0, i));
            }
 
-           Eigen::MatrixXd corrected_gaze_vector;
-           corrected_gaze_vector = coef_ * features + intercept_;
-
-           return corrected_gaze_vector;
+           return (coef_ * features).colwise() + intercept_.col(0);
 
      }

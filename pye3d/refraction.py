@@ -58,6 +58,7 @@ class RefractionizerBase(object):
         y.shape = -1, 4
         return y
 
+
 class Refractionizer(RefractionizerBase):
     def __init__(self, degree=3):
 
