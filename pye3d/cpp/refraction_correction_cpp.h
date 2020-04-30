@@ -44,13 +44,15 @@ Eigen::MatrixXd apply_correction_pipeline_cpp(
                for (int i=0; i<powers_.rows(); i++){
                    features(i,k) = 1.0;
                    for (int j=0;j<powers_.cols();j++){
-                         features(i,k) *= pow(x(k,j), powers_(i,j));
+                         for (int l=0; l<powers_(i,j); l++){
+                            features(i,k) *= x(k,j);
+                         }
                    }
                    features(i,k) -= mean_(0, i);
                    features(i,k) /= sqrt(var_(0, i));
                }
            }
 
-           return (coef_ * features).colwise() + intercept_.col(0);
+           return ((coef_ * features).colwise() + intercept_.col(0)).transpose();
 
      }

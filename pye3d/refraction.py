@@ -17,10 +17,32 @@ def pipeline_to_list(pipeline):
             pipeline[2].intercept_[:, np.newaxis].T]
 
 
-class RefractionizerBase(object):
-    @abc.abstractmethod
-    def __init__(self):
-        pass
+class Refractionizer(object):
+    def __init__(self, degree=3, type_="default"):
+        self.pipeline_radius = joblib.load(
+            os.path.join(LOAD_DIR, f"{type_}_refraction_model_radius_degree_{degree}.save")
+        )
+
+        self.pipeline_gaze_vector = joblib.load(
+            os.path.join(LOAD_DIR, f"{type_}_refraction_model_gaze_vector_degree_{degree}.save")
+        )
+
+        self.pipeline_sphere_center = joblib.load(
+            os.path.join(
+                LOAD_DIR, f"{type_}_refraction_model_sphere_center_degree_{degree}.save"
+            )
+        )
+
+        self.pipeline_pupil_circle = joblib.load(
+            os.path.join(
+                LOAD_DIR, f"{type_}_refraction_model_pupil_circle_degree_{degree}.save"
+            )
+        )
+
+        self.pipeline_radius_as_list = pipeline_to_list(self.pipeline_radius)
+        self.pipeline_gaze_vector_as_list = pipeline_to_list(self.pipeline_gaze_vector)
+        self.pipeline_sphere_center_as_list = pipeline_to_list(self.pipeline_sphere_center)
+        self.pipeline_pupil_circle_as_list = pipeline_to_list(self.pipeline_pupil_circle)
 
     @staticmethod
     def _apply_correction_pipeline(X, pipeline_arrays):
@@ -31,7 +53,6 @@ class RefractionizerBase(object):
             y = self._apply_correction_pipeline(X, self.pipeline_radius_as_list)
         else:
             y = self.pipeline_radius.predict(X)
-        y.shape = -1, 1
         return y
 
     def correct_gaze_vector(self, X, implementation="cpp"):
@@ -39,7 +60,6 @@ class RefractionizerBase(object):
             y = self._apply_correction_pipeline(X, self.pipeline_gaze_vector_as_list)
         else:
             y = self.pipeline_gaze_vector.predict(X)
-        y.shape = -1, 3
         return y
 
     def correct_sphere_center(self, X, implementation="cpp"):
@@ -47,7 +67,6 @@ class RefractionizerBase(object):
             y = self._apply_correction_pipeline(X, self.pipeline_sphere_center_as_list)
         else:
             y = self.pipeline_sphere_center.predict(X)
-        y.shape = -1, 3
         return y
 
     def correct_pupil_circle(self, X, implementation="cpp"):
@@ -55,56 +74,61 @@ class RefractionizerBase(object):
             y = self._apply_correction_pipeline(X, self.pipeline_pupil_circle_as_list)
         else:
             y = self.pipeline_pupil_circle.predict(X)
-        y.shape = -1, 4
         return y
 
 
-class Refractionizer(RefractionizerBase):
-    def __init__(self, degree=3):
-
-        self.pipeline_radius = joblib.load(
-            os.path.join(LOAD_DIR, f"default_refraction_model_radius_degree_{degree}.save")
-        )
-        self.pipeline_radius_as_list = pipeline_to_list(self.pipeline_radius)
-
-        self.pipeline_gaze_vector = joblib.load(
-            os.path.join(LOAD_DIR, f"default_refraction_model_gaze_vector_degree_{degree}.save")
-        )
-        self.pipeline_gaze_vector_as_list = pipeline_to_list(self.pipeline_gaze_vector)
-
-        self.pipeline_sphere_center = joblib.load(
-            os.path.join(
-                LOAD_DIR, f"default_refraction_model_sphere_center_degree_{degree}.save"
-            )
-        )
-        self.pipeline_sphere_center_as_list = pipeline_to_list(self.pipeline_sphere_center)
-
-        self.pipeline_pupil_circle = joblib.load(
-            os.path.join(
-                LOAD_DIR, f"default_refraction_model_pupil_circle_degree_{degree}.save"
-            )
-        )
-        self.pipeline_pupil_circle_as_list = pipeline_to_list(self.pipeline_pupil_circle)
-
-
-class RefractionizerPhysio(RefractionizerBase):
-    def __init__(self, degree=3):
-
-        self.pipeline_radius = joblib.load(
-            os.path.join(LOAD_DIR, f"physio_refraction_model_radius_degree_{degree}.save")
-        )
-        self.pipeline_gaze_vector = joblib.load(
-            os.path.join(LOAD_DIR, f"physio_refraction_model_gaze_vector_degree_{degree}.save")
-        )
-        self.pipeline_sphere_center = joblib.load(
-            os.path.join(
-                LOAD_DIR, f"physio_refraction_model_sphere_center_degree_{degree}.save"
-            )
-        )
-        self.pipeline_pupil_circle = joblib.load(
-            os.path.join(LOAD_DIR, f"physio_refraction_model_pupil_circle_degree_{degree}.save")
-        )
-
+# class Refractionizer(RefractionizerBase):
+#     def __init__(self, degree=3):
+#
+#         self.pipeline_radius = joblib.load(
+#             os.path.join(LOAD_DIR, f"default_refraction_model_radius_degree_{degree}.save")
+#         )
+#
+#         self.pipeline_gaze_vector = joblib.load(
+#             os.path.join(LOAD_DIR, f"default_refraction_model_gaze_vector_degree_{degree}.save")
+#         )
+#
+#         self.pipeline_sphere_center = joblib.load(
+#             os.path.join(
+#                 LOAD_DIR, f"default_refraction_model_sphere_center_degree_{degree}.save"
+#             )
+#         )
+#
+#         self.pipeline_pupil_circle = joblib.load(
+#             os.path.join(
+#                 LOAD_DIR, f"default_refraction_model_pupil_circle_degree_{degree}.save"
+#             )
+#         )
+#
+#         self.pipeline_radius_as_list = pipeline_to_list(self.pipeline_radius)
+#         self.pipeline_gaze_vector_as_list = pipeline_to_list(self.pipeline_gaze_vector)
+#         self.pipeline_sphere_center_as_list = pipeline_to_list(self.pipeline_sphere_center)
+#         self.pipeline_pupil_circle_as_list = pipeline_to_list(self.pipeline_pupil_circle)
+#
+#
+# class RefractionizerPhysio(RefractionizerBase):
+#     def __init__(self, degree=3):
+#
+#         self.pipeline_radius = joblib.load(
+#             os.path.join(LOAD_DIR, f"physio_refraction_model_radius_degree_{degree}.save")
+#         )
+#         self.pipeline_gaze_vector = joblib.load(
+#             os.path.join(LOAD_DIR, f"physio_refraction_model_gaze_vector_degree_{degree}.save")
+#         )
+#         self.pipeline_sphere_center = joblib.load(
+#             os.path.join(
+#                 LOAD_DIR, f"physio_refraction_model_sphere_center_degree_{degree}.save"
+#             )
+#         )
+#         self.pipeline_pupil_circle = joblib.load(
+#             os.path.join(LOAD_DIR, f"physio_refraction_model_pupil_circle_degree_{degree}.save")
+#         )
+#
+#         self.pipeline_radius_as_list = pipeline_to_list(self.pipeline_radius)
+#         self.pipeline_gaze_vector_as_list = pipeline_to_list(self.pipeline_gaze_vector)
+#         self.pipeline_sphere_center_as_list = pipeline_to_list(self.pipeline_sphere_center)
+#         self.pipeline_pupil_circle_as_list = pipeline_to_list(self.pipeline_pupil_circle)
+#
 
 if __name__ == "__main__":
 
