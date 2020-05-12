@@ -173,3 +173,9 @@ data/*
 
 # Build artifacts
 _skbuild
+
+# pyenv
+.python-version
+
+# benchmarking
+__benchmark_data__
