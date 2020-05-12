@@ -50,8 +50,8 @@ job_templates:
           name: dependencies-linux
           paths: ./dependencies
       script:
-        - chmod +x .travis/check_opencv_manylinux.sh
-        - .travis/check_opencv_manylinux.sh
+        - chmod +x .travis/check_cache_manylinux.sh
+        - .travis/check_cache_manylinux.sh
 
   - job: &mac_setup_job
       <<: *setup_job
@@ -112,6 +112,7 @@ job_templates:
         - pip install -U pip
       before_script:
         - export OpenCV_DIR=${PWD}/dependencies/opencv
+        - export Eigen3_DIR=${PWD}/dependencies/eigen3
         - pip wheel . -w raw_wheels --no-deps
         - pip install delocate
         - delocate-wheel -w dist -v raw_wheels/*.whl
@@ -133,6 +134,7 @@ job_templates:
         - python -m pip install -U pip
       before_script:
         - export OpenCV_DIR=${PWD}/dependencies/opencv
+        - export Eigen3_DIR=${PWD}/dependencies/eigen3
         - pip wheel . -w dist --no-deps
       script:
         - pip install tox
@@ -147,7 +149,7 @@ job_templates:
 
 jobs:
   include:
-    - name: "OpenCV and Python for MacOS 10.12"
+    - name: "Dependencies for MacOS 10.12"
       <<: *mac_setup_job
     - name: "Python 3.6 on MacOS 10.12"
       <<: *mac_base_job
@@ -159,7 +161,7 @@ jobs:
       <<: *mac_base_job
       <<: *env_py38
 
-    - name: "OpenCV for Manylinux"
+    - name: "Dependencies for Manylinux"
       <<: *ubuntu_setup_job
     - name: "Python 3.6 on Manylinux"
       <<: *manylinux_base_job
@@ -171,7 +173,7 @@ jobs:
       <<: *manylinux_base_job
       <<: *env_py38
 
-    - name: "OpenCV for Windows"
+    - name: "Dependencies for Windows"
       <<: *win_setup_job
     - name: "Python 3.6 on Windows"
       <<: *win_base_job

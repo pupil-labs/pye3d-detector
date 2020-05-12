@@ -51,3 +51,27 @@ else
     rm -rf opencv-4.2.0
     cd ..
 fi
+
+
+# Eigen3
+echo "Checking eigen3 cache..."
+if [[ $TRAVIS_COMMIT_MESSAGE =~ "[travis: clear-cache win eigen]" ]] || \
+    [[ $TRAVIS_COMMIT_MESSAGE =~ "[travis: clear-cache win]" ]] || \
+    [[ $TRAVIS_COMMIT_MESSAGE =~ "[travis: clear-cache]" ]]
+then
+    echo "CLEARING EIGEN CACHE..."
+    echo "Triggered by commit msg: $TRAVIS_COMMIT_MESSAGE"
+    rm -rf dependencies/eigen3
+fi
+if [[ -d dependencies/eigen3 ]]
+then
+    echo "Found eigen3 cache."
+else
+    echo "Eigen3 cache missing. Downloading..."
+    cd dependencies
+    wget -q -O eigen.zip https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7.zip
+    unzip -q eigen.zip
+    mv eigen-3.3.7 eigen3
+    rm -rf eigen.zip
+    cd ..
+fi

@@ -48,6 +48,30 @@ else
     cd ..
 fi
 
+
+# Eigen3
+echo "Checking eigen3 cache..."
+if [[ $TRAVIS_COMMIT_MESSAGE =~ "[travis: clear-cache mac eigen]" ]] || \
+    [[ $TRAVIS_COMMIT_MESSAGE =~ "[travis: clear-cache mac]" ]] || \
+    [[ $TRAVIS_COMMIT_MESSAGE =~ "[travis: clear-cache]" ]]
+then
+    echo "CLEARING EIGEN CACHE..."
+    echo "Triggered by commit msg: $TRAVIS_COMMIT_MESSAGE"
+    rm -rf dependencies/eigen3
+fi
+if [[ -d dependencies/eigen3 ]]
+then
+    echo "Found eigen3 cache."
+else
+    echo "Eigen3 cache missing. Downloading..."
+    cd dependencies
+    wget -q -O eigen.zip https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7.zip
+    unzip -q eigen.zip
+    mv eigen-3.3.7 eigen3
+    rm -rf eigen.zip
+    cd ..
+fi
+
 # Python
 export PYENV_ROOT=${PWD}/.pyenv
 export PATH=$PYENV_ROOT/bin:$PATH
@@ -70,6 +94,6 @@ else
     git clone https://github.com/pyenv/pyenv.git .pyenv
     eval "$(pyenv init -)"
     pyenv install 3.6.8
-    # pyenv install 3.7.6
-    # pyenv install 3.8.1
+    pyenv install 3.7.6
+    pyenv install 3.8.1
 fi
