@@ -18,7 +18,7 @@ done
 
 # test
 pip install tox
-tox --installpkg /io/dist/*.whl
+tox -c /io/tox.ini --installpkg /io/dist/*.whl
 
 # create sdist for deployment
 pip install pep517
