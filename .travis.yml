@@ -1,0 +1,198 @@
+################################################################################
+# ENVIRONMENT TEMPLATES
+################################################################################
+
+# can't merge arrays in YAML so we have to duplicate stuff between versions and
+# include all variables that are relevant across all operating systems
+py_env_settings:
+  - setting: &env_py36
+      env:
+        - PYTHON_VERSION=3.6.8
+        - PY_MM=36
+        - TOXENV=py${PY_MM}
+        - PATH=/c/Python${PY_MM}:/c/Python${PY_MM}/Scripts:$PATH
+  - setting: &env_py37
+      env:
+        - PYTHON_VERSION=3.7.6
+        - PY_MM=37
+        - TOXENV=py${PY_MM}
+        - PATH=/c/Python${PY_MM}:/c/Python${PY_MM}/Scripts:$PATH
+  - setting: &env_py38
+      env:
+        - PYTHON_VERSION=3.8.1
+        - PY_MM=38
+        - TOXENV=py${PY_MM}
+        - PATH=/c/Python${PY_MM}:/c/Python${PY_MM}/Scripts:$PATH
+
+################################################################################
+# OS JOB TEMPLATES
+################################################################################
+
+# these templates are mixed together to define the job matrix below
+
+stages:
+  - setup
+  - build
+
+job_templates:
+  - job: &setup_job
+      stage: setup
+      deploy: skip
+
+  - job: &ubuntu_setup_job
+      <<: *setup_job
+      services: docker
+      os: linux
+      language: shell
+      cache: dependencies
+      workspaces:
+        create:
+          name: dependencies-linux
+          paths: ./dependencies
+      script:
+        - chmod +x .travis/check_opencv_manylinux.sh
+        - .travis/check_opencv_manylinux.sh
+
+  - job: &mac_setup_job
+      <<: *setup_job
+      os: osx
+      osx_image: xcode9.2 # latest xcode for 10.12
+      language: shell
+      cache:
+        directories:
+          - dependencies
+          - .pyenv
+      workspaces:
+        create:
+          - name: dependencies-mac
+            paths: ./dependencies
+          - name: pyenv-mac
+            paths: ./.pyenv
+      script:
+        - chmod +x .travis/setup_mac.sh
+        - .travis/setup_mac.sh
+
+  - job: &win_setup_job
+      <<: *setup_job
+      os: windows
+      language: shell
+      cache: dependencies
+      workspaces:
+        create:
+          name: dependencies-win
+          paths: ./dependencies
+      script:
+        - .travis/setup_win.sh
+
+  - job: &manylinux_base_job
+      stage: build
+      services: docker
+      os: linux
+      language: shell
+      workspaces:
+        use: dependencies-linux
+      install:
+        - chmod +x .travis/build_wheels_manylinux.sh
+        - docker run --rm -e PY_MM=$PY_MM -v `pwd`:/io quay.io/pypa/manylinux2014_x86_64 /io/.travis/build_wheels_manylinux.sh
+
+  - job: &mac_base_job
+      stage: build
+      os: osx
+      osx_image: xcode9.2 # latest xcode for 10.12
+      language: shell
+      workspaces:
+        use:
+          - dependencies-mac
+          - pyenv-mac
+      install:
+        - export PYENV_ROOT=${PWD}/.pyenv
+        - export PATH=$PYENV_ROOT/bin:$PATH
+        - eval "$(pyenv init -)"
+        - pyenv global $PYTHON_VERSION
+        - pip install -U pip
+      before_script:
+        - export OpenCV_DIR=${PWD}/dependencies/opencv
+        - pip wheel . -w raw_wheels --no-deps
+        - pip install delocate
+        - delocate-wheel -w dist -v raw_wheels/*.whl
+      script:
+        - pip install tox
+        - tox --installpkg ./dist/*.whl
+      before_deploy:
+        - pip install pep517
+        - python -m pep517.build --source .
+
+  - job: &win_base_job
+      stage: build
+      os: windows
+      language: shell
+      workspaces:
+        use: dependencies-win
+      install:
+        - choco install python --version $PYTHON_VERSION
+        - python -m pip install -U pip
+      before_script:
+        - export OpenCV_DIR=${PWD}/dependencies/opencv
+        - pip wheel . -w dist --no-deps
+      script:
+        - pip install tox
+        - tox --installpkg ./dist/*.whl
+      before_deploy:
+        - pip install pep517
+        - python -m pep517.build --source .
+
+################################################################################
+# DEFINE JOB MATRIX
+################################################################################
+
+jobs:
+  include:
+    - name: "OpenCV and Python for MacOS 10.12"
+      <<: *mac_setup_job
+    - name: "Python 3.6 on MacOS 10.12"
+      <<: *mac_base_job
+      <<: *env_py36
+    - name: "Python 3.7 on MacOS 10.12"
+      <<: *mac_base_job
+      <<: *env_py37
+    - name: "Python 3.8 on MacOS 10.12"
+      <<: *mac_base_job
+      <<: *env_py38
+
+    - name: "OpenCV for Manylinux"
+      <<: *ubuntu_setup_job
+    - name: "Python 3.6 on Manylinux"
+      <<: *manylinux_base_job
+      <<: *env_py36
+    - name: "Python 3.7 on Manylinux"
+      <<: *manylinux_base_job
+      <<: *env_py37
+    - name: "Python 3.8 on Manylinux"
+      <<: *manylinux_base_job
+      <<: *env_py38
+
+    - name: "OpenCV for Windows"
+      <<: *win_setup_job
+    - name: "Python 3.6 on Windows"
+      <<: *win_base_job
+      <<: *env_py36
+    - name: "Python 3.7 on Windows"
+      <<: *win_base_job
+      <<: *env_py37
+    - name: "Python 3.8 on Windows"
+      <<: *win_base_job
+      <<: *env_py38
+################################################################################
+# DEPLOYMENT
+################################################################################
+
+# deploy:
+#   provider: releases
+#   on:
+#     branch: master
+#     tags: true
+#   name: "Travis: ${TRAVIS_JOB_NAME} on ${TRAVIS_COMMIT:0:7}"
+#   skip_cleanup: true
+#   api_key: $GitHubOAUTH
+#   file_glob: true
+#   file: ./dist/*
