@@ -71,7 +71,13 @@ else
     cd dependencies
     wget -q -O eigen.zip https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7.zip
     unzip -q eigen.zip
-    mv eigen-3.3.7 eigen3
+    cd eigen-3.3.7
+    mkdir -p build
+    cd build
+    cmake .. -DCMAKE_INSTALL_PREFIX=../../eigen3
+    cmake --build . --target INSTALL --config Release --parallel
+    cd ../..
+    rm -rf eigen-3.3.7
     rm -rf eigen.zip
     cd ..
 fi
