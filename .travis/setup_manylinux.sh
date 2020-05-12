@@ -6,17 +6,18 @@ cd /io
 mkdir -p dependencies
 cd dependencies
 
-if [[ -d dependencies/opencv ]]
+# we need wget and cmake, cmake is actually easier to install via pip on centos
+yum install -y wget
+# yum install -y tbb-devel
+export PATH=/opt/python/cp36-cp36m/bin:$PATH
+pip install cmake
+
+if [[ -d ./opencv ]]
 then
     echo "Found OpenCV cache."
 else
     echo "OpenCV cache missing. Rebuilding..."
 
-    # we need wget and cmake, cmake is actually easier to install via pip on centos
-    yum install -y wget
-    # yum install -y tbb-devel
-    export PATH=/opt/python/cp36-cp36m/bin:$PATH
-    pip install cmake
     wget -q -O opencv.zip https://github.com/opencv/opencv/archive/4.2.0.zip
     unzip -q opencv.zip
     cd opencv-4.2.0
@@ -45,13 +46,19 @@ else
     rm -rf opencv-4.2.0
 fi
 
-if [[ -d dependencies/eigen3 ]]
+if [[ -d ./eigen3 ]]
 then
     echo "Found eigen3 cache."
 else
     echo "Eigen3 cache missing. Downloading..."
     wget -q -O eigen.zip https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7.zip
     unzip -q eigen.zip
-    mv eigen-3.3.7 eigen3
+    cd eigen-3.3.7
+    mkdir -p build
+    cd build
+    cmake .. -DCMAKE_INSTALL_PREFIX=../../eigen3
+    make && make install
+    cd ../..
+    rm -rf eigen-3.3.7
     rm -rf eigen.zip
 fi
