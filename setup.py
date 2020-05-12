@@ -1,18 +1,9 @@
-"""
-(*)~---------------------------------------------------------------------------
-Pupil - eye tracking platform
-Copyright (C) 2012-2019 Pupil Labs
-
-Distributed under the terms of the GNU
-Lesser General Public License (LGPL v3.0).
-See COPYING and COPYING.LESSER for license details.
----------------------------------------------------------------------------~(*)
-"""
-from os import path
-from pathlib import Path
+import os
 import platform
+from pathlib import Path
 
 from setuptools import find_packages
+
 from skbuild import setup
 
 here = Path(__file__).parent
@@ -38,6 +29,14 @@ if platform.system() == "Windows":
     # The Ninja cmake generator will use mingw (gcc) on windows travis instances, but we
     # need to use msvc for compatibility.
     cmake_args.append("-GVisual Studio 15 2017 Win64")
+
+elif platform.system() == "Darwin":
+    # This is for building wheels with opencv included. OpenCV dylibs have their
+    # install_name set to @rpath/xxx.dylib and we need to tell the linker for the python
+    # module where to find the libs.
+    opencv_dir = os.environ.get("OpenCV_DIR", None)
+    if opencv_dir:
+        cmake_args.append(f'-DCMAKE_MODULE_LINKER_FLAGS="-Wl,-rpath,{opencv_dir}/lib"')
 
 setup(
     author="Pupil Labs",
