@@ -30,6 +30,7 @@ if [[ -d dependencies/opencv ]] && \
 then
     echo "Found all cache entries."
     echo "OpenCV build configuration:"
+    sudo apt install libgomp1
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${PWD}/dependencies/opencv/lib64
     dependencies/opencv/bin/opencv_version -v
 else
