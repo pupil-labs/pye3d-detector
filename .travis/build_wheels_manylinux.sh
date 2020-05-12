@@ -8,7 +8,7 @@ export PATH=$python_bin_dir:$PATH
 pip install -U pip
 
 export OpenCV_DIR=/io/dependencies/opencv
-export Eigen3_DIR=/io/dependencies/eigen3
+export Eigen3_DIR=/io/dependencies/eigen3/cmake
 pip wheel /io -w /io/raw_wheels --no-deps
 
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/io/dependencies/opencv/lib64

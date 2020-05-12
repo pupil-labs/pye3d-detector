@@ -112,7 +112,7 @@ job_templates:
         - pip install -U pip
       before_script:
         - export OpenCV_DIR=${PWD}/dependencies/opencv
-        - export Eigen3_DIR=${PWD}/dependencies/eigen3
+        - export Eigen3_DIR=${PWD}/dependencies/eigen3/cmake
         - pip wheel . -w raw_wheels --no-deps
         - pip install delocate
         - delocate-wheel -w dist -v raw_wheels/*.whl
@@ -134,7 +134,7 @@ job_templates:
         - python -m pip install -U pip
       before_script:
         - export OpenCV_DIR=${PWD}/dependencies/opencv
-        - export Eigen3_DIR=${PWD}/dependencies/eigen3
+        - export Eigen3_DIR=${PWD}/dependencies/eigen3/cmake
         - pip wheel . -w dist --no-deps
       script:
         - pip install tox
