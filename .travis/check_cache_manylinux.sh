@@ -29,10 +29,6 @@ if [[ -d dependencies/opencv ]] && \
     [[ -d dependencies/eigen3 ]]
 then
     echo "Found all cache entries."
-    echo "OpenCV build configuration:"
-    sudo apt install libgomp1
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${PWD}/dependencies/opencv/lib64
-    dependencies/opencv/bin/opencv_version -v
 else
     echo "Cache entries missing. Rebuilding..."
     chmod +x .travis/setup_manylinux.sh
