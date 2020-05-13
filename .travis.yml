@@ -138,7 +138,8 @@ job_templates:
         - pip wheel . -w dist --no-deps
       script:
         - pip install tox
-        - tox --installpkg ./dist/*.whl
+        # special tox setup needed for travis windows instances
+        - tox -c ./.travis/travis-win-tox.ini --installpkg ./dist/*.whl
       before_deploy:
         - pip install pep517
         - python -m pep517.build --source .
@@ -160,28 +161,30 @@ jobs:
     - name: "Python 3.8 on MacOS 10.12"
       <<: *mac_base_job
       <<: *env_py38
-    # - name: "Dependencies for Manylinux"
-    #   <<: *ubuntu_setup_job
-    # - name: "Python 3.6 on Manylinux"
-    #   <<: *manylinux_base_job
-    #   <<: *env_py36
-    # - name: "Python 3.7 on Manylinux"
-    #   <<: *manylinux_base_job
-    #   <<: *env_py37
-    # - name: "Python 3.8 on Manylinux"
-    #   <<: *manylinux_base_job
-    #   <<: *env_py38
-    # - name: "Dependencies for Windows"
-    #   <<: *win_setup_job
-    # - name: "Python 3.6 on Windows"
-    #   <<: *win_base_job
-    #   <<: *env_py36
-    # - name: "Python 3.7 on Windows"
-    #   <<: *win_base_job
-    #   <<: *env_py37
-    # - name: "Python 3.8 on Windows"
-    #   <<: *win_base_job
-    #   <<: *env_py38
+
+    - name: "Dependencies for Manylinux"
+      <<: *ubuntu_setup_job
+    - name: "Python 3.6 on Manylinux"
+      <<: *manylinux_base_job
+      <<: *env_py36
+    - name: "Python 3.7 on Manylinux"
+      <<: *manylinux_base_job
+      <<: *env_py37
+    - name: "Python 3.8 on Manylinux"
+      <<: *manylinux_base_job
+      <<: *env_py38
+
+    - name: "Dependencies for Windows"
+      <<: *win_setup_job
+    - name: "Python 3.6 on Windows"
+      <<: *win_base_job
+      <<: *env_py36
+    - name: "Python 3.7 on Windows"
+      <<: *win_base_job
+      <<: *env_py37
+    - name: "Python 3.8 on Windows"
+      <<: *win_base_job
+      <<: *env_py38
 ################################################################################
 # DEPLOYMENT
 ################################################################################
@@ -191,17 +194,6 @@ jobs:
 #   on:
 #     branch: master
 #     tags: true
-#   name: "Travis: ${TRAVIS_JOB_NAME} on ${TRAVIS_COMMIT:0:7}"
-#   skip_cleanup: true
-#   api_key: $GitHubOAUTH
-#   file_glob: true
-#   file: ./dist/*
-
-# deploy:
-#   provider: releases
-#   on:
-#     all_branches: true
-#   draft: true
 #   name: "Travis: ${TRAVIS_JOB_NAME} on ${TRAVIS_COMMIT:0:7}"
 #   skip_cleanup: true
 #   api_key: $GitHubOAUTH
