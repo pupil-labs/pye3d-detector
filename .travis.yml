@@ -98,7 +98,7 @@ job_templates:
   - job: &mac_base_job
       stage: build
       os: osx
-      osx_image: xcode9.2 # latest xcode for 10.12
+      osx_image: xcode10.1 # latest xcode for 10.13
       language: shell
       workspaces:
         use:
@@ -116,12 +116,12 @@ job_templates:
         - pip wheel . -w raw_wheels --no-deps
         - pip install delocate
         - delocate-wheel -w dist -v raw_wheels/*.whl
-      # script:
-      #   - pip install tox
-      #   - tox --installpkg ./dist/*.whl
-      # before_deploy:
-      #   - pip install pep517
-      #   - python -m pep517.build --source .
+      script:
+        - pip install tox
+        - tox --installpkg ./dist/*.whl
+      before_deploy:
+        - pip install pep517
+        - python -m pep517.build --source .
 
   - job: &win_base_job
       stage: build
@@ -160,30 +160,28 @@ jobs:
     - name: "Python 3.8 on MacOS 10.12"
       <<: *mac_base_job
       <<: *env_py38
-
-    - name: "Dependencies for Manylinux"
-      <<: *ubuntu_setup_job
-    - name: "Python 3.6 on Manylinux"
-      <<: *manylinux_base_job
-      <<: *env_py36
-    - name: "Python 3.7 on Manylinux"
-      <<: *manylinux_base_job
-      <<: *env_py37
-    - name: "Python 3.8 on Manylinux"
-      <<: *manylinux_base_job
-      <<: *env_py38
-
-    - name: "Dependencies for Windows"
-      <<: *win_setup_job
-    - name: "Python 3.6 on Windows"
-      <<: *win_base_job
-      <<: *env_py36
-    - name: "Python 3.7 on Windows"
-      <<: *win_base_job
-      <<: *env_py37
-    - name: "Python 3.8 on Windows"
-      <<: *win_base_job
-      <<: *env_py38
+    # - name: "Dependencies for Manylinux"
+    #   <<: *ubuntu_setup_job
+    # - name: "Python 3.6 on Manylinux"
+    #   <<: *manylinux_base_job
+    #   <<: *env_py36
+    # - name: "Python 3.7 on Manylinux"
+    #   <<: *manylinux_base_job
+    #   <<: *env_py37
+    # - name: "Python 3.8 on Manylinux"
+    #   <<: *manylinux_base_job
+    #   <<: *env_py38
+    # - name: "Dependencies for Windows"
+    #   <<: *win_setup_job
+    # - name: "Python 3.6 on Windows"
+    #   <<: *win_base_job
+    #   <<: *env_py36
+    # - name: "Python 3.7 on Windows"
+    #   <<: *win_base_job
+    #   <<: *env_py37
+    # - name: "Python 3.8 on Windows"
+    #   <<: *win_base_job
+    #   <<: *env_py38
 ################################################################################
 # DEPLOYMENT
 ################################################################################
@@ -199,13 +197,13 @@ jobs:
 #   file_glob: true
 #   file: ./dist/*
 
-deploy:
-  provider: releases
-  on:
-    all_branches: true
-  draft: true
-  name: "Travis: ${TRAVIS_JOB_NAME} on ${TRAVIS_COMMIT:0:7}"
-  skip_cleanup: true
-  api_key: $GitHubOAUTH
-  file_glob: true
-  file: ./dist/*
+# deploy:
+#   provider: releases
+#   on:
+#     all_branches: true
+#   draft: true
+#   name: "Travis: ${TRAVIS_JOB_NAME} on ${TRAVIS_COMMIT:0:7}"
+#   skip_cleanup: true
+#   api_key: $GitHubOAUTH
+#   file_glob: true
+#   file: ./dist/*
