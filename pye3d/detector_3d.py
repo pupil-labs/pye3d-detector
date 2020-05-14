@@ -109,8 +109,6 @@ class Detector3D(object):
             if self._sphere_center_should_be_estimated():
                 self.currently_optimizing = True
                 self.new_observations = False
-                last_observation_time = self.two_sphere_model.observation_storage[-1].timestamp
-                self.two_sphere_model.observation_storage.purge(last_observation_time-self.settings["maximum_integration_time"])
                 self.task = Task_Proxy(
                     "deep_sphere_estimate",
                     self.two_sphere_model.deep_sphere_estimate,
