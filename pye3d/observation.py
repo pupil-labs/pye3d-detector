@@ -38,12 +38,13 @@ class Observation(object):
         self.aux_2d[:, :2] = np.eye(2) - v @ v.T
         self.aux_2d[:, 2] = (np.eye(2) - v @ v.T) @ self.gaze_2d.origin
 
-        self.aux_3d = np.empty((2, 3, 4))
+        self.aux_3d = np.empty((2, 3, 5))
         for i in range(2):
             Dierkes_line = self.get_Dierkes_line(i)
             v = np.reshape(Dierkes_line.direction, (3, 1))
             self.aux_3d[i, :3, :3] = np.eye(3) - v @ v.T
             self.aux_3d[i, :3, 3] = (np.eye(3) - v @ v.T) @ Dierkes_line.origin
+            self.aux_3d[i, :3, 4] = Dierkes_line.origin
 
     def get_Dierkes_line(self, i):
         origin = (

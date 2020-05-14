@@ -36,6 +36,9 @@ class Detector3D(object):
             "focal_length": 283.0,
             "resolution": (192, 192),
             "maximum_integration_time": 30.0,
+            "residual_decay_rate": 30.0,
+            "residual_cutoff": 2,
+            "friction_on_prior": 0.1,
             "maxlen": 10000,
             "threshold_data_storage": 0.98,
             "threshold_swirski": 0.7,
@@ -106,6 +109,8 @@ class Detector3D(object):
             if self._sphere_center_should_be_estimated():
                 self.currently_optimizing = True
                 self.new_observations = False
+                last_observation_time = self.two_sphere_model.observation_storage[-1].timestamp
+                self.two_sphere_model.observation_storage.purge(last_observation_time-self.settings["maximum_integration_time"])
                 self.task = Task_Proxy(
                     "deep_sphere_estimate",
                     self.two_sphere_model.deep_sphere_estimate,
@@ -113,6 +118,11 @@ class Detector3D(object):
                         self.two_sphere_model.observation_storage.aux_2d,
                         self.two_sphere_model.observation_storage.aux_3d,
                         self.two_sphere_model.observation_storage.gaze_2d,
+                        self.two_sphere_model.observation_storage.timestamps,
+                        self.two_sphere_model.sphere_center,
+                        self.settings['residual_decay_rate'],
+                        self.settings['residual_cutoff'],
+                        self.settings['friction_on_prior'],
                     ),
                 )
 

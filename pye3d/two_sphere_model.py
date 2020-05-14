@@ -153,10 +153,22 @@ class TwoSphereModel(object):
         return sphere_center
 
     @staticmethod
-    def deep_sphere_estimate(aux_2d, aux_3d, gaze_2d):
+    def deep_sphere_estimate(
+        aux_2d,
+        aux_3d,
+        gaze_2d,
+        timestamps,
+        prior=np.asarray([0.0, 0.0, 35.0]),
+        residual_decay_rate=300.0,
+        residual_cutoff=5.0,
+        friction_on_prior=0.0,
+    ):
+
+        # Exponential weights with given decay rate
+        weights = np.exp((timestamps - timestamps[-1]) / residual_decay_rate)
 
         # Estimate projected sphere center by nearest intersection of 2d gaze lines
-        sum_aux_2d = np.sum(aux_2d, axis=0)
+        sum_aux_2d = np.sum(weights[:, np.newaxis, np.newaxis] * aux_2d, axis=0)
         projected_sphere_center = np.linalg.pinv(sum_aux_2d[:2, :2]) @ sum_aux_2d[:2, 2]
 
         # Use projected sphere center for disambiguating Dierkes lines
@@ -164,12 +176,33 @@ class TwoSphereModel(object):
             "ij,ij->i", gaze_2d[:, :2] - projected_sphere_center, gaze_2d[:, 2:]
         )
         disambiguation_indices = (dots < 0).astype(int)
+        aux_3d = np.asarray(
+            [aux_3d[n, idx] for n, idx in enumerate(disambiguation_indices)]
+        )
 
         # Estimate sphere center by nearest intersection of Dierkes lines
         sum_aux_3d = np.sum(
-            [aux_3d[n, idx] for n, idx in enumerate(disambiguation_indices)], axis=0
+            weights[:, np.newaxis, np.newaxis] * aux_3d[:, :3, :4], axis=0
         )
         sphere_center = np.linalg.pinv(sum_aux_3d[:3, :3]) @ sum_aux_3d[:3, 3]
+
+        # Calculate residuals
+        temp = aux_3d[:, :, 4] - sphere_center
+        residuals = np.einsum(
+            "ij,ij->i", temp, (aux_3d[:, :3, :3] @ temp[:, :, np.newaxis])[:, :, 0]
+        )
+        condition = residuals < residual_cutoff ** 2
+
+        # Recalculate after largest residuals are removed
+        sum_aux_3d = np.sum(
+            weights[condition, np.newaxis, np.newaxis]
+            * aux_3d[condition, :3, :4]
+            / np.sum(weights[condition]),
+            axis=0,
+        )
+        sphere_center = np.linalg.pinv(
+            sum_aux_3d[:3, :3] + friction_on_prior * np.eye(3)
+        ) @ (sum_aux_3d[:3, 3] + friction_on_prior * prior)
 
         yield sphere_center
 
