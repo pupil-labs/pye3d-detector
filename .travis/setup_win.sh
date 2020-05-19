@@ -28,6 +28,7 @@ else
     # ship this with the wheel.
     cmake ..\
         -G"Visual Studio 15 2017 Win64"\
+        -DBUILD_SHARED_LIBS=OFF\
         -DCMAKE_BUILD_TYPE=Release\
         -DCMAKE_INSTALL_PREFIX=../../opencv\
         -DBUILD_LIST=core,highgui,videoio,imgcodecs,imgproc,video\

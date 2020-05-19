@@ -25,6 +25,7 @@ else
     cd build
     # opencv 4.x needs cpp11 support
     cmake ..\
+        -DBUILD_SHARED_LIBS=OFF\
         -DCMAKE_BUILD_TYPE=Release\
         -DCMAKE_INSTALL_PREFIX=../../opencv\
         -DBUILD_LIST=core,highgui,videoio,imgcodecs,imgproc,video\

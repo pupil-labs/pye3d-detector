@@ -24,6 +24,7 @@ else
     mkdir -p build
     cd build
     cmake ..\
+        -DBUILD_SHARED_LIBS=OFF\
         -DCMAKE_BUILD_TYPE=Release\
         -DCMAKE_INSTALL_PREFIX=../../opencv\
         -DBUILD_LIST=core,highgui,videoio,imgcodecs,imgproc,video\
