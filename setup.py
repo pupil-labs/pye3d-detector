@@ -28,10 +28,9 @@ requirements = [
     "scipy>=1.2.1",
     "numpy",
     "joblib",
-    "opencv-python",
     "scikit-learn",
 ]
-extras_require = {"dev": ["pytest", "tox"]}
+extras_require = {"dev": ["pytest", "tox"], "with-opencv": ["opencv-python"]}
 
 cmake_args = []
 if platform.system() == "Windows":
