@@ -13,7 +13,7 @@ import sys
 
 import numpy as np
 
-from .background_helper import Task_Proxy
+from .background_helper import BackgroundProcess
 from .constants import _EYE_RADIUS_DEFAULT
 from .cpp.pupil_detection_3d import get_edges
 from .cpp.pupil_detection_3d import search_on_sphere as search_on_sphere
@@ -52,7 +52,7 @@ class Detector3D(object):
         self.kalman_filter = KalmanFilter()
         self.last_kalman_call = -1
 
-        self.task = None
+        self.task = BackgroundProcess(TwoSphereModel.deep_sphere_estimate)
 
         self.debug_result = {}
 
@@ -91,11 +91,9 @@ class Detector3D(object):
 
     def _estimate_sphere_center(self, pupil_datum):
         # CHECK WHETHER NEW SPHERE ESTIMATE IS AVAILABLE
-        if self.task:
-            for result in self.task.fetch():
-                self._process_sphere_center_estimate(result)
-            if self.task.completed or self.task.canceled:
-                self.task = None
+        if self.task.poll():
+            result = self.task.recv()
+            self._process_sphere_center_estimate(result)
 
         # SPHERE CENTER UPDATE
         if pupil_datum["confidence"] > self.settings["threshold_data_storage"]:
@@ -106,14 +104,10 @@ class Detector3D(object):
             if self._sphere_center_should_be_estimated():
                 self.currently_optimizing = True
                 self.new_observations = False
-                self.task = Task_Proxy(
-                    "deep_sphere_estimate",
-                    self.two_sphere_model.deep_sphere_estimate,
-                    args=(
-                        self.two_sphere_model.observation_storage.aux_2d,
-                        self.two_sphere_model.observation_storage.aux_3d,
-                        self.two_sphere_model.observation_storage.gaze_2d,
-                    ),
+                self.task.send(
+                    self.two_sphere_model.observation_storage.aux_2d,
+                    self.two_sphere_model.observation_storage.aux_3d,
+                    self.two_sphere_model.observation_storage.gaze_2d,
                 )
 
             return observation
@@ -185,7 +179,12 @@ class Detector3D(object):
             )
 
             if len(edges) > 0:
-                gaze_vector, pupil_radius, final_edges, edges_on_sphere = search_on_sphere(
+                (
+                    gaze_vector,
+                    pupil_radius,
+                    final_edges,
+                    edges_on_sphere,
+                ) = search_on_sphere(
                     edges,
                     pupil_circle_kalman.normal,
                     pupil_circle_kalman.radius,
@@ -327,8 +326,7 @@ class Detector3D(object):
         self.two_sphere_model = TwoSphereModel(settings=self.settings)
         self.kalman_filter = KalmanFilter()
         self.last_kalman_call = -1
-        if self.task:
-            self.task.cancel()
-        self.task = None
+        self.task.cancel()
         self.currently_optimizing = False
         self.new_observations = False
+        self.task = BackgroundProcess(TwoSphereModel.deep_sphere_estimate)

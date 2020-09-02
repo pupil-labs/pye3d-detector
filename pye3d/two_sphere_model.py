@@ -171,7 +171,7 @@ class TwoSphereModel(object):
         )
         sphere_center = np.linalg.pinv(sum_aux_3d[:3, :3]) @ sum_aux_3d[:3, 3]
 
-        yield sphere_center
+        return sphere_center
 
     # GAZE PREDICTION
     def _extract_unproject_disambiguate(self, pupil_datum):
