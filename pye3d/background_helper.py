@@ -13,8 +13,11 @@ import logging
 import multiprocessing as mp
 import multiprocessing.connection
 import signal
+import time
 from ctypes import c_bool
-from typing import Callable, Any, Dict, Tuple
+from logging import Handler, StreamHandler
+from logging.handlers import QueueHandler, QueueListener
+from typing import Any, Callable, Dict, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -29,11 +32,17 @@ class BackgroundProcess:
     class MultipleSendError(Exception):
         """Trying to send data without first receiving previous output."""
 
-    def __init__(self, function: Callable):
+    def __init__(self, function: Callable, log_handler: Optional[Handler]):
         self._running = True
         self._busy = False
 
         self._pipe, remote_pipe = mp.Pipe(duplex=True)
+
+        logging_queue = mp.Queue()
+        handlers = [] if log_handler is None else [log_handler]
+        self._log_listener = QueueListener(logging_queue, *handlers)
+        self._log_listener.start()
+
         self._should_terminate_flag = mp.Value(c_bool, 0)
 
         self._process = mp.Process(
@@ -44,6 +53,7 @@ class BackgroundProcess:
                 function=function,
                 pipe=remote_pipe,
                 should_terminate_flag=self._should_terminate_flag,
+                logging_queue=logging_queue,
             ),
         )
         self._process.start()
@@ -121,6 +131,7 @@ class BackgroundProcess:
         if self.running:
             self._process.join(timeout)
         self._running = False
+        self._log_listener.stop()
 
     @staticmethod
     def _install_sigint_interception():
@@ -137,7 +148,11 @@ class BackgroundProcess:
         function: Callable,
         pipe: mp.connection.Connection,
         should_terminate_flag: mp.Value,
+        logging_queue: mp.Queue,
     ):
+        log_queue_handler = QueueHandler(logging_queue)
+        logger.addHandler(log_queue_handler)
+
         # Intercept SIGINT (ctrl-c), do required cleanup in foreground process!
         BackgroundProcess._install_sigint_interception()
 
@@ -151,7 +166,10 @@ class BackgroundProcess:
                 break
 
             try:
+                t0 = time.perf_counter()
                 results = function(*args, **kwargs)
+                t1 = time.perf_counter()
+                logger.debug(f"Finished background calculation in {(t1 - t0):.2}s")
             except Exception as e:
                 pipe.send(e)
                 logger.error(
@@ -165,3 +183,5 @@ class BackgroundProcess:
 
         logger.info("Stopping background process.")
         pipe.close()
+
+        logger.removeHandler(log_queue_handler)

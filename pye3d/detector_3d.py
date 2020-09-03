@@ -41,6 +41,7 @@ class Detector3D(object):
             "threshold_swirski": 0.7,
             "threshold_kalman": 0.98,
         },
+        log_handler=None,
     ):
         self.settings = settings
 
@@ -52,7 +53,10 @@ class Detector3D(object):
         self.kalman_filter = KalmanFilter()
         self.last_kalman_call = -1
 
-        self.task = BackgroundProcess(TwoSphereModel.deep_sphere_estimate)
+        self._external_log_handler = log_handler
+        self.task = BackgroundProcess(
+            TwoSphereModel.deep_sphere_estimate, self._external_log_handler
+        )
 
         self.debug_result = {}
 
@@ -329,4 +333,6 @@ class Detector3D(object):
         self.task.cancel()
         self.currently_optimizing = False
         self.new_observations = False
-        self.task = BackgroundProcess(TwoSphereModel.deep_sphere_estimate)
+        self.task = BackgroundProcess(
+            TwoSphereModel.deep_sphere_estimate, log_handler=self._external_log_handler
+        )
