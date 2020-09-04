@@ -60,6 +60,17 @@ class Detector3D(object):
 
         self.debug_result = {}
 
+    def cleanup(self):
+        """
+        Cleanup detector after usage.
+
+        This will shut down the continuously running background process. Use this
+        function when you are done using the detector, but your application continues.
+        Using the detector again after cleanup() will result in errors. Prefer to call
+        reset() if you want to simply re-initialize and continue using the detector.
+        """
+        self.task.cancel()
+
     def update_and_detect(
         self, pupil_datum, frame, refraction_toggle=True, debug_toggle=False
     ):
