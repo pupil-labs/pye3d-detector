@@ -57,6 +57,7 @@ class Detector3D(object):
         self.task = BackgroundProcess(
             TwoSphereModel.deep_sphere_estimate, self._external_log_handler
         )
+        self._discard_next_task_result = False
 
         self.debug_result = {}
 
@@ -107,8 +108,12 @@ class Detector3D(object):
     def _estimate_sphere_center(self, pupil_datum):
         # CHECK WHETHER NEW SPHERE ESTIMATE IS AVAILABLE
         if self.task.poll():
-            result = self.task.recv()
-            self._process_sphere_center_estimate(result)
+            if self._discard_next_task_result:
+                _ = self.task.recv()
+                self._discard_next_task_result = False
+            else:
+                result = self.task.recv()
+                self._process_sphere_center_estimate(result)
 
         # SPHERE CENTER UPDATE
         if pupil_datum["confidence"] > self.settings["threshold_data_storage"]:
@@ -341,9 +346,8 @@ class Detector3D(object):
         self.two_sphere_model = TwoSphereModel(settings=self.settings)
         self.kalman_filter = KalmanFilter()
         self.last_kalman_call = -1
-        self.task.cancel()
+        if self.task.busy:
+            # previous calculation is still running, need to make sure we discard that
+            self._discard_next_task_result = True
         self.currently_optimizing = False
         self.new_observations = False
-        self.task = BackgroundProcess(
-            TwoSphereModel.deep_sphere_estimate, log_handler=self._external_log_handler
-        )
