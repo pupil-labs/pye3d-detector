@@ -13,7 +13,7 @@ import sys
 
 import numpy as np
 
-from .background_helper import Task_Proxy
+from .background_helper import BackgroundProcess
 from .constants import _EYE_RADIUS_DEFAULT
 from .cpp.pupil_detection_3d import get_edges
 from .cpp.pupil_detection_3d import search_on_sphere as search_on_sphere
@@ -41,6 +41,7 @@ class Detector3D(object):
             "threshold_swirski": 0.7,
             "threshold_kalman": 0.98,
         },
+        log_handler=None,
     ):
         self.settings = settings
 
@@ -52,9 +53,24 @@ class Detector3D(object):
         self.kalman_filter = KalmanFilter()
         self.last_kalman_call = -1
 
-        self.task = None
+        self._external_log_handler = log_handler
+        self.task = BackgroundProcess(
+            TwoSphereModel.deep_sphere_estimate, self._external_log_handler
+        )
+        self._discard_next_task_result = False
 
         self.debug_result = {}
+
+    def cleanup(self):
+        """
+        Cleanup detector after usage.
+
+        This will shut down the continuously running background process. Use this
+        function when you are done using the detector, but your application continues.
+        Using the detector again after cleanup() will result in errors. Prefer to call
+        reset() if you want to simply re-initialize and continue using the detector.
+        """
+        self.task.cancel()
 
     def update_and_detect(
         self, pupil_datum, frame, refraction_toggle=True, debug_toggle=False
@@ -91,11 +107,13 @@ class Detector3D(object):
 
     def _estimate_sphere_center(self, pupil_datum):
         # CHECK WHETHER NEW SPHERE ESTIMATE IS AVAILABLE
-        if self.task:
-            for result in self.task.fetch():
+        if self.task.poll():
+            if self._discard_next_task_result:
+                _ = self.task.recv()
+                self._discard_next_task_result = False
+            else:
+                result = self.task.recv()
                 self._process_sphere_center_estimate(result)
-            if self.task.completed or self.task.canceled:
-                self.task = None
 
         # SPHERE CENTER UPDATE
         if pupil_datum["confidence"] > self.settings["threshold_data_storage"]:
@@ -106,14 +124,10 @@ class Detector3D(object):
             if self._sphere_center_should_be_estimated():
                 self.currently_optimizing = True
                 self.new_observations = False
-                self.task = Task_Proxy(
-                    "deep_sphere_estimate",
-                    self.two_sphere_model.deep_sphere_estimate,
-                    args=(
-                        self.two_sphere_model.observation_storage.aux_2d,
-                        self.two_sphere_model.observation_storage.aux_3d,
-                        self.two_sphere_model.observation_storage.gaze_2d,
-                    ),
+                self.task.send(
+                    self.two_sphere_model.observation_storage.aux_2d,
+                    self.two_sphere_model.observation_storage.aux_3d,
+                    self.two_sphere_model.observation_storage.gaze_2d,
                 )
 
             return observation
@@ -185,7 +199,12 @@ class Detector3D(object):
             )
 
             if len(edges) > 0:
-                gaze_vector, pupil_radius, final_edges, edges_on_sphere = search_on_sphere(
+                (
+                    gaze_vector,
+                    pupil_radius,
+                    final_edges,
+                    edges_on_sphere,
+                ) = search_on_sphere(
                     edges,
                     pupil_circle_kalman.normal,
                     pupil_circle_kalman.radius,
@@ -327,8 +346,8 @@ class Detector3D(object):
         self.two_sphere_model = TwoSphereModel(settings=self.settings)
         self.kalman_filter = KalmanFilter()
         self.last_kalman_call = -1
-        if self.task:
-            self.task.cancel()
-        self.task = None
+        if self.task.busy:
+            # previous calculation is still running, need to make sure we discard that
+            self._discard_next_task_result = True
         self.currently_optimizing = False
         self.new_observations = False
