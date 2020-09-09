@@ -154,21 +154,30 @@ class TwoSphereModel(object):
 
     @staticmethod
     def deep_sphere_estimate(aux_2d, aux_3d, gaze_2d):
+        # https://silo.tips/download/least-squares-intersection-of-lines
+        # https://www.researchgate.net/publication/333490770_A_fast_approach_to_refraction-aware_eye-model_fitting_and_gaze_prediction
 
         # Estimate projected sphere center by nearest intersection of 2d gaze lines
-        sum_aux_2d = np.sum(aux_2d, axis=0)
+        sum_aux_2d = aux_2d.sum(axis=0)
         projected_sphere_center = np.linalg.pinv(sum_aux_2d[:2, :2]) @ sum_aux_2d[:2, 2]
 
-        # Use projected sphere center for disambiguating Dierkes lines
-        dots = np.einsum(
-            "ij,ij->i", gaze_2d[:, :2] - projected_sphere_center, gaze_2d[:, 2:]
-        )
-        disambiguation_indices = (dots < 0).astype(int)
+        # Disambiguate Dierkes lines
+        # We want gaze_2d to points towards the sphere center. gaze_2d was collected
+        # from Dierkes[0]. If it points into the correct direction, we know that
+        # Dierkes[0] is the correct one to use, otherwise we need to use Dierkes[1]. We
+        # can check that with the sign of the dot product.
+        gaze_2d_origins = gaze_2d[:, :2]
+        gaze_2d_directions = gaze_2d[:, 2:]
+        gaze_2d_towards_center = gaze_2d_origins - projected_sphere_center
+
+        dot_products = np.sum(gaze_2d_towards_center * gaze_2d_directions, axis=1)
+        disambiguation_indices = np.where(dot_products < 0, 1, 0)
+
+        observation_indices = np.arange(len(disambiguation_indices))
+        aux_3d_disambiguated = aux_3d[observation_indices, disambiguation_indices, :, :]
 
         # Estimate sphere center by nearest intersection of Dierkes lines
-        sum_aux_3d = np.sum(
-            [aux_3d[n, idx] for n, idx in enumerate(disambiguation_indices)], axis=0
-        )
+        sum_aux_3d = aux_3d_disambiguated.sum(axis=0)
         sphere_center = np.linalg.pinv(sum_aux_3d[:3, :3]) @ sum_aux_3d[:3, 3]
 
         return sphere_center
