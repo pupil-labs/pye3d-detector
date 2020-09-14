@@ -9,12 +9,14 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 from collections import deque
+from itertools import chain
 
 import numpy as np
 
 from .constants import _EYE_RADIUS_DEFAULT
 from .geometry.primitives import Line
 from .geometry.projections import project_line_into_image_plane
+from .geometry.utilities import normalize
 
 
 class Observation(object):
@@ -58,57 +60,36 @@ class Observation(object):
 
 
 class ObservationStorage(object):
+    BINS = 10
+
     def __init__(self, maxlen=5000):
-        self.observations = deque(maxlen=maxlen)
-        self._gaze_2d_list = deque(maxlen=maxlen)
-        self._aux_2d_list = deque(maxlen=maxlen)
-        self._aux_3d_list = deque(maxlen=maxlen)
-        self._timestamps = deque(maxlen=maxlen)
-        self.counter = 0
+        self._observation_bins = [deque(100) for _ in range(bins * bins)]
+        # self.observations = deque(maxlen=maxlen)
+
+    def _bin_index(self, x, y):
+        return floor(x) * self.BINS + y)
 
     def add_observation(self, observation):
-        self.observations.append(observation)
-        self._gaze_2d_list.append(
-            [*observation.gaze_2d.origin, *observation.gaze_2d.direction]
-        )
-        self._aux_2d_list.append(observation.aux_2d)
-        self._aux_3d_list.append(observation.aux_3d)
-        self._timestamps.append(observation.timestamp)
-        self.counter += 1
-
-    def count(self):
-        return self.counter
+        direction = normalize(observation.circle_3d_pair[0].normal)
+        x, y, _ = direction
+        bin_idx = self._bin_index(x, y)
+        self._observation_bins[bin_idx].append(observation)
 
     def purge(self, cutoff_time):
-        N = np.searchsorted(self.timestamps, cutoff_time)
-        for _ in range(N):
-            self.observations.popleft()
-            self._gaze_2d_list.popleft()
-            self._aux_2d_list.popleft()
-            self._aux_3d_list.popleft()
-            self._timestamps.popleft()
+        for obs_bin in self._observation_bins:
+            while obs_bin and obs_bin[0].timestamp <= cutoff_time:
+                obs_bin.popleft()
 
     @property
-    def aux_2d(self):
-        return np.asarray(self._aux_2d_list)
+    def observations(self):
+        return sorted(
+            chain.from_iterable(self._observation_bins), key=lambda obs: obs.timestamp
+        )
 
     @property
-    def aux_3d(self):
-        return np.asarray(self._aux_3d_list)
-
-    @property
-    def gaze_2d(self):
-        return np.asarray(self._gaze_2d_list)
-
-    @property
-    def timestamps(self):
-        return np.asarray(self._timestamps)
-
-    def __getitem__(self, item):
-        return self.observations[item]
-
-    def __len__(self):
-        return len(self.observations)
+    def count(self):
+        return sum(len(obs_bin) for obs_bin in self._observation_bins)
 
     def __bool__(self):
+        raise RuntimeError("NEIN NEIN NEIN!")
         True

@@ -113,7 +113,9 @@ class Detector3D(object):
                 _ = self.task.recv()
                 self._discard_next_task_result = False
             else:
-                result, debug_info = self.task.recv()
+                result, cutoff, self.debug_info = self.task.recv()
+                if cutoff is not None:
+                    self.two_sphere_model.observation_storage.purge(cutoff)
                 self._process_sphere_center_estimate(result)
 
         # SPHERE CENTER UPDATE
