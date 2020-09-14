@@ -9,6 +9,7 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 import logging
+from typing import Any, Dict, Sequence, Tuple
 
 import numpy as np
 
@@ -153,9 +154,17 @@ class TwoSphereModel(object):
         return sphere_center
 
     @staticmethod
-    def deep_sphere_estimate(aux_2d, aux_3d, gaze_2d):
+    def deep_sphere_estimate(
+        observations: Sequence[Observation],
+    ) -> Tuple[np.ndarray, Dict[str, Any]]:
         # https://silo.tips/download/least-squares-intersection-of-lines
         # https://www.researchgate.net/publication/333490770_A_fast_approach_to_refraction-aware_eye-model_fitting_and_gaze_prediction
+
+        aux_2d = np.array([obs.aux_2d for obs in observations])
+        aux_3d = np.array([obs.aux_3d for obs in observations])
+        gaze_2d = np.array(
+            [[*obs.gaze_2d.origin, *obs.gaze_2d.direction] for obs in observations]
+        )
 
         # Estimate projected sphere center by nearest intersection of 2d gaze lines
         sum_aux_2d = aux_2d.sum(axis=0)
@@ -180,7 +189,49 @@ class TwoSphereModel(object):
         sum_aux_3d = aux_3d_disambiguated.sum(axis=0)
         sphere_center = np.linalg.pinv(sum_aux_3d[:3, :3]) @ sum_aux_3d[:3, 3]
 
-        return sphere_center
+        debug_info = {
+            "cost": -1.0,
+            "residuals": [],
+            "angles": [],
+            "Dierkes_lines": [],
+        }
+
+        # Final Dierkes lines
+        Dierkes_lines = [
+            obs.get_Dierkes_line(idx)
+            for obs, idx in zip(observations, disambiguation_indices)
+        ]
+        debug_info["Dierkes_lines"] = [
+            [
+                *(line.origin - 20 * line.direction),
+                *(line.origin + 20 * line.direction),
+            ]
+            for line in Dierkes_lines
+        ]
+
+        # Calculate residuals and cost
+        a_minus_p = [line.origin - sphere_center for line in Dierkes_lines]
+        residuals = [
+            v.T @ m[idx, :3, :3] @ v
+            for v, m, idx in zip(a_minus_p, aux_3d, disambiguation_indices)
+        ]
+        debug_info["residuals"] = residuals
+        debug_info["cost"] = np.sum(residuals)
+
+        # Calculate gaze angles
+        angles = [
+            (180.0 / np.pi)
+            * np.arccos(
+                np.dot(
+                    np.asarray([0.0, 0.0, -1.0]),
+                    observations[n].circle_3d_pair[idx].normal,
+                )
+            )
+            for n, idx in enumerate(disambiguation_indices)
+        ]
+        debug_info["angles"] = angles
+
+        return sphere_center, debug_info
 
     # GAZE PREDICTION
     def _extract_unproject_disambiguate(self, pupil_datum):

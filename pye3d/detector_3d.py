@@ -59,7 +59,7 @@ class Detector3D(object):
         )
         self._discard_next_task_result = False
 
-        self.debug_result = {}
+        self.debug_info = None
 
     def cleanup(self):
         """
@@ -107,12 +107,13 @@ class Detector3D(object):
 
     def _estimate_sphere_center(self, pupil_datum):
         # CHECK WHETHER NEW SPHERE ESTIMATE IS AVAILABLE
+        self.debug_info = None
         if self.task.poll():
             if self._discard_next_task_result:
                 _ = self.task.recv()
                 self._discard_next_task_result = False
             else:
-                result = self.task.recv()
+                result, debug_info = self.task.recv()
                 self._process_sphere_center_estimate(result)
 
         # SPHERE CENTER UPDATE
@@ -124,11 +125,7 @@ class Detector3D(object):
             if self._sphere_center_should_be_estimated():
                 self.currently_optimizing = True
                 self.new_observations = False
-                self.task.send(
-                    self.two_sphere_model.observation_storage.aux_2d,
-                    self.two_sphere_model.observation_storage.aux_3d,
-                    self.two_sphere_model.observation_storage.gaze_2d,
-                )
+                self.task.send(self.two_sphere_model.observation_storage.observations)
 
             return observation
 
@@ -334,13 +331,10 @@ class Detector3D(object):
 
         py_result["method"] = "3d c++"
 
-        if debug_toggle:
-            self.debug_result = {
-                **py_result,
-                "debug_info": self.two_sphere_model.debug_info,
-            }
-
-        return py_result
+        return {
+            **py_result,
+            "debug_info": self.debug_info,
+        }
 
     def reset(self):
         self.two_sphere_model = TwoSphereModel(settings=self.settings)
