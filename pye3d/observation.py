@@ -10,6 +10,7 @@ See COPYING and COPYING.LESSER for license details.
 """
 from collections import deque
 from itertools import chain
+from math import floor
 
 import numpy as np
 
@@ -60,20 +61,44 @@ class Observation(object):
 
 
 class ObservationStorage(object):
-    BINS = 10
+    def __init__(self, n_bins=5, bin_length=500):
+        self.new_counter = 0
+        self.n_bins = n_bins
+        self._observation_bins = [
+            deque(maxlen=bin_length) for _ in range(self.n_bins * self.n_bins)
+        ]
 
-    def __init__(self, maxlen=5000):
-        self._observation_bins = [deque(100) for _ in range(bins * bins)]
-        # self.observations = deque(maxlen=maxlen)
-
-    def _bin_index(self, x, y):
-        return floor(x) * self.BINS + y)
+    def _bin_index(self, x: int, y: int) -> int:
+        # 2D to 1D index
+        return floor(x) * self.n_bins + y
 
     def add_observation(self, observation):
         direction = normalize(observation.circle_3d_pair[0].normal)
         x, y, _ = direction
+
+        if x < 0:
+            x *= -1
+
+        def transform(v):
+            # transform v from float[-1, 1] to int[0, n_bins - 1]
+            # NOTE: since it's highly unlikely that a value is exactly +1, we want to
+            # map [-1, 1) onto [0, n_bins - 1] and then map 1 to n_bins - 1 as well.
+
+            # float[-1, 1] to float[0, n_bins]
+            v = ((v + 1) / 2) * self.n_bins
+
+            # float[0, n_bins] to int[0, n_bins - 1]
+            if v == self.n_bins:
+                v = self.n_bins - 1
+            v = floor(v)
+            return v
+
+        x, y = (transform(v) for v in (x, y))
+        observation.bin = (x, y)
+
         bin_idx = self._bin_index(x, y)
         self._observation_bins[bin_idx].append(observation)
+        self.new_counter += 1
 
     def purge(self, cutoff_time):
         for obs_bin in self._observation_bins:
@@ -86,7 +111,6 @@ class ObservationStorage(object):
             chain.from_iterable(self._observation_bins), key=lambda obs: obs.timestamp
         )
 
-    @property
     def count(self):
         return sum(len(obs_bin) for obs_bin in self._observation_bins)
 

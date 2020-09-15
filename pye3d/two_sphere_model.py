@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 class TwoSphereModel(object):
     def __init__(
         self,
-        settings={"focal_length": 283.0, "resolution": (192, 192), "maxlen": 10000},
+        settings={"focal_length": 283.0, "resolution": (192, 192)},
     ):
         self.settings = settings
 
@@ -44,7 +44,7 @@ class TwoSphereModel(object):
             np.asarray([[*self.sphere_center]])
         )[0]
 
-        self.observation_storage = ObservationStorage(maxlen=self.settings["maxlen"])
+        self.observation_storage = ObservationStorage()
 
         self.debug_info = {
             "cost": -1.0,
@@ -137,6 +137,8 @@ class TwoSphereModel(object):
                 normalize(obs.circle_3d_pair[idx].normal)[0:2]
                 for obs, idx in zip(observations, prev_disambiguation)
             ]
+
+            debug_info["bins"] = [obs.bin for obs in observations]
 
             if debug_info["cost"] > 2:
                 filtered_residuals = median_filter(residuals, 50)

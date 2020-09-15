@@ -11,6 +11,7 @@ See COPYING and COPYING.LESSER for license details.
 import logging
 import sys
 
+import cv2
 import numpy as np
 
 from .background_helper import BackgroundProcess
@@ -36,7 +37,6 @@ class Detector3D(object):
             "focal_length": 283.0,
             "resolution": (192, 192),
             "maximum_integration_time": 30.0,
-            "maxlen": 10000,
             "threshold_data_storage": 0.98,
             "threshold_swirski": 0.7,
             "threshold_kalman": 0.98,
@@ -114,6 +114,7 @@ class Detector3D(object):
                 self._discard_next_task_result = False
             else:
                 result, cutoff, self.debug_info = self.task.recv()
+
                 if cutoff is not None:
                     self.two_sphere_model.observation_storage.purge(cutoff)
                 self._process_sphere_center_estimate(result)
@@ -132,9 +133,12 @@ class Detector3D(object):
             return observation
 
     def _sphere_center_should_be_estimated(self):
-        n = self.two_sphere_model.observation_storage.count()
+        storage = self.two_sphere_model.observation_storage
         if (
-            ((49 < n and n % 100 == 0) or (20 < n < 50 and n % 10 == 0))
+            (
+                (20 < storage.count() <= 50 and storage.new_counter % 10 == 0)
+                or (storage.count() > 50 and storage.new_counter % 100 == 0)
+            )
             and self.new_observations
             and not self.currently_optimizing
         ):
