@@ -21,6 +21,7 @@ from .geometry.primitives import Circle, Ellipse, Sphere
 from .geometry.projections import (
     project_circle_into_image_plane,
     project_sphere_into_image_plane,
+    project_point_into_image_plane
 )
 from .geometry.utilities import cart2sph, sph2cart
 from .kalman import KalmanFilter
@@ -36,7 +37,7 @@ class Detector3D(object):
             "focal_length": 283.0,
             "resolution": (192, 192),
             "maximum_integration_time": 30.0,
-            "maxlen": 10000,
+            "maxlen": 1000,
             "threshold_data_storage": 0.98,
             "threshold_swirski": 0.7,
             "threshold_kalman": 0.98,
@@ -46,6 +47,9 @@ class Detector3D(object):
         self.settings = settings
 
         self.two_sphere_model = TwoSphereModel(settings=self.settings)
+        self.prior_3d = np.asarray([0., 0., 35.])
+        self.prior_2d = project_point_into_image_plane(self.prior_3d, self.settings["focal_length"])
+
         self.currently_optimizing = False
         self.new_observations = False
         self.observation = False
@@ -128,6 +132,9 @@ class Detector3D(object):
                     self.two_sphere_model.observation_storage.aux_2d,
                     self.two_sphere_model.observation_storage.aux_3d,
                     self.two_sphere_model.observation_storage.gaze_2d,
+                    self.prior_3d,
+                    self.prior_2d,
+                    0.5
                 )
 
             return observation
@@ -146,6 +153,8 @@ class Detector3D(object):
     def _process_sphere_center_estimate(self, new_sphere_center):
         self.two_sphere_model.set_sphere_center(new_sphere_center)
         self.currently_optimizing = False
+        self.prior_3d += 0.5 * (new_sphere_center - self.prior_3d)
+        print(self.prior_3d)
 
     def _predict_from_two_sphere_model(self, pupil_datum, observation=False):
         if pupil_datum["confidence"] > self.settings["threshold_swirski"]:

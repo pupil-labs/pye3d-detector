@@ -84,7 +84,9 @@ class TwoSphereModel(object):
             np.asarray([[*self.sphere_center]])
         )[0]
 
-    def estimate_sphere_center(self, idxs=None, debug=False):
+    def estimate_sphere_center(
+        self, idxs=None, debug=False, prior_3d=np.asarray([0., 0., 35.]), lambda_=0.0
+    ):
 
         if not idxs:
             idxs = range(len(self.observation_storage))
@@ -93,10 +95,15 @@ class TwoSphereModel(object):
         aux_3d = self.observation_storage.aux_3d[idxs]
         aux_2d = self.observation_storage.aux_2d[idxs]
         gaze_2d = self.observation_storage.gaze_2d[idxs]
+        prior_2d = project_point_into_image_plane(
+            prior_3d, focal_length=self.settings["focal_length"]
+        )
 
         # Estimate projected sphere center by nearest intersection of 2d gaze lines
         sum_aux_2d = np.sum(aux_2d, axis=0)
-        projected_sphere_center = np.linalg.pinv(sum_aux_2d[:2, :2]) @ sum_aux_2d[:2, 2]
+        projected_sphere_center = np.linalg.pinv(
+            sum_aux_2d[:2, :2] + lambda_ * np.eye(2)
+        ) @ (sum_aux_2d[:2, 2] + lambda_ * prior_2d)
 
         # Use projected sphere center for disambiguating Dierkes lines
         dots = np.einsum(
@@ -108,13 +115,15 @@ class TwoSphereModel(object):
         sum_aux_3d = np.sum(
             [aux_3d[n, idx] for n, idx in enumerate(disambiguation_indices)], axis=0
         )
-        sphere_center = np.linalg.pinv(sum_aux_3d[:3, :3]) @ sum_aux_3d[:3, 3]
+        sphere_center = np.linalg.pinv(sum_aux_3d[:3, :3] + lambda_ * np.eye(3)) @ (
+            sum_aux_3d[:3, 3] + lambda_ * prior_3d
+        )
 
         if debug:
 
             # Final Dierkes lines
             Dierkes_lines = [
-                self.observation_storage.observations[n].get_Dierkes_line(idx)
+                self.observation_storage.observations[idxs[n]].get_Dierkes_line(idx)
                 for n, idx in enumerate(disambiguation_indices)
             ]
             self.debug_info["Dierkes_lines"] = [
@@ -153,11 +162,20 @@ class TwoSphereModel(object):
         return sphere_center
 
     @staticmethod
-    def deep_sphere_estimate(aux_2d, aux_3d, gaze_2d):
+    def deep_sphere_estimate(
+        aux_2d,
+        aux_3d,
+        gaze_2d,
+        prior_3d=np.asarray([0.0, 0.0, 0.0]),
+        prior_2d=np.asarray([0, 0]),
+        lambda_=0.0,
+    ):
 
         # Estimate projected sphere center by nearest intersection of 2d gaze lines
         sum_aux_2d = np.sum(aux_2d, axis=0)
-        projected_sphere_center = np.linalg.pinv(sum_aux_2d[:2, :2]) @ sum_aux_2d[:2, 2]
+        projected_sphere_center = np.linalg.pinv(
+            sum_aux_2d[:2, :2] + lambda_ * np.eye(2)
+        ) @ (sum_aux_2d[:2, 2] + lambda_ * prior_2d)
 
         # Use projected sphere center for disambiguating Dierkes lines
         dots = np.einsum(
@@ -169,8 +187,9 @@ class TwoSphereModel(object):
         sum_aux_3d = np.sum(
             [aux_3d[n, idx] for n, idx in enumerate(disambiguation_indices)], axis=0
         )
-        sphere_center = np.linalg.pinv(sum_aux_3d[:3, :3]) @ sum_aux_3d[:3, 3]
-
+        sphere_center = np.linalg.pinv(sum_aux_3d[:3, :3] + lambda_ * np.eye(3)) @ (
+            sum_aux_3d[:3, 3] + lambda_ * prior_3d
+        )
         return sphere_center
 
     # GAZE PREDICTION
