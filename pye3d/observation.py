@@ -61,59 +61,8 @@ class Observation(object):
 
 
 class ObservationStorage(object):
-    def __init__(self, n_bins=5, bin_length=500):
-        self.new_counter = 0
-        self.n_bins = n_bins
-        self._observation_bins = [
-            deque(maxlen=bin_length) for _ in range(self.n_bins * self.n_bins)
-        ]
-
-    def _bin_index(self, x: int, y: int) -> int:
-        # 2D to 1D index
-        return floor(x) * self.n_bins + y
+    def __init__(self, buffer_length):
+        self.observations = deque(maxlen=buffer_length)
 
     def add_observation(self, observation):
-        direction = normalize(observation.circle_3d_pair[0].normal)
-        x, y, _ = direction
-
-        if x < 0:
-            x *= -1
-
-        def transform(v):
-            # transform v from float[-1, 1] to int[0, n_bins - 1]
-            # NOTE: since it's highly unlikely that a value is exactly +1, we want to
-            # map [-1, 1) onto [0, n_bins - 1] and then map 1 to n_bins - 1 as well.
-
-            # float[-1, 1] to float[0, n_bins]
-            v = ((v + 1) / 2) * self.n_bins
-
-            # float[0, n_bins] to int[0, n_bins - 1]
-            if v == self.n_bins:
-                v = self.n_bins - 1
-            v = floor(v)
-            return v
-
-        x, y = (transform(v) for v in (x, y))
-        observation.bin = (x, y)
-
-        bin_idx = self._bin_index(x, y)
-        self._observation_bins[bin_idx].append(observation)
-        self.new_counter += 1
-
-    def purge(self, cutoff_time):
-        for obs_bin in self._observation_bins:
-            while obs_bin and obs_bin[0].timestamp <= cutoff_time:
-                obs_bin.popleft()
-
-    @property
-    def observations(self):
-        return sorted(
-            chain.from_iterable(self._observation_bins), key=lambda obs: obs.timestamp
-        )
-
-    def count(self):
-        return sum(len(obs_bin) for obs_bin in self._observation_bins)
-
-    def __bool__(self):
-        raise RuntimeError("NEIN NEIN NEIN!")
-        True
+        self.observations.append(observation)

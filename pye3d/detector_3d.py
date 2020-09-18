@@ -13,6 +13,7 @@ import sys
 
 import cv2
 import numpy as np
+import math
 
 from .background_helper import BackgroundProcess
 from .constants import _EYE_RADIUS_DEFAULT
@@ -23,7 +24,7 @@ from .geometry.projections import (
     project_circle_into_image_plane,
     project_sphere_into_image_plane,
 )
-from .geometry.utilities import cart2sph, sph2cart
+from .geometry.utilities import cart2sph, sph2cart, normalize
 from .kalman import KalmanFilter
 from .two_sphere_model import TwoSphereModel
 
@@ -37,7 +38,7 @@ class Detector3D(object):
             "focal_length": 283.0,
             "resolution": (192, 192),
             "maximum_integration_time": 30.0,
-            "threshold_data_storage": 0.98,
+            "threshold_data_storage": 0.8,
             "threshold_swirski": 0.7,
             "threshold_kalman": 0.98,
         },
@@ -45,7 +46,11 @@ class Detector3D(object):
     ):
         self.settings = settings
 
-        self.two_sphere_model = TwoSphereModel(settings=self.settings)
+        self.short_term_model = TwoSphereModel(buffer_length=20, settings=self.settings)
+        self.long_term_model = TwoSphereModel(
+            buffer_length=2000, settings=self.settings
+        )
+        self.two_sphere_model = self.long_term_model
         self.currently_optimizing = False
         self.new_observations = False
         self.observation = False
@@ -54,9 +59,9 @@ class Detector3D(object):
         self.last_kalman_call = -1
 
         self._external_log_handler = log_handler
-        self.task = BackgroundProcess(
-            TwoSphereModel.deep_sphere_estimate, self._external_log_handler
-        )
+        # self.task = BackgroundProcess(
+        #     TwoSphereModel.deep_sphere_estimate, self._external_log_handler
+        # )
         self._discard_next_task_result = False
 
         self.debug_info = None
@@ -70,7 +75,7 @@ class Detector3D(object):
         Using the detector again after cleanup() will result in errors. Prefer to call
         reset() if you want to simply re-initialize and continue using the detector.
         """
-        self.task.cancel()
+        # self.task.cancel()
 
     def update_and_detect(
         self, pupil_datum, frame, refraction_toggle=True, debug_toggle=False
@@ -79,6 +84,22 @@ class Detector3D(object):
         observation = self._estimate_sphere_center(pupil_datum)
 
         pupil_circle = self._predict_from_two_sphere_model(pupil_datum, observation)
+
+        if observation:
+
+            def spherical(circle: Circle):
+                x, y, z = normalize(circle.normal)
+                theta = math.atan2(y, x)
+                phi = math.acos(z)
+                return np.array([theta, phi])
+
+            current_circle_3d = self.long_term_model._disambiguate_circle_3d_pair(
+                observation.circle_3d_pair
+            )
+            self.debug_info = {
+                "incoming": spherical(current_circle_3d),
+                "predicted": spherical(pupil_circle),
+            }
 
         pupil_circle_kalman = self._predict_from_kalman_filter(
             pupil_datum, pupil_circle
@@ -106,31 +127,21 @@ class Detector3D(object):
         return py_result
 
     def _estimate_sphere_center(self, pupil_datum):
-        # CHECK WHETHER NEW SPHERE ESTIMATE IS AVAILABLE
-        self.debug_info = None
-        if self.task.poll():
-            if self._discard_next_task_result:
-                _ = self.task.recv()
-                self._discard_next_task_result = False
-            else:
-                result, cutoff, self.debug_info = self.task.recv()
+        if pupil_datum["confidence"] < self.settings["threshold_data_storage"]:
+            return None
 
-                if cutoff is not None:
-                    self.two_sphere_model.observation_storage.purge(cutoff)
-                self._process_sphere_center_estimate(result)
+        observation = self.short_term_model.add_to_observation_storage(pupil_datum)
+        if not observation:
+            return False
 
-        # SPHERE CENTER UPDATE
-        if pupil_datum["confidence"] > self.settings["threshold_data_storage"]:
-            observation = self.two_sphere_model.add_to_observation_storage(pupil_datum)
-            if observation:
-                self.new_observations = True
+        observation = self.long_term_model.add_to_observation_storage(pupil_datum)
+        if not observation:
+            return False
 
-            if self._sphere_center_should_be_estimated():
-                self.currently_optimizing = True
-                self.new_observations = False
-                self.task.send(self.two_sphere_model.observation_storage.observations)
+        long_term_2d, _ = self.long_term_model.estimate_sphere_center()
+        self.short_term_model.estimate_sphere_center(from_2d=long_term_2d)
 
-            return observation
+        return observation
 
     def _sphere_center_should_be_estimated(self):
         storage = self.two_sphere_model.observation_storage
@@ -153,11 +164,11 @@ class Detector3D(object):
     def _predict_from_two_sphere_model(self, pupil_datum, observation=False):
         if pupil_datum["confidence"] > self.settings["threshold_swirski"]:
             if observation:
-                pupil_circle = self.two_sphere_model.predict_pupil_circle(
+                pupil_circle = self.short_term_model.predict_pupil_circle(
                     observation.circle_3d_pair, from_given_circle_3d_pair=True
                 )
             else:
-                pupil_circle = self.two_sphere_model.predict_pupil_circle(pupil_datum)
+                pupil_circle = self.short_term_model.predict_pupil_circle(pupil_datum)
         else:
             pupil_circle = Circle([0, 0, 0], [0, 0, -1], 0)
         return pupil_circle
@@ -346,8 +357,8 @@ class Detector3D(object):
         self.two_sphere_model = TwoSphereModel(settings=self.settings)
         self.kalman_filter = KalmanFilter()
         self.last_kalman_call = -1
-        if self.task.busy:
-            # previous calculation is still running, need to make sure we discard that
-            self._discard_next_task_result = True
+        # if self.task.busy:
+        #     # previous calculation is still running, need to make sure we discard that
+        #     self._discard_next_task_result = True
         self.currently_optimizing = False
         self.new_observations = False

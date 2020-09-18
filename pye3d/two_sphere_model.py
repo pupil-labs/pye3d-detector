@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 class TwoSphereModel(object):
     def __init__(
         self,
+        buffer_length,
         settings={"focal_length": 283.0, "resolution": (192, 192)},
     ):
         self.settings = settings
@@ -44,7 +45,7 @@ class TwoSphereModel(object):
             np.asarray([[*self.sphere_center]])
         )[0]
 
-        self.observation_storage = ObservationStorage()
+        self.observation_storage = ObservationStorage(buffer_length=buffer_length)
 
         self.debug_info = {
             "cost": -1.0,
@@ -87,80 +88,77 @@ class TwoSphereModel(object):
             np.asarray([[*self.sphere_center]])
         )[0]
 
-    @staticmethod
-    def deep_sphere_estimate(
-        observations: Sequence[Observation],
-    ) -> Tuple[np.ndarray, float, Dict[str, Any]]:
-        # https://silo.tips/download/least-squares-intersection-of-lines
-        # https://www.researchgate.net/publication/333490770_A_fast_approach_to_refraction-aware_eye-model_fitting_and_gaze_prediction
+    def estimate_sphere_center(self, from_2d=None):
+        projected_sphere_center = (
+            from_2d if from_2d is not None else self.estimate_sphere_center_2d()
+        )
+        sphere_center = self.estimate_sphere_center_3d(projected_sphere_center)
+        self.set_sphere_center(sphere_center)
+        return projected_sphere_center, sphere_center
 
-        global prev_center, prev_disambiguation, prev_t
-        try:
-            prev_center
-        except NameError:
-            prev_center = None
-            prev_disambiguation = None
-            prev_t = None
-
+    def estimate_sphere_center_2d(self):
+        observations = self.observation_storage.observations
         aux_2d = np.array([obs.aux_2d for obs in observations])
+        gaze_2d = np.array(
+            [[*obs.gaze_2d.origin, *obs.gaze_2d.direction] for obs in observations]
+        )
+        # Estimate projected sphere center by nearest intersection of 2d gaze lines
+        sum_aux_2d = aux_2d.sum(axis=0)
+        projected_sphere_center = np.linalg.pinv(sum_aux_2d[:2, :2]) @ sum_aux_2d[:2, 2]
+
+        return projected_sphere_center
+
+    def estimate_sphere_center_3d(self, sphere_center_2d):
+        observations = self.observation_storage.observations
         aux_3d = np.array([obs.aux_3d for obs in observations])
         gaze_2d = np.array(
             [[*obs.gaze_2d.origin, *obs.gaze_2d.direction] for obs in observations]
         )
 
-        debug_info = None
-        cutoff = None
+        # Disambiguate Dierkes lines
+        # We want gaze_2d to points towards the sphere center. gaze_2d was collected
+        # from Dierkes[0]. If it points into the correct direction, we know that
+        # Dierkes[0] is the correct one to use, otherwise we need to use Dierkes[1]. We
+        # can check that with the sign of the dot product.
+        gaze_2d_origins = gaze_2d[:, :2]
+        gaze_2d_directions = gaze_2d[:, 2:]
+        gaze_2d_towards_center = gaze_2d_origins - sphere_center_2d
 
-        if prev_center is not None:
+        dot_products = np.sum(gaze_2d_towards_center * gaze_2d_directions, axis=1)
+        disambiguation_indices = np.where(dot_products < 0, 1, 0)
 
-            debug_info = dict()
+        observation_indices = np.arange(len(disambiguation_indices))
+        aux_3d_disambiguated = aux_3d[observation_indices, disambiguation_indices, :, :]
 
-            # Final Dierkes lines
-            Dierkes_lines = [
-                obs.get_Dierkes_line(idx)
-                for obs, idx in zip(observations, prev_disambiguation)
-            ]
+        # Estimate sphere center by nearest intersection of Dierkes lines
+        sum_aux_3d = aux_3d_disambiguated.sum(axis=0)
+        sphere_center = np.linalg.pinv(sum_aux_3d[:3, :3]) @ sum_aux_3d[:3, 3]
 
-            # Calculate residuals and cost
-            a_minus_p = [line.origin - prev_center for line in Dierkes_lines]
-            residuals = [
-                v.T @ m[idx, :3, :3] @ v
-                for v, m, idx in zip(a_minus_p, aux_3d, prev_disambiguation)
-            ]
-            debug_info["residuals"] = residuals
-            debug_info["cost"] = np.mean(residuals)
+        return sphere_center
 
-            def normalize(vector):
-                return vector / np.linalg.norm(vector)
+    @staticmethod
+    def deep_sphere_estimate(
+        _observations: Sequence[Observation],
+    ) -> Tuple[np.ndarray, float, Dict[str, Any]]:
+        # https://silo.tips/download/least-squares-intersection-of-lines
+        # https://www.researchgate.net/publication/333490770_A_fast_approach_to_refraction-aware_eye-model_fitting_and_gaze_prediction
 
-            debug_info["directions"] = [
-                normalize(obs.circle_3d_pair[idx].normal)[0:2]
-                for obs, idx in zip(observations, prev_disambiguation)
-            ]
-
-            debug_info["bins"] = [obs.bin for obs in observations]
-
-            if debug_info["cost"] > 2:
-                filtered_residuals = median_filter(residuals, 50)
-                changes = np.gradient(filtered_residuals)
-                max_change_idx = np.argmax(changes)
-
-                cutoff = observations[max_change_idx].timestamp
-
-                observations = [obs for obs in observations if obs.timestamp >= cutoff]
-                aux_2d = np.array([obs.aux_2d for obs in observations])
-                aux_3d = np.array([obs.aux_3d for obs in observations])
-                gaze_2d = np.array(
-                    [
-                        [*obs.gaze_2d.origin, *obs.gaze_2d.direction]
-                        for obs in observations
-                    ]
-                )
-
-        ### ESTIMATE NEW MODEL
+        ## 2D WITH LONG TERM
+        observations = list(_observations)
+        aux_2d = np.array([obs.aux_2d for obs in observations])
+        gaze_2d = np.array(
+            [[*obs.gaze_2d.origin, *obs.gaze_2d.direction] for obs in observations]
+        )
         # Estimate projected sphere center by nearest intersection of 2d gaze lines
         sum_aux_2d = aux_2d.sum(axis=0)
         projected_sphere_center = np.linalg.pinv(sum_aux_2d[:2, :2]) @ sum_aux_2d[:2, 2]
+
+        ## 3D WITH SHORT TERM
+        observations = list(_observations)
+        aux_3d = np.array([obs.aux_3d for obs in observations])
+        gaze_2d = np.array(
+            [[*obs.gaze_2d.origin, *obs.gaze_2d.direction] for obs in observations]
+        )
 
         # Disambiguate Dierkes lines
         # We want gaze_2d to points towards the sphere center. gaze_2d was collected
@@ -181,11 +179,9 @@ class TwoSphereModel(object):
         sum_aux_3d = aux_3d_disambiguated.sum(axis=0)
         sphere_center = np.linalg.pinv(sum_aux_3d[:3, :3]) @ sum_aux_3d[:3, 3]
 
-        prev_center = sphere_center
-        prev_disambiguation = disambiguation_indices
-        prev_t = observations[-1].timestamp
+        print(sphere_center)
 
-        return sphere_center, cutoff, debug_info
+        return sphere_center
 
     # GAZE PREDICTION
     def _extract_unproject_disambiguate(self, pupil_datum):
