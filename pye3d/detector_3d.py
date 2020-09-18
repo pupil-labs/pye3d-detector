@@ -99,6 +99,7 @@ class Detector3D(object):
             self.debug_info = {
                 "incoming": spherical(current_circle_3d),
                 "predicted": spherical(pupil_circle),
+                "short_term_center": self.short_term_model.sphere_center,
             }
 
         pupil_circle_kalman = self._predict_from_kalman_filter(
