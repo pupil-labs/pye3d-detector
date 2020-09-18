@@ -11,20 +11,30 @@ See COPYING and COPYING.LESSER for license details.
 from collections import deque
 from itertools import chain
 from math import floor
+from abc import abstractmethod, abstractproperty
 
 import numpy as np
 
+from typing import Sequence, Optional, Callable, Tuple
+
 from .constants import _EYE_RADIUS_DEFAULT
-from .geometry.primitives import Line
-from .geometry.projections import project_line_into_image_plane
+from .geometry.primitives import Line, Ellipse
+from .geometry.projections import project_line_into_image_plane, unproject_ellipse
 from .geometry.utilities import normalize
 
 
+class UnprojectionError(Exception):
+    """Raised when unprojecting ellipse fails."""
+
+
 class Observation(object):
-    def __init__(self, ellipse, circle_3d_pair, timestamp=0.0, focal_length=620.0):
+    def __init__(self, ellipse: Ellipse, timestamp, focal_length):
+
+        self.circle_3d_pair = unproject_ellipse(ellipse, focal_length)
+        if not self.circle_3d_pair:
+            raise UnprojectionError()
 
         self.ellipse = ellipse
-        self.circle_3d_pair = circle_3d_pair
         self.timestamp = timestamp
 
         self.gaze_3d_pair = [
@@ -60,9 +70,80 @@ class Observation(object):
         return True
 
 
-class ObservationStorage(object):
-    def __init__(self, buffer_length):
-        self.observations = deque(maxlen=buffer_length)
+class CameraModel:
+    def __init__(self, focal_length: float, resolution: Tuple[float, float]):
+        self.focal_length = focal_length
+        self.resolution = resolution
 
-    def add_observation(self, observation):
-        self.observations.append(observation)
+
+class ObservationStorage:
+    def __init__(self, *, camera: CameraModel):
+        self.camera = camera
+
+    @abstractmethod
+    def add(self, ellipse: Ellipse, timestamp: float):
+        pass
+
+    def observations(self) -> Sequence[Observation]:
+        pass
+
+
+class BufferedObservationStorage(ObservationStorage):
+    def __init__(self, *, buffer_length: int, **kwargs):
+        super().__init__(**kwargs)
+        self._storage = deque(maxlen=buffer_length)
+
+    def add(self, ellipse: Ellipse, timestamp: float):
+        try:
+            observation = Observation(
+                ellipse,
+                timestamp,
+                self.camera.focal_length,
+            )
+        except UnprojectionError:
+            return
+        self._storage.append(observation)
+
+    def observations(self) -> Sequence[Observation]:
+        return list(self._storage)
+
+
+class BinBufferedObservationStorage(ObservationStorage):
+    def __init__(self, *, n_bins_horizontal: int, buffer_length: int, **kwargs):
+        super().__init__(**kwargs)
+        self.w = n_bins_horizontal
+        self.pixels_per_bin = self.camera.resolution[0] / n_bins_horizontal
+        self.h = int(round(self.camera.resolution[1] / pixels_per_bin))
+
+        self._storage = [
+            [deque(maxlen=buffer_length) for _ in range(self.h)] for _ in range(self.w)
+        ]
+
+    def add(self, ellipse: Ellipse, timestamp: float):
+        try:
+            observation = Observation(
+                ellipse,
+                timestamp,
+                self.camera.focal_length,
+            )
+        except UnprojectionError:
+            return
+
+        x, y = self._get_bin(observation)
+        self._storage[x][y].append(observation)
+
+    def observations(self) -> Sequence[Observation]:
+        observation_iterator = (
+            chain.from_iterable(_bin) for _bin in col for col in self._storage
+        )
+        return sorted(
+            observation_iterator, key=lambda observation: observation.timestamp
+        )
+
+    def _get_bin(self, observation: Observation) -> Tuple(int, int):
+        return tuple(
+            (center + resolution / 2) / self.pixels_per_bin
+            for center, resolution in zip(
+                observation.ellipse.center, self.camera.resolution
+            )
+        )

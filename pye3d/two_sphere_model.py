@@ -88,11 +88,13 @@ class TwoSphereModel(object):
             np.asarray([[*self.sphere_center]])
         )[0]
 
-    def estimate_sphere_center(self, from_2d=None):
+    def estimate_sphere_center(self, from_2d=None, prior_3d=None, prior_strength=0.0):
         projected_sphere_center = (
             from_2d if from_2d is not None else self.estimate_sphere_center_2d()
         )
-        sphere_center = self.estimate_sphere_center_3d(projected_sphere_center)
+        sphere_center = self.estimate_sphere_center_3d(
+            projected_sphere_center, prior_3d, prior_strength
+        )
         self.set_sphere_center(sphere_center)
         return projected_sphere_center, sphere_center
 
@@ -108,7 +110,9 @@ class TwoSphereModel(object):
 
         return projected_sphere_center
 
-    def estimate_sphere_center_3d(self, sphere_center_2d):
+    def estimate_sphere_center_3d(
+        self, sphere_center_2d, prior_3d=None, prior_strength=0.0
+    ):
         observations = self.observation_storage.observations
         aux_3d = np.array([obs.aux_3d for obs in observations])
         gaze_2d = np.array(
@@ -132,7 +136,13 @@ class TwoSphereModel(object):
 
         # Estimate sphere center by nearest intersection of Dierkes lines
         sum_aux_3d = aux_3d_disambiguated.sum(axis=0)
-        sphere_center = np.linalg.pinv(sum_aux_3d[:3, :3]) @ sum_aux_3d[:3, 3]
+
+        if prior_3d is None:
+            sphere_center = np.linalg.pinv(sum_aux_3d[:3, :3]) @ sum_aux_3d[:3, 3]
+        else:
+            sphere_center = np.linalg.pinv(
+                sum_aux_3d[:3, :3] + prior_strength * np.eye(3)
+            ) @ (sum_aux_3d[:3, 3] + prior_strength * prior_3d)
 
         return sphere_center
 

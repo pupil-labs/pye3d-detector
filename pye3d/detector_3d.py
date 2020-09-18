@@ -96,10 +96,30 @@ class Detector3D(object):
             current_circle_3d = self.long_term_model._disambiguate_circle_3d_pair(
                 observation.circle_3d_pair
             )
+
+            projected_sphere_short_term = project_sphere_into_image_plane(
+                Sphere(self.short_term_model.sphere_center, _EYE_RADIUS_DEFAULT),
+                transform=True,
+                focal_length=self.settings["focal_length"],
+                width=self.settings["resolution"][0],
+                height=self.settings["resolution"][1],
+            )
+
             self.debug_info = {
                 "incoming": spherical(current_circle_3d),
                 "predicted": spherical(pupil_circle),
                 "short_term_center": self.short_term_model.sphere_center,
+                "projected_sphere_short_term": {
+                    "center": (
+                        projected_sphere_short_term.center[0],
+                        projected_sphere_short_term.center[1],
+                    ),
+                    "axes": (
+                        projected_sphere_short_term.minor_radius,
+                        projected_sphere_short_term.major_radius,
+                    ),
+                    "angle": projected_sphere_short_term.angle,
+                },
             }
 
         pupil_circle_kalman = self._predict_from_kalman_filter(
@@ -110,6 +130,7 @@ class Detector3D(object):
             frame, pupil_datum, pupil_circle, pupil_circle_kalman
         )
 
+        self.two_sphere_model = self.short_term_model
         if refraction_toggle:
             pupil_circle = self._apply_refraction_correction(pupil_circle)
             sphere_center = self.two_sphere_model.corrected_sphere_center
@@ -140,27 +161,30 @@ class Detector3D(object):
             return False
 
         long_term_2d, _ = self.long_term_model.estimate_sphere_center()
-        self.short_term_model.estimate_sphere_center(from_2d=long_term_2d)
+        prior_3d = self.long_term_model.sphere_center
+        self.short_term_model.estimate_sphere_center(
+            from_2d=long_term_2d, prior_3d=prior_3d, prior_strength=0.1
+        )
 
         return observation
 
-    def _sphere_center_should_be_estimated(self):
-        storage = self.two_sphere_model.observation_storage
-        if (
-            (
-                (20 < storage.count() <= 50 and storage.new_counter % 10 == 0)
-                or (storage.count() > 50 and storage.new_counter % 100 == 0)
-            )
-            and self.new_observations
-            and not self.currently_optimizing
-        ):
-            return True
-        else:
-            False
+    # def _sphere_center_should_be_estimated(self):
+    #     storage = self.two_sphere_model.observation_storage
+    #     if (
+    #         (
+    #             (20 < storage.count() <= 50 and storage.new_counter % 10 == 0)
+    #             or (storage.count() > 50 and storage.new_counter % 100 == 0)
+    #         )
+    #         and self.new_observations
+    #         and not self.currently_optimizing
+    #     ):
+    #         return True
+    #     else:
+    #         False
 
-    def _process_sphere_center_estimate(self, new_sphere_center):
-        self.two_sphere_model.set_sphere_center(new_sphere_center)
-        self.currently_optimizing = False
+    # def _process_sphere_center_estimate(self, new_sphere_center):
+    #     self.two_sphere_model.set_sphere_center(new_sphere_center)
+    #     self.currently_optimizing = False
 
     def _predict_from_two_sphere_model(self, pupil_datum, observation=False):
         if pupil_datum["confidence"] > self.settings["threshold_swirski"]:
@@ -180,7 +204,7 @@ class Detector3D(object):
         )
         gaze_vector_kalman = sph2cart(phi, theta)
         pupil_center_kalman = (
-            self.two_sphere_model.sphere_center
+            self.short_term_model.sphere_center
             + _EYE_RADIUS_DEFAULT * gaze_vector_kalman
         )
         pupil_circle_kalman = Circle(
@@ -206,7 +230,7 @@ class Detector3D(object):
                 frame,
                 pupil_circle_kalman.normal,
                 pupil_circle_kalman.radius,
-                self.two_sphere_model.sphere_center,
+                self.short_term_model.sphere_center,
                 _EYE_RADIUS_DEFAULT,
                 self.settings["focal_length"],
                 self.settings["resolution"],
@@ -223,13 +247,13 @@ class Detector3D(object):
                     edges,
                     pupil_circle_kalman.normal,
                     pupil_circle_kalman.radius,
-                    self.two_sphere_model.sphere_center,
+                    self.short_term_model.sphere_center,
                     _EYE_RADIUS_DEFAULT,
                     self.settings["focal_length"],
                     self.settings["resolution"],
                 )
                 pupil_center = (
-                    self.two_sphere_model.sphere_center
+                    self.short_term_model.sphere_center
                     + _EYE_RADIUS_DEFAULT * gaze_vector
                 )
                 pupil_circle = Circle(pupil_center, gaze_vector, pupil_radius)
@@ -237,7 +261,7 @@ class Detector3D(object):
         return pupil_circle
 
     def _apply_refraction_correction(self, pupil_circle):
-        return self.two_sphere_model.apply_refraction_correction(pupil_circle)
+        return self.short_term_model.apply_refraction_correction(pupil_circle)
 
     def _prepare_result(
         self,
@@ -355,7 +379,9 @@ class Detector3D(object):
         }
 
     def reset(self):
-        self.two_sphere_model = TwoSphereModel(settings=self.settings)
+        # self.two_sphere_model = TwoSphereModel(settings=self.settings)
+        self.short_term_model.reset()
+        self.long_term_model.reset()
         self.kalman_filter = KalmanFilter()
         self.last_kalman_call = -1
         # if self.task.busy:
