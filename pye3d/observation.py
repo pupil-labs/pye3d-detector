@@ -15,32 +15,40 @@ from abc import abstractmethod, abstractproperty
 
 import numpy as np
 
-from typing import Sequence, Optional, Callable, Tuple
+from typing import Sequence
 
 from .constants import _EYE_RADIUS_DEFAULT
 from .geometry.primitives import Line, Ellipse
 from .geometry.projections import project_line_into_image_plane, unproject_ellipse
-from .geometry.utilities import normalize
-
-
-class UnprojectionError(Exception):
-    """Raised when unprojecting ellipse fails."""
+from .camera import CameraModel
 
 
 class Observation(object):
-    def __init__(self, ellipse: Ellipse, timestamp, focal_length):
-
-        self.circle_3d_pair = unproject_ellipse(ellipse, focal_length)
-        if not self.circle_3d_pair:
-            raise UnprojectionError()
-
+    def __init__(
+        self, ellipse: Ellipse, confidence: float, timestamp: float, focal_length: float
+    ):
         self.ellipse = ellipse
+        self.confidence = confidence
         self.timestamp = timestamp
+
+        self.circle_3d_pair = None
+        self.gaze_3d_pair = None
+        self.gaze_2d = None
+        self.aux_2d = None
+        self.aux_3d = None
+        self.invalid = True
+
+        unprojection = unproject_ellipse(ellipse, focal_length)
+        if not unprojection:
+            # unprojecting ellipse failed, invalid observation!
+            return
+
+        self.invalid = False
 
         self.gaze_3d_pair = [
             Line(
-                circle_3d_pair[i].center,
-                circle_3d_pair[i].center + circle_3d_pair[i].normal,
+                self.circle_3d_pair[i].center,
+                self.circle_3d_pair[i].center + self.circle_3d_pair[i].normal,
             )
             for i in [0, 1]
         ]
@@ -67,24 +75,25 @@ class Observation(object):
         return Line(origin, direction)
 
     def __bool__(self):
-        return True
-
-
-class CameraModel:
-    def __init__(self, focal_length: float, resolution: Tuple[float, float]):
-        self.focal_length = focal_length
-        self.resolution = resolution
+        # TODO!
+        raise RuntimeError("NONONO!")
 
 
 class ObservationStorage:
-    def __init__(self, *, camera: CameraModel):
+    def __init__(self, *, camera: CameraModel, confidence_threshold: float):
         self.camera = camera
+        self.confidence_threshold = confidence_threshold
 
     @abstractmethod
-    def add(self, ellipse: Ellipse, timestamp: float):
+    def add(self, observation: Observation):
         pass
 
+    @abstractproperty
     def observations(self) -> Sequence[Observation]:
+        pass
+
+    @abstractmethod
+    def clear(self):
         pass
 
 
@@ -93,57 +102,58 @@ class BufferedObservationStorage(ObservationStorage):
         super().__init__(**kwargs)
         self._storage = deque(maxlen=buffer_length)
 
-    def add(self, ellipse: Ellipse, timestamp: float):
-        try:
-            observation = Observation(
-                ellipse,
-                timestamp,
-                self.camera.focal_length,
-            )
-        except UnprojectionError:
+    def add(self, observation: Observation):
+        if observation.invalid:
             return
+        if observation.confidence < self.confidence_threshold:
+            return
+
         self._storage.append(observation)
 
+    @property
     def observations(self) -> Sequence[Observation]:
         return list(self._storage)
 
+    def clear(self):
+        self._storage.clear()
+
 
 class BinBufferedObservationStorage(ObservationStorage):
-    def __init__(self, *, n_bins_horizontal: int, buffer_length: int, **kwargs):
+    def __init__(self, *, n_bins_horizontal: int, bin_buffer_length: int, **kwargs):
         super().__init__(**kwargs)
-        self.w = n_bins_horizontal
         self.pixels_per_bin = self.camera.resolution[0] / n_bins_horizontal
-        self.h = int(round(self.camera.resolution[1] / pixels_per_bin))
+        self.w = n_bins_horizontal
+        self.h = int(round(self.camera.resolution[1] / self.pixels_per_bin))
 
+        # store 2D bins in 1D list for easier iteration and indexing
         self._storage = [
-            [deque(maxlen=buffer_length) for _ in range(self.h)] for _ in range(self.w)
+            deque(maxlen=bin_buffer_length) for _ in range(self.w * self.h)
         ]
 
-    def add(self, ellipse: Ellipse, timestamp: float):
-        try:
-            observation = Observation(
-                ellipse,
-                timestamp,
-                self.camera.focal_length,
-            )
-        except UnprojectionError:
+    def add(self, observation: Observation):
+        if observation.invalid:
+            return
+        if observation.confidence < self.confidence_threshold:
             return
 
-        x, y = self._get_bin(observation)
-        self._storage[x][y].append(observation)
+        idx = self._get_bin(observation)
+        self._storage[idx].append(observation)
 
+    @property
     def observations(self) -> Sequence[Observation]:
-        observation_iterator = (
-            chain.from_iterable(_bin) for _bin in col for col in self._storage
-        )
-        return sorted(
-            observation_iterator, key=lambda observation: observation.timestamp
-        )
+        observation_iterator = chain.from_iterable(self._storage)
+        return sorted(observation_iterator, key=lambda obs: obs.timestamp)
 
-    def _get_bin(self, observation: Observation) -> Tuple(int, int):
-        return tuple(
-            (center + resolution / 2) / self.pixels_per_bin
-            for center, resolution in zip(
+    def clear(self):
+        for _bin in self._storage:
+            _bin.clear()
+
+    def _get_bin(self, observation: Observation) -> int:
+        x, y = (
+            floor((ellipse_center + resolution / 2) / self.pixels_per_bin)
+            for ellipse_center, resolution in zip(
                 observation.ellipse.center, self.camera.resolution
             )
         )
+        # convert to 1D bin index
+        return x + y * self.h

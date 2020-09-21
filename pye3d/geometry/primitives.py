@@ -49,7 +49,7 @@ class Line(Primitive):
 
 
 class Circle(Primitive):
-    def __init__(self, center=[0, 0, 0], normal=[0, 0, -1], radius=0):
+    def __init__(self, center=[0.0, 0.0, 0.0], normal=[0.0, 0.0, -1.0], radius=0.0):
         self.center = np.array(center, dtype=np.float)
         self.normal = np.array(normal, dtype=np.float)
         self.radius = radius
@@ -58,11 +58,13 @@ class Circle(Primitive):
         phi, theta = cart2sph(self.normal)
         return phi, theta, self.radius
 
-    def __bool__(self):
-        if self.radius > 0:
-            return True
-        else:
-            return False
+    @property
+    def invalid(self):
+        return self.radius <= 0.0
+
+    @staticmethod
+    def create_invalid() -> "Circle":
+        return Circle(radius=0.0)
 
 
 class Ellipse(Primitive):
@@ -140,17 +142,15 @@ class Conic(Primitive):
             self.B = 2.0 * ax * ay / a2 - 2.0 * ax * ay / b2
             self.C = ay * ay / a2 + ax * ax / b2
             self.D = (
-                (-2 * ax * ay * ellipse.center[1] - 2 * ax * ax * ellipse.center[0])
-                / a2
-                + (2 * ax * ay * ellipse.center[1] - 2 * ay * ay * ellipse.center[0])
-                / b2
-            )
+                -2 * ax * ay * ellipse.center[1] - 2 * ax * ax * ellipse.center[0]
+            ) / a2 + (
+                2 * ax * ay * ellipse.center[1] - 2 * ay * ay * ellipse.center[0]
+            ) / b2
             self.E = (
-                (-2 * ax * ay * ellipse.center[0] - 2 * ay * ay * ellipse.center[1])
-                / a2
-                + (2 * ax * ay * ellipse.center[0] - 2 * ax * ax * ellipse.center[1])
-                / b2
-            )
+                -2 * ax * ay * ellipse.center[0] - 2 * ay * ay * ellipse.center[1]
+            ) / a2 + (
+                2 * ax * ay * ellipse.center[0] - 2 * ax * ax * ellipse.center[1]
+            ) / b2
             self.F = (
                 (
                     2 * ax * ay * ellipse.center[0] * ellipse.center[1]
