@@ -85,7 +85,7 @@ class Detector3D(object):
         self.update_models(observation)
 
         # make initial predictions
-        pupil_circle = Circle.create_invalid()
+        pupil_circle = Circle.null()
         if observation.confidence > self.settings["threshold_swirski"]:
             pupil_circle = self.short_term_model.predict_pupil_circle(observation)
         sphere_center = self.short_term_model.sphere_center
@@ -172,7 +172,7 @@ class Detector3D(object):
             self.kalman_filter.correct(phi, theta, r)
 
     def _predict_from_3d_search(self, frame: np.ndarray, best_guess: Circle) -> Circle:
-        if best_guess.invalid:
+        if best_guess.is_null():
             return best_guess
 
         frame, frame_roi, edge_frame, edges, roi = get_edges(

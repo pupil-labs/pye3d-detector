@@ -58,12 +58,11 @@ class Circle(Primitive):
         phi, theta = cart2sph(self.normal)
         return phi, theta, self.radius
 
-    @property
-    def invalid(self):
+    def is_null(self):
         return self.radius <= 0.0
 
     @staticmethod
-    def create_invalid() -> "Circle":
+    def null() -> "Circle":
         return Circle(radius=0.0)
 
 

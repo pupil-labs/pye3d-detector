@@ -198,7 +198,7 @@ class TwoSphereModel(object):
         self, observation: Observation, use_unprojection: bool = False
     ) -> Circle:
         if observation.invalid:
-            return Circle.create_invalid()
+            return Circle.null()
 
         circle_3d = self._disambiguate_circle_3d_pair(observation.circle_3d_pair)
         direction = normalize(circle_3d.center)
