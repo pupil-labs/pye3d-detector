@@ -9,6 +9,7 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 import logging
+import math
 from typing import Dict
 
 import numpy as np
@@ -22,7 +23,7 @@ from .geometry.projections import (
     project_circle_into_image_plane,
     project_sphere_into_image_plane,
 )
-from .geometry.utilities import cart2sph, sph2cart
+from .geometry.utilities import cart2sph, normalize, sph2cart
 from .kalman import KalmanFilter
 from .observation import (
     BinBufferedObservationStorage,
@@ -32,6 +33,37 @@ from .observation import (
 from .two_sphere_model import TwoSphereModel
 
 logger = logging.getLogger(__name__)
+
+
+def ellipse2dict(ellipse: Ellipse) -> Dict:
+    return {
+        "center": (
+            ellipse.center[0],
+            ellipse.center[1],
+        ),
+        "axes": (
+            ellipse.minor_radius,
+            ellipse.major_radius,
+        ),
+        "angle": ellipse.angle,
+    }
+
+
+def circle2dict(circle: Circle, flip_y: bool = True) -> Dict:
+    flip = -1 if flip_y else 1
+    return {
+        "center": (
+            circle.center[0],
+            flip * circle.center[1],
+            circle.center[2],
+        ),
+        "normal": (
+            circle.normal[0],
+            flip * circle.normal[1],
+            circle.normal[2],
+        ),
+        "radius": circle.radius,
+    }
 
 
 class Detector3D(object):
@@ -115,6 +147,48 @@ class Detector3D(object):
             pupil_circle,
             pupil_circle_kalman,
         )
+
+        if debug and not observation.invalid:
+
+            def spherical(circle: Circle):
+                x, y, z = normalize(circle.normal)
+                theta = math.atan2(y, x)
+                phi = math.acos(z)
+                return np.array([theta, phi])
+
+            incoming = self.long_term_model._disambiguate_circle_3d_pair(
+                observation.circle_3d_pair
+            )
+
+            projected_short_term = project_sphere_into_image_plane(
+                Sphere(self.short_term_model.sphere_center, _EYE_RADIUS_DEFAULT),
+                transform=True,
+                focal_length=self.camera.focal_length,
+                width=self.camera.resolution[0],
+                height=self.camera.resolution[1],
+            )
+            projected_long_term = project_sphere_into_image_plane(
+                Sphere(self.long_term_model.sphere_center, _EYE_RADIUS_DEFAULT),
+                transform=True,
+                focal_length=self.camera.focal_length,
+                width=self.camera.resolution[0],
+                height=self.camera.resolution[1],
+            )
+
+            bin_storage: BinBufferedObservationStorage = self.long_term_model.storage
+            bins = np.reshape(
+                [len(_bin) for _bin in bin_storage._storage],
+                (bin_storage.w, bin_storage.h),
+            )
+
+            self.debug_info = {
+                "incoming": spherical(incoming),
+                "predicted": spherical(pupil_circle),
+                "short_term_center": self.short_term_model.sphere_center,
+                "projected_short_term": ellipse2dict(projected_short_term),
+                "projected_long_term": ellipse2dict(projected_long_term),
+                "bins": bins,
+            }
 
         if debug:
             result["debug_info"] = self.debug_info
@@ -214,34 +288,6 @@ class Detector3D(object):
     ):
         flip = -1 if flip_y else 1
 
-        def ellipse2dict(ellipse: Ellipse) -> Dict:
-            return {
-                "center": (
-                    ellipse.center[0],
-                    ellipse.center[1],
-                ),
-                "axes": (
-                    ellipse.minor_radius,
-                    ellipse.major_radius,
-                ),
-                "angle": ellipse.angle,
-            }
-
-        def circle2dict(circle: Circle) -> Dict:
-            return {
-                "center": (
-                    circle.center[0],
-                    flip * circle.center[1],
-                    circle.center[2],
-                ),
-                "normal": (
-                    circle.normal[0],
-                    flip * circle.normal[1],
-                    circle.normal[2],
-                ),
-                "radius": circle.radius,
-            }
-
         result = {
             "timestamp": observation.timestamp,
             "sphere": {
@@ -259,9 +305,9 @@ class Detector3D(object):
         )
         result["projected_sphere"] = ellipse2dict(eye_sphere_projected)
 
-        result["circle_3d"] = circle2dict(pupil_circle)
+        result["circle_3d"] = circle2dict(pupil_circle, flip_y)
         result["diameter_3d"] = pupil_circle.radius * 2
-        result["circle_3d_kalman"] = circle2dict(kalman_prediction)
+        result["circle_3d_kalman"] = circle2dict(kalman_prediction, flip_y)
 
         projected_pupil_circle = project_circle_into_image_plane(
             pupil_circle,
