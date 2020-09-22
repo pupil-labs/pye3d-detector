@@ -96,6 +96,10 @@ class ObservationStorage:
     def clear(self):
         pass
 
+    @abstractmethod
+    def count(self) -> int:
+        pass
+
 
 class BufferedObservationStorage(ObservationStorage):
     def __init__(self, *, buffer_length: int, **kwargs):
@@ -117,6 +121,9 @@ class BufferedObservationStorage(ObservationStorage):
     def clear(self):
         self._storage.clear()
 
+    def count(self) -> int:
+        return len(self._storage)
+
 
 class BinBufferedObservationStorage(ObservationStorage):
     def __init__(self, *, n_bins_horizontal: int, bin_buffer_length: int, **kwargs):
@@ -137,6 +144,9 @@ class BinBufferedObservationStorage(ObservationStorage):
             return
 
         idx = self._get_bin(observation)
+        if idx < 0 or idx >= len(self._storage):
+            print(f"INDEX OUT OF BOUNDS: {idx}")
+            return
         self._storage[idx].append(observation)
 
     @property
@@ -147,6 +157,9 @@ class BinBufferedObservationStorage(ObservationStorage):
     def clear(self):
         for _bin in self._storage:
             _bin.clear()
+
+    def count(self) -> int:
+        return sum(len(_bin) for _bin in self._storage)
 
     def _get_bin(self, observation: Observation) -> int:
         x, y = (

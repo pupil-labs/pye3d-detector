@@ -56,6 +56,10 @@ class TwoSphereModel(object):
     def add_observation(self, observation: Observation):
         self.storage.add(observation)
 
+    @property
+    def n_observations(self) -> int:
+        return self.storage.count()
+
     def set_sphere_center(self, new_sphere_center):
         self.sphere_center = new_sphere_center
         self.corrected_sphere_center = self.refractionizer.correct_sphere_center(

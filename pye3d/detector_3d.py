@@ -62,7 +62,7 @@ def circle2dict(circle: Circle, flip_y: bool = True) -> Dict:
             flip * circle.normal[1],
             circle.normal[2],
         ),
-        "radius": circle.radius,
+        "radius": float(circle.radius),
     }
 
 
@@ -154,7 +154,7 @@ class Detector3D(object):
                 x, y, z = normalize(circle.normal)
                 theta = math.atan2(y, x)
                 phi = math.acos(z)
-                return np.array([theta, phi])
+                return [theta, phi]
 
             incoming = self.long_term_model._disambiguate_circle_3d_pair(
                 observation.circle_3d_pair
@@ -184,10 +184,12 @@ class Detector3D(object):
             self.debug_info = {
                 "incoming": spherical(incoming),
                 "predicted": spherical(pupil_circle),
-                "short_term_center": self.short_term_model.sphere_center,
+                "short_term_center": list(self.short_term_model.sphere_center),
                 "projected_short_term": ellipse2dict(projected_short_term),
                 "projected_long_term": ellipse2dict(projected_long_term),
-                "bins": bins,
+                "bins": bins.tolist(),
+                "px_per_bin": bin_storage.pixels_per_bin,
+                "Dierkes_lines": [],
             }
 
         if debug:
