@@ -9,12 +9,11 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 import logging
+from typing import Dict
 
 import numpy as np
-import math
 
-from typing import Dict, Optional
-
+from .camera import CameraModel
 from .constants import _EYE_RADIUS_DEFAULT
 from .cpp.pupil_detection_3d import get_edges
 from .cpp.pupil_detection_3d import search_on_sphere as search_on_sphere
@@ -23,15 +22,13 @@ from .geometry.projections import (
     project_circle_into_image_plane,
     project_sphere_into_image_plane,
 )
-from .observation import (
-    Observation,
-    UnprojectionError,
-    BufferedObservationStorage,
-    BinBufferedObservationStorage,
-)
-from .geometry.utilities import cart2sph, sph2cart, normalize
+from .geometry.utilities import cart2sph, sph2cart
 from .kalman import KalmanFilter
-from .camera import CameraModel
+from .observation import (
+    BinBufferedObservationStorage,
+    BufferedObservationStorage,
+    Observation,
+)
 from .two_sphere_model import TwoSphereModel
 
 logger = logging.getLogger(__name__)
@@ -77,64 +74,69 @@ class Detector3D(object):
         self.debug_info = None
 
     def update_and_detect(
-        self, pupil_datum, frame, refraction_toggle=True, debug_toggle=False
+        self,
+        pupil_datum: Dict,
+        frame: np.ndarray,
+        apply_refraction_correction: bool = True,
+        debug: bool = True,  # TODO: disable again by default
     ):
-        conf = pupil_datum["confidence"]
-        timestamp = pupil_datum["timestamp"]
-
+        # update models
         observation = self._extract_observation(pupil_datum)
         self.update_models(observation)
 
-        pupil_circle = self.short_term_model.predict_pupil_circle(observation)
+        # make initial predictions
+        pupil_circle = Circle.create_invalid()
+        if observation.confidence > self.settings["threshold_swirski"]:
+            pupil_circle = self.short_term_model.predict_pupil_circle(observation)
+        sphere_center = self.short_term_model.sphere_center
 
-        pupil_circle_kalman = self._predict_from_kalman_filter(timestamp)
-
+        # pupil_circle <-> kalman filter
+        # either improve prediction or improve filter
+        pupil_circle_kalman = self._predict_from_kalman_filter(pupil_datum["timestamp"])
         if observation.confidence > self.settings["threshold_kalman"]:
+            # high confidence: use to correct kalman filter
             self._correct_kalman_filter(pupil_circle)
         elif observation.confidence < self.settings["threshold_swirski"]:
+            # low confidence: use kalman result to search for circles in image
             pupil_circle = self._predict_from_3d_search(
-                frame, pupil_datum, pupil_circle, pupil_circle_kalman
+                frame, best_guess=pupil_circle_kalman
             )
 
-        if pupil_circle is not None and conf > self.settings["threshold_kalman"]:
-            self._correct_kalman_filter(pupil_circle)
-
-        pupil_circle = self._predict_from_3d_search(
-            frame, pupil_datum, pupil_circle, pupil_circle_kalman
-        )
-
-        if refraction_toggle:
-            pupil_circle = self._apply_refraction_correction(pupil_circle)
+        # apply refraction correction
+        if apply_refraction_correction:
+            pupil_circle = self.short_term_model.apply_refraction_correction(
+                pupil_circle
+            )
             sphere_center = self.short_term_model.corrected_sphere_center
-        else:
-            sphere_center = self.short_term_model.sphere_center
 
-        py_result = self._prepare_result(
+        result = self._prepare_result(
+            observation,
             sphere_center,
-            pupil_datum,
             pupil_circle,
             pupil_circle_kalman,
-            flip=-1,
-            debug_toggle=debug_toggle,
         )
 
-        return py_result
+        if debug:
+            result["debug_info"] = self.debug_info
+
+        return result
 
     def update_models(self, observation: Observation):
-
         self.short_term_model.add_observation(observation)
         self.long_term_model.add_observation(observation)
 
-        # TODO: dont trigger
+        # TODO: dont trigger every frame? background process maybe?
 
-        long_term_2d, _ = self.long_term_model.estimate_sphere_center()
-        prior_3d = self.long_term_model.sphere_center
+        # update long term model normally
+        long_term_2d, long_term_3d = self.long_term_model.estimate_sphere_center()
+
+        # update short term model with help of long-term model
+        # using 2d center for disambiguation and 3d center as prior bias
         self.short_term_model.estimate_sphere_center(
-            from_2d=long_term_2d, prior_3d=prior_3d, prior_strength=0.1
+            from_2d=long_term_2d, prior_3d=long_term_3d, prior_strength=0.1
         )
 
     def _extract_observation(self, pupil_datum: Dict) -> Observation:
-
         width, height = self.camera.resolution
         center = (
             +(pupil_datum["ellipse"]["center"][0] - width / 2),
@@ -151,36 +153,6 @@ class Detector3D(object):
             pupil_datum["timestamp"],
             self.camera.focal_length,
         )
-
-    # def _sphere_center_should_be_estimated(self):
-    #     storage = self.two_sphere_model.observation_storage
-    #     if (
-    #         (
-    #             (20 < storage.count() <= 50 and storage.new_counter % 10 == 0)
-    #             or (storage.count() > 50 and storage.new_counter % 100 == 0)
-    #         )
-    #         and self.new_observations
-    #         and not self.currently_optimizing
-    #     ):
-    #         return True
-    #     else:
-    #         False
-
-    # def _process_sphere_center_estimate(self, new_sphere_center):
-    #     self.two_sphere_model.set_sphere_center(new_sphere_center)
-    #     self.currently_optimizing = False
-
-    def _predict_from_two_sphere_model(self, observation=False):
-        if pupil_datum["confidence"] > self.settings["threshold_swirski"]:
-            if observation:
-                pupil_circle = self.short_term_model.predict_pupil_circle(
-                    observation.circle_3d_pair, from_given_circle_3d_pair=True
-                )
-            else:
-                pupil_circle = self.short_term_model.predict_pupil_circle(pupil_datum)
-        else:
-            pupil_circle = Circle([0, 0, 0], [0, 0, -1], 0)
-        return pupil_circle
 
     def _predict_from_kalman_filter(self, timestamp):
         phi, theta, pupil_radius_kalman = self.kalman_filter.predict(timestamp)
@@ -205,8 +177,8 @@ class Detector3D(object):
 
         frame, frame_roi, edge_frame, edges, roi = get_edges(
             frame,
-            pupil_circle_kalman.normal,
-            pupil_circle_kalman.radius,
+            best_guess.normal,
+            best_guess.radius,
             self.short_term_model.sphere_center,
             _EYE_RADIUS_DEFAULT,
             self.camera.focal_length,
@@ -217,10 +189,10 @@ class Detector3D(object):
         if len(edges) <= 0:
             return best_guess
 
-        (gaze_vector, pupil_radius, final_edges, edges_on_sphere,) = search_on_sphere(
+        (gaze_vector, pupil_radius, final_edges, edges_on_sphere) = search_on_sphere(
             edges,
-            pupil_circle_kalman.normal,
-            pupil_circle_kalman.radius,
+            best_guess.normal,
+            best_guess.radius,
             self.short_term_model.sphere_center,
             _EYE_RADIUS_DEFAULT,
             self.camera.focal_length,
@@ -232,21 +204,46 @@ class Detector3D(object):
         pupil_circle = Circle(pupil_center, gaze_vector, pupil_radius)
         return pupil_circle
 
-    def _apply_refraction_correction(self, pupil_circle):
-        return self.short_term_model.apply_refraction_correction(pupil_circle)
-
     def _prepare_result(
         self,
-        sphere_center,
-        pupil_datum,
-        pupil_circle,
-        kalman_prediction=None,
-        flip=-1,
-        debug_toggle=False,
+        observation: Observation,
+        sphere_center: np.ndarray,
+        pupil_circle: Circle,
+        kalman_prediction: Circle,
+        flip_y: bool = True,
     ):
+        flip = -1 if flip_y else 1
 
-        py_result = {
-            "topic": "pupil",
+        def ellipse2dict(ellipse: Ellipse) -> Dict:
+            return {
+                "center": (
+                    ellipse.center[0],
+                    ellipse.center[1],
+                ),
+                "axes": (
+                    ellipse.minor_radius,
+                    ellipse.major_radius,
+                ),
+                "angle": ellipse.angle,
+            }
+
+        def circle2dict(circle: Circle) -> Dict:
+            return {
+                "center": (
+                    circle.center[0],
+                    flip * circle.center[1],
+                    circle.center[2],
+                ),
+                "normal": (
+                    circle.normal[0],
+                    flip * circle.normal[1],
+                    circle.normal[2],
+                ),
+                "radius": circle.radius,
+            }
+
+        result = {
+            "timestamp": observation.timestamp,
             "sphere": {
                 "center": (sphere_center[0], flip * sphere_center[1], sphere_center[2]),
                 "radius": _EYE_RADIUS_DEFAULT,
@@ -256,51 +253,15 @@ class Detector3D(object):
         eye_sphere_projected = project_sphere_into_image_plane(
             Sphere(sphere_center, _EYE_RADIUS_DEFAULT),
             transform=True,
-            focal_length=self.settings["focal_length"],
-            width=self.settings["resolution"][0],
-            height=self.settings["resolution"][1],
+            focal_length=self.camera.focal_length,
+            width=self.camera.resolution[0],
+            height=self.camera.resolution[1],
         )
+        result["projected_sphere"] = ellipse2dict(eye_sphere_projected)
 
-        py_result["projected_sphere"] = {
-            "center": (eye_sphere_projected.center[0], eye_sphere_projected.center[1]),
-            "axes": (
-                eye_sphere_projected.minor_radius,
-                eye_sphere_projected.major_radius,
-            ),
-            "angle": eye_sphere_projected.angle,
-        }
-
-        py_result["circle_3d"] = {
-            "center": (
-                pupil_circle.center[0],
-                flip * pupil_circle.center[1],
-                pupil_circle.center[2],
-            ),
-            "normal": (
-                pupil_circle.normal[0],
-                flip * pupil_circle.normal[1],
-                pupil_circle.normal[2],
-            ),
-            "radius": pupil_circle.radius,
-        }
-
-        py_result["circle_3d_kalman"] = {
-            "center": (
-                kalman_prediction.center[0],
-                flip * kalman_prediction.center[1],
-                kalman_prediction.center[2],
-            ),
-            "normal": (
-                kalman_prediction.normal[0],
-                flip * kalman_prediction.normal[1],
-                kalman_prediction.normal[2],
-            ),
-            "radius": float(kalman_prediction.radius),
-        }
-
-        py_result["confidence"] = pupil_datum["confidence"]
-        py_result["timestamp"] = pupil_datum["timestamp"]
-        py_result["diameter_3d"] = pupil_circle.radius * 2
+        result["circle_3d"] = circle2dict(pupil_circle)
+        result["diameter_3d"] = pupil_circle.radius * 2
+        result["circle_3d_kalman"] = circle2dict(kalman_prediction)
 
         projected_pupil_circle = project_circle_into_image_plane(
             pupil_circle,
@@ -312,43 +273,23 @@ class Detector3D(object):
         if not projected_pupil_circle:
             projected_pupil_circle = Ellipse(np.asarray([0.0, 0.0]), 0.0, 0.0, 0.0)
 
-        py_result["raw_ellipse"] = pupil_datum["ellipse"]
+        result["ellipse"] = ellipse2dict(projected_pupil_circle)
+        result["diameter"] = projected_pupil_circle.major_radius
 
-        py_result["ellipse"] = {
-            "center": (
-                projected_pupil_circle.center[0],
-                projected_pupil_circle.center[1],
-            ),
-            "axes": (
-                projected_pupil_circle.minor_radius,
-                projected_pupil_circle.major_radius,
-            ),
-            "angle": projected_pupil_circle.angle,
-        }
-
-        norm_center = (0.0, 0.0)
-        py_result["norm_pos"] = norm_center
-
-        py_result["diameter"] = py_result["ellipse"]["axes"][1]
-
-        py_result["model_confidence"] = 1.0
-        py_result["model_id"] = 1
-        py_result["model_birth_timestamp"] = 0.0
+        # TODO: come up with a confidence measure and probably adjust raw pupil
+        # detection confidence?
+        result["model_confidence"] = 1.0
+        result["confidence"] = observation.confidence
 
         phi, theta = cart2sph(pupil_circle.normal)
         if not np.any(np.isnan([phi, theta])):
-            py_result["theta"] = theta
-            py_result["phi"] = phi
+            result["theta"] = theta
+            result["phi"] = phi
         else:
-            py_result["theta"] = 0.0
-            py_result["phi"] = 0.0
+            result["theta"] = 0.0
+            result["phi"] = 0.0
 
-        py_result["method"] = "3d c++"
-
-        return {
-            **py_result,
-            "debug_info": self.debug_info,
-        }
+        return result
 
     def reset(self):
         self.short_term_model.reset()

@@ -14,6 +14,7 @@ from typing import Any, Dict, Sequence, Tuple
 import numpy as np
 import numpy.linalg
 
+from .camera import CameraModel
 from .constants import _EYE_RADIUS_DEFAULT
 from .geometry.intersections import nearest_point_on_sphere_to_line
 from .geometry.primitives import Circle, Line
@@ -25,7 +26,6 @@ from .geometry.projections import (
 from .geometry.utilities import normalize
 from .observation import Observation, ObservationStorage
 from .refraction import Refractionizer
-from .camera import CameraModel
 
 logger = logging.getLogger(__name__)
 
@@ -198,8 +198,6 @@ class TwoSphereModel(object):
         self, observation: Observation, use_unprojection: bool = False
     ) -> Circle:
         if observation.invalid:
-            return Circle.create_invalid()
-        if observation.confidence < self.settings["threshold_swirski"]:
             return Circle.create_invalid()
 
         circle_3d = self._disambiguate_circle_3d_pair(observation.circle_3d_pair)

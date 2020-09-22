@@ -8,19 +8,18 @@ Lesser General Public License (LGPL v3.0).
 See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
+from abc import abstractmethod, abstractproperty
 from collections import deque
 from itertools import chain
 from math import floor
-from abc import abstractmethod, abstractproperty
+from typing import Sequence
 
 import numpy as np
 
-from typing import Sequence
-
-from .constants import _EYE_RADIUS_DEFAULT
-from .geometry.primitives import Line, Ellipse
-from .geometry.projections import project_line_into_image_plane, unproject_ellipse
 from .camera import CameraModel
+from .constants import _EYE_RADIUS_DEFAULT
+from .geometry.primitives import Ellipse, Line
+from .geometry.projections import project_line_into_image_plane, unproject_ellipse
 
 
 class Observation(object):
@@ -38,17 +37,18 @@ class Observation(object):
         self.aux_3d = None
         self.invalid = True
 
-        unprojection = unproject_ellipse(ellipse, focal_length)
-        if not unprojection:
+        circle_3d_pair = unproject_ellipse(ellipse, focal_length)
+        if not circle_3d_pair:
             # unprojecting ellipse failed, invalid observation!
             return
 
         self.invalid = False
+        self.circle_3d_pair = circle_3d_pair
 
         self.gaze_3d_pair = [
             Line(
-                self.circle_3d_pair[i].center,
-                self.circle_3d_pair[i].center + self.circle_3d_pair[i].normal,
+                circle_3d_pair[i].center,
+                circle_3d_pair[i].center + circle_3d_pair[i].normal,
             )
             for i in [0, 1]
         ]
