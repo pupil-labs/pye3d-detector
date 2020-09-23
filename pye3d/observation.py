@@ -12,9 +12,10 @@ from abc import abstractmethod, abstractproperty
 from collections import deque
 from itertools import chain
 from math import floor
-from typing import Sequence
+from typing import Sequence, Dict
 
 import numpy as np
+from sortedcontainers import SortedList
 
 from .camera import CameraModel
 from .constants import _EYE_RADIUS_DEFAULT
@@ -128,14 +129,13 @@ class BufferedObservationStorage(ObservationStorage):
 class BinBufferedObservationStorage(ObservationStorage):
     def __init__(self, *, n_bins_horizontal: int, bin_buffer_length: int, **kwargs):
         super().__init__(**kwargs)
+        self.bin_buffer_length = bin_buffer_length
         self.pixels_per_bin = self.camera.resolution[0] / n_bins_horizontal
         self.w = n_bins_horizontal
         self.h = int(round(self.camera.resolution[1] / self.pixels_per_bin))
 
-        # store 2D bins in 1D list for easier iteration and indexing
-        self._storage = [
-            deque(maxlen=bin_buffer_length) for _ in range(self.w * self.h)
-        ]
+        self._by_time = SortedList(key=lambda obs: obs.timestamp)
+        self._by_bin = dict()
 
     def add(self, observation: Observation):
         if observation.invalid:
@@ -144,22 +144,56 @@ class BinBufferedObservationStorage(ObservationStorage):
             return
 
         idx = self._get_bin(observation)
-        if idx < 0 or idx >= len(self._storage):
+        if idx < 0 or idx >= self.w * self.h:
             print(f"INDEX OUT OF BOUNDS: {idx}")
             return
-        self._storage[idx].append(observation)
+
+        if idx not in self._by_bin:
+            self._by_bin[idx] = SortedList(key=lambda obs: obs.timestamp)
+
+        # manage within-bin forgetting
+        _bin: SortedList = self._by_bin[idx]
+        while len(_bin) >= self.bin_buffer_length:
+            old = _bin.pop(0)
+            self._by_time.remove(old)
+
+        # add to both lookup structures
+        _bin.add(observation)
+        self._by_time.add(observation)
+
+        # manage across-bin forgetting
+        MIN_BINS = 10
+        MIN_TIME = 10
+        while len(self._by_bin) > MIN_BINS:
+            oldest_age = observation.timestamp - self._by_time[0].timestamp
+            if oldest_age < MIN_TIME:
+                break
+
+            # forget oldest entry
+            old = self._by_time.pop(0)
+            idx = self._get_bin(old)
+            _bin = self._by_bin[idx]
+            _bin.remove(old)
+            # make sure to remove bin if empty for bin-counting to work
+            if len(_bin) == 0:
+                self._by_bin.pop(idx)
 
     @property
     def observations(self) -> Sequence[Observation]:
-        observation_iterator = chain.from_iterable(self._storage)
-        return sorted(observation_iterator, key=lambda obs: obs.timestamp)
+        return list(self._by_time)
 
     def clear(self):
-        for _bin in self._storage:
-            _bin.clear()
+        self._by_time.clear()
+        self._by_bin.clear()
 
     def count(self) -> int:
-        return sum(len(_bin) for _bin in self._storage)
+        return len(self._by_time)
+
+    def get_bin_counts(self) -> np.ndarray:
+        dense_1d = np.zeros((self.w * self.h,))
+        for idx, _bin in self._by_bin.items():
+            dense_1d[idx] = len(_bin)
+        return np.reshape(dense_1d, (self.w, self.h))
 
     def _get_bin(self, observation: Observation) -> int:
         x, y = (

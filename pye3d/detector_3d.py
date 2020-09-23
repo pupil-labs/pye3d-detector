@@ -98,7 +98,7 @@ class Detector3D(object):
                 camera=self.camera,
                 confidence_threshold=settings["threshold_data_storage"],
                 n_bins_horizontal=10,
-                bin_buffer_length=200,
+                bin_buffer_length=5,
             ),
         )
 
@@ -121,7 +121,7 @@ class Detector3D(object):
         pupil_circle = Circle.null()
         if observation.confidence > self.settings["threshold_swirski"]:
             pupil_circle = self.short_term_model.predict_pupil_circle(observation)
-        sphere_center = self.short_term_model.sphere_center
+        sphere_center = self.long_term_model.sphere_center
 
         # pupil_circle <-> kalman filter
         # either improve prediction or improve filter
@@ -140,7 +140,7 @@ class Detector3D(object):
             pupil_circle = self.short_term_model.apply_refraction_correction(
                 pupil_circle
             )
-            sphere_center = self.short_term_model.corrected_sphere_center
+            sphere_center = self.long_term_model.corrected_sphere_center
 
         result = self._prepare_result(
             observation,
@@ -177,10 +177,7 @@ class Detector3D(object):
             )
 
             bin_storage: BinBufferedObservationStorage = self.long_term_model.storage
-            bins = np.reshape(
-                [len(_bin) for _bin in bin_storage._storage],
-                (bin_storage.w, bin_storage.h),
-            )
+            bins = bin_storage.get_bin_counts()
             m = np.max(bins)
             if m >= 0:
                 bins = bins / m
@@ -195,12 +192,18 @@ class Detector3D(object):
                 "Dierkes_lines": [],
             }
 
-            debug_img = frame / 255
-            bin_mask = cv2.resize(
+            debug_img = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR) / 255
+
+            bin_img_gray = cv2.resize(
                 bins, debug_img.shape[:2], interpolation=cv2.INTER_NEAREST
             )
+            zeros = np.zeros_like(bin_img_gray)
+            b = zeros
+            g = zeros
+            r = bin_img_gray
+            bin_img = cv2.merge([b, g, r])
 
-            debug_img = 0.5 * debug_img + 0.5 * bin_mask
+            debug_img = np.maximum(debug_img, bin_img)
 
             cv2.imshow("debug", debug_img)
             cv2.waitKey(1)
@@ -327,8 +330,10 @@ class Detector3D(object):
         result["projected_sphere"] = ellipse2dict(eye_sphere_projected)
 
         result["circle_3d"] = circle2dict(pupil_circle, flip_y)
-        result["diameter_3d"] = pupil_circle.radius * 2
         result["circle_3d_kalman"] = circle2dict(kalman_prediction, flip_y)
+
+        pupil_circle_long_term = self.long_term_model.predict_pupil_circle(observation)
+        result["diameter_3d"] = pupil_circle_long_term.radius * 2
 
         projected_pupil_circle = project_circle_into_image_plane(
             pupil_circle,
