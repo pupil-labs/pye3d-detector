@@ -12,6 +12,7 @@ import logging
 import math
 from typing import Dict
 
+import cv2
 import numpy as np
 
 from .camera import CameraModel
@@ -180,6 +181,10 @@ class Detector3D(object):
                 [len(_bin) for _bin in bin_storage._storage],
                 (bin_storage.w, bin_storage.h),
             )
+            m = np.max(bins)
+            if m >= 0:
+                bins = bins / m
+            bins = np.flip(bins, 0)
 
             self.debug_info = {
                 "incoming": spherical(incoming),
@@ -187,10 +192,18 @@ class Detector3D(object):
                 "short_term_center": list(self.short_term_model.sphere_center),
                 "projected_short_term": ellipse2dict(projected_short_term),
                 "projected_long_term": ellipse2dict(projected_long_term),
-                "bins": bins.tolist(),
-                "px_per_bin": bin_storage.pixels_per_bin,
                 "Dierkes_lines": [],
             }
+
+            debug_img = frame / 255
+            bin_mask = cv2.resize(
+                bins, debug_img.shape[:2], interpolation=cv2.INTER_NEAREST
+            )
+
+            debug_img = 0.5 * debug_img + 0.5 * bin_mask
+
+            cv2.imshow("debug", debug_img)
+            cv2.waitKey(1)
 
         if debug:
             result["debug_info"] = self.debug_info
@@ -202,6 +215,12 @@ class Detector3D(object):
         self.long_term_model.add_observation(observation)
 
         # TODO: dont trigger every frame? background process maybe?
+
+        if (
+            self.short_term_model.n_observations <= 0
+            or self.long_term_model.n_observations <= 0
+        ):
+            return
 
         # update long term model normally
         long_term_2d, long_term_3d = self.long_term_model.estimate_sphere_center()
