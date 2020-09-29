@@ -96,9 +96,20 @@ class Detector3D(object):
             camera=self.camera,
             storage=BinBufferedObservationStorage(
                 camera=self.camera,
-                confidence_threshold=settings["threshold_data_storage"],
+                confidence_threshold=0.98,
                 n_bins_horizontal=10,
-                bin_buffer_length=5,
+                bin_buffer_length=10,
+                forget_min_observations=100,
+                forget_min_time=5,
+            ),
+        )
+        self.ultra_long_term_model = TwoSphereModel(
+            camera=self.camera,
+            storage=BinBufferedObservationStorage(
+                camera=self.camera,
+                confidence_threshold=0.98,
+                n_bins_horizontal=10,
+                bin_buffer_length=100,
             ),
         )
 
@@ -175,6 +186,13 @@ class Detector3D(object):
                 width=self.camera.resolution[0],
                 height=self.camera.resolution[1],
             )
+            projected_ultra_long_term = project_sphere_into_image_plane(
+                Sphere(self.ultra_long_term_model.sphere_center, _EYE_RADIUS_DEFAULT),
+                transform=True,
+                focal_length=self.camera.focal_length,
+                width=self.camera.resolution[0],
+                height=self.camera.resolution[1],
+            )
 
             bin_storage: BinBufferedObservationStorage = self.long_term_model.storage
             bins = bin_storage.get_bin_counts()
@@ -189,6 +207,7 @@ class Detector3D(object):
                 "short_term_center": list(self.short_term_model.sphere_center),
                 "projected_short_term": ellipse2dict(projected_short_term),
                 "projected_long_term": ellipse2dict(projected_long_term),
+                "projected_ultra_long_term": ellipse2dict(projected_ultra_long_term),
                 "Dierkes_lines": [],
             }
 
@@ -216,17 +235,24 @@ class Detector3D(object):
     def update_models(self, observation: Observation):
         self.short_term_model.add_observation(observation)
         self.long_term_model.add_observation(observation)
+        self.ultra_long_term_model.add_observation(observation)
 
         # TODO: dont trigger every frame? background process maybe?
 
         if (
             self.short_term_model.n_observations <= 0
             or self.long_term_model.n_observations <= 0
+            or self.ultra_long_term_model.n_observations <= 0
         ):
             return
 
-        # update long term model normally
-        long_term_2d, long_term_3d = self.long_term_model.estimate_sphere_center()
+        # update ultra long term model normally
+        _, ultra_long_term_3d = self.ultra_long_term_model.estimate_sphere_center()
+
+        # update long term model with ultra long term bias
+        long_term_2d, long_term_3d = self.long_term_model.estimate_sphere_center(
+            prior_3d=ultra_long_term_3d, prior_strength=0.1
+        )
 
         # update short term model with help of long-term model
         # using 2d center for disambiguation and 3d center as prior bias

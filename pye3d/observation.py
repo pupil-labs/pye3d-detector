@@ -10,9 +10,8 @@ See COPYING and COPYING.LESSER for license details.
 """
 from abc import abstractmethod, abstractproperty
 from collections import deque
-from itertools import chain
 from math import floor
-from typing import Sequence, Dict
+from typing import Sequence, Optional
 
 import numpy as np
 from sortedcontainers import SortedList
@@ -127,9 +126,19 @@ class BufferedObservationStorage(ObservationStorage):
 
 
 class BinBufferedObservationStorage(ObservationStorage):
-    def __init__(self, *, n_bins_horizontal: int, bin_buffer_length: int, **kwargs):
+    def __init__(
+        self,
+        *,
+        n_bins_horizontal: int,
+        bin_buffer_length: int,
+        forget_min_observations: Optional[int] = None,
+        forget_min_time: Optional[float] = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.bin_buffer_length = bin_buffer_length
+        self.forget_min_observations = forget_min_observations
+        self.forget_min_time = forget_min_time
         self.pixels_per_bin = self.camera.resolution[0] / n_bins_horizontal
         self.w = n_bins_horizontal
         self.h = int(round(self.camera.resolution[1] / self.pixels_per_bin))
@@ -162,11 +171,12 @@ class BinBufferedObservationStorage(ObservationStorage):
         self._by_time.add(observation)
 
         # manage across-bin forgetting
-        MIN_BINS = 10
-        MIN_TIME = 10
-        while len(self._by_bin) > MIN_BINS:
+        if self.forget_min_observations is None or self.forget_min_time is None:
+            return
+
+        while self.count() > self.forget_min_observations:
             oldest_age = observation.timestamp - self._by_time[0].timestamp
-            if oldest_age < MIN_TIME:
+            if oldest_age < self.forget_min_time:
                 break
 
             # forget oldest entry
