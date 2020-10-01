@@ -73,10 +73,13 @@ class Detector3D(object):
         settings={
             "focal_length": 283.0,
             "resolution": (192, 192),
-            "maximum_integration_time": 30.0,
-            "threshold_data_storage": 0.8,
             "threshold_swirski": 0.7,
             "threshold_kalman": 0.98,
+            "threshold_short_term": 0.8,
+            "threshold_long_term": 0.98,
+            "long_term_buffer_size": 10,
+            "long_term_forget_time": 5,
+            "long_term_forget_observations": 100,
         },
     ):
         self.settings = settings
@@ -88,26 +91,26 @@ class Detector3D(object):
             camera=self.camera,
             storage=BufferedObservationStorage(
                 camera=self.camera,
-                confidence_threshold=settings["threshold_data_storage"],
-                buffer_length=20,
+                confidence_threshold=settings["threshold_short_term"],
+                buffer_length=10,
             ),
         )
         self.long_term_model = TwoSphereModel(
             camera=self.camera,
             storage=BinBufferedObservationStorage(
                 camera=self.camera,
-                confidence_threshold=0.98,
+                confidence_threshold=settings["threshold_long_term"],
                 n_bins_horizontal=10,
-                bin_buffer_length=10,
-                forget_min_observations=100,
-                forget_min_time=5,
+                bin_buffer_length=settings["long_term_buffer_size"],
+                forget_min_observations=settings["long_term_forget_observations"],
+                forget_min_time=settings["long_term_forget_time"],
             ),
         )
         self.ultra_long_term_model = TwoSphereModel(
             camera=self.camera,
             storage=BinBufferedObservationStorage(
                 camera=self.camera,
-                confidence_threshold=0.98,
+                confidence_threshold=settings["threshold_long_term"],
                 n_bins_horizontal=10,
                 bin_buffer_length=100,
             ),
@@ -246,19 +249,24 @@ class Detector3D(object):
         ):
             return
 
-        # update ultra long term model normally
-        _, ultra_long_term_3d = self.ultra_long_term_model.estimate_sphere_center()
+        try:
+            # update ultra long term model normally
+            _, ultra_long_term_3d = self.ultra_long_term_model.estimate_sphere_center()
 
-        # update long term model with ultra long term bias
-        long_term_2d, long_term_3d = self.long_term_model.estimate_sphere_center(
-            prior_3d=ultra_long_term_3d, prior_strength=0.1
-        )
+            # update long term model with ultra long term bias
+            long_term_2d, long_term_3d = self.long_term_model.estimate_sphere_center(
+                prior_3d=ultra_long_term_3d, prior_strength=0.1
+            )
 
-        # update short term model with help of long-term model
-        # using 2d center for disambiguation and 3d center as prior bias
-        self.short_term_model.estimate_sphere_center(
-            from_2d=long_term_2d, prior_3d=long_term_3d, prior_strength=0.1
-        )
+            # update short term model with help of long-term model
+            # using 2d center for disambiguation and 3d center as prior bias
+            self.short_term_model.estimate_sphere_center(
+                from_2d=long_term_2d, prior_3d=long_term_3d, prior_strength=0.1
+            )
+        except Exception as e:
+            logger.error("Error updating models:")
+            logger.error(e)
+            raise e
 
     def _extract_observation(self, pupil_datum: Dict) -> Observation:
         width, height = self.camera.resolution
