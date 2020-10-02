@@ -24,12 +24,7 @@ cpp_dir = f"{package}/cpp"
 with open(here / "README.md") as f:
     long_description = f.read()
 
-requirements = [
-    "scipy>=1.2.1",
-    "numpy",
-    "joblib",
-    "scikit-learn",
-]
+requirements = ["scipy>=1.2.1", "numpy", "joblib", "scikit-learn", "sortedcontainers"]
 extras_require = {"dev": ["pytest", "tox"], "with-opencv": ["opencv-python"]}
 
 cmake_args = []
