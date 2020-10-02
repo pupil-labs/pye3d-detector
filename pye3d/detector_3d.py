@@ -120,6 +120,9 @@ class Detector3D(object):
 
         self.debug_info = None
 
+        self.used_3dsearch = False  # TODO: REMOVE, DEBUG!
+        self.counter = 0
+
     def update_and_detect(
         self,
         pupil_datum: Dict,
@@ -140,6 +143,7 @@ class Detector3D(object):
         # pupil_circle <-> kalman filter
         # either improve prediction or improve filter
         pupil_circle_kalman = self._predict_from_kalman_filter(pupil_datum["timestamp"])
+        self.used_3dsearch = False
         if observation.confidence > self.settings["threshold_kalman"]:
             # high confidence: use to correct kalman filter
             self._correct_kalman_filter(pupil_circle)
@@ -148,6 +152,7 @@ class Detector3D(object):
             pupil_circle = self._predict_from_3d_search(
                 frame, best_guess=pupil_circle_kalman
             )
+            self.used_3dsearch = True
 
         # apply refraction correction
         if apply_refraction_correction:
@@ -251,7 +256,13 @@ class Detector3D(object):
 
         try:
             # update ultra long term model normally
-            _, ultra_long_term_3d = self.ultra_long_term_model.estimate_sphere_center()
+            if self.counter < 1000 or self.counter % 500 == 0:
+                (
+                    _,
+                    ultra_long_term_3d,
+                ) = self.ultra_long_term_model.estimate_sphere_center()
+            else:
+                ultra_long_term_3d = self.ultra_long_term_model.sphere_center
 
             # update long term model with ultra long term bias
             long_term_2d, long_term_3d = self.long_term_model.estimate_sphere_center(
@@ -267,6 +278,7 @@ class Detector3D(object):
             logger.error("Error updating models:")
             logger.error(e)
             raise e
+        self.counter += 1
 
     def _extract_observation(self, pupil_datum: Dict) -> Observation:
         width, height = self.camera.resolution
@@ -311,7 +323,7 @@ class Detector3D(object):
             frame,
             best_guess.normal,
             best_guess.radius,
-            self.short_term_model.sphere_center,
+            self.long_term_model.sphere_center,
             _EYE_RADIUS_DEFAULT,
             self.camera.focal_length,
             self.camera.resolution,
@@ -325,13 +337,13 @@ class Detector3D(object):
             edges,
             best_guess.normal,
             best_guess.radius,
-            self.short_term_model.sphere_center,
+            self.long_term_model.sphere_center,
             _EYE_RADIUS_DEFAULT,
             self.camera.focal_length,
             self.camera.resolution,
         )
         pupil_center = (
-            self.short_term_model.sphere_center + _EYE_RADIUS_DEFAULT * gaze_vector
+            self.long_term_model.sphere_center + _EYE_RADIUS_DEFAULT * gaze_vector
         )
         pupil_circle = Circle(pupil_center, gaze_vector, pupil_radius)
         return pupil_circle
@@ -394,6 +406,8 @@ class Detector3D(object):
         else:
             result["theta"] = 0.0
             result["phi"] = 0.0
+
+        result["used_3dsearch"] = self.used_3dsearch
 
         return result
 
