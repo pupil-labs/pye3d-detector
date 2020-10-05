@@ -162,7 +162,7 @@ class Detector3D(object):
 
         # apply refraction correction
         if apply_refraction_correction:
-            pupil_circle = self.short_term_model.apply_refraction_correction(
+            pupil_circle = self.long_term_model.apply_refraction_correction(
                 pupil_circle
             )
             sphere_center = self.long_term_model.corrected_sphere_center
