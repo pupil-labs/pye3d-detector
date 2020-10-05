@@ -70,28 +70,34 @@ def circle2dict(circle: Circle, flip_y: bool = True) -> Dict:
 class Detector3D(object):
     def __init__(
         self,
-        settings={
-            "focal_length": 283.0,
-            "resolution": (192, 192),
-            "threshold_swirski": 0.7,
-            "threshold_kalman": 0.98,
-            "threshold_short_term": 0.8,
-            "threshold_long_term": 0.98,
-            "long_term_buffer_size": 10,
-            "long_term_forget_time": 5,
-            "long_term_forget_observations": 100,
-        },
+        focal_length=283.0,
+        resolution=(192, 192),
+        threshold_swirski=0.7,
+        threshold_kalman=0.98,
+        threshold_short_term=0.8,
+        threshold_long_term=0.98,
+        long_term_buffer_size=10,
+        long_term_forget_time=5,
+        long_term_forget_observations=100,
     ):
-        self.settings = settings
-        self.camera = CameraModel(
-            focal_length=settings["focal_length"], resolution=settings["resolution"]
-        )
+        self.settings = {
+            "focal_length": focal_length,
+            "resolution": resolution,
+            "threshold_swirski": threshold_swirski,
+            "threshold_kalman": threshold_kalman,
+            "threshold_short_term": threshold_short_term,
+            "threshold_long_term": threshold_long_term,
+            "long_term_buffer_size": long_term_buffer_size,
+            "long_term_forget_time": long_term_forget_time,
+            "long_term_forget_observations": long_term_forget_observations,
+        }
+        self.camera = CameraModel(focal_length=focal_length, resolution=resolution)
 
         self.short_term_model = TwoSphereModel(
             camera=self.camera,
             storage=BufferedObservationStorage(
                 camera=self.camera,
-                confidence_threshold=settings["threshold_short_term"],
+                confidence_threshold=threshold_short_term,
                 buffer_length=10,
             ),
         )
@@ -99,18 +105,18 @@ class Detector3D(object):
             camera=self.camera,
             storage=BinBufferedObservationStorage(
                 camera=self.camera,
-                confidence_threshold=settings["threshold_long_term"],
+                confidence_threshold=threshold_long_term,
                 n_bins_horizontal=10,
-                bin_buffer_length=settings["long_term_buffer_size"],
-                forget_min_observations=settings["long_term_forget_observations"],
-                forget_min_time=settings["long_term_forget_time"],
+                bin_buffer_length=long_term_buffer_size,
+                forget_min_observations=long_term_forget_observations,
+                forget_min_time=long_term_forget_time,
             ),
         )
         self.ultra_long_term_model = TwoSphereModel(
             camera=self.camera,
             storage=BinBufferedObservationStorage(
                 camera=self.camera,
-                confidence_threshold=settings["threshold_long_term"],
+                confidence_threshold=threshold_long_term,
                 n_bins_horizontal=10,
                 bin_buffer_length=100,
             ),
