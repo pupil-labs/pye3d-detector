@@ -141,10 +141,21 @@ class Detector3D(object):
         self.update_models(observation)
 
         # make initial predictions
-        pupil_circle = Circle.null()
+        pupil_circle_short_term = Circle.null()
+        pupil_circle_long_term = Circle.null()
         if observation.confidence > self.settings["threshold_swirski"]:
-            pupil_circle = self.short_term_model.predict_pupil_circle(observation)
+            pupil_circle_short_term = self.short_term_model.predict_pupil_circle(
+                observation
+            )
+            pupil_circle_long_term = self.long_term_model.predict_pupil_circle(
+                observation
+            )
         sphere_center = self.long_term_model.sphere_center
+        pupil_circle = Circle(
+            pupil_circle_long_term.center,
+            pupil_circle_short_term.normal,
+            pupil_circle_long_term.radius,
+        )
 
         # pupil_circle <-> kalman filter
         # either improve prediction or improve filter
