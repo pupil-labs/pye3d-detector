@@ -395,6 +395,12 @@ class Detector3D(object):
         bin_data = np.flip(bin_data, axis=0)
         debug_info["bin_data"] = bin_data.tolist()
 
+        # TODO: Pupil visualizer_pye3d.py attempts to draw Dierkes lines. Currently we
+        # don't calculate them here, we could probably do that again. Based on which
+        # model? Might be hard to do when things run in the background. We might have to
+        # remove this from the visualizer_pye3d.py
+        debug_info["Dierkes_lines"] = []
+
         return debug_info
 
     def reset(self):
