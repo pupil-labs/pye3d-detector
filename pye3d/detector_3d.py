@@ -158,7 +158,6 @@ class Detector3D(object):
         # pupil_circle <-> kalman filter
         # either improve prediction or improve filter
         pupil_circle_kalman = self._predict_from_kalman_filter(pupil_datum["timestamp"])
-        self.used_3dsearch = False
         if observation.confidence > self.settings["threshold_kalman"]:
             # high confidence: use to correct kalman filter
             self._correct_kalman_filter(pupil_circle)
@@ -168,7 +167,6 @@ class Detector3D(object):
                 frame, best_guess=pupil_circle_kalman
             )
             # TODO: adjust observation.confidence
-            self.used_3dsearch = True
 
         # apply refraction correction
         if apply_refraction_correction:
