@@ -139,6 +139,7 @@ class Detector3D(object):
         self.update_models(observation)
 
         # make initial predictions
+        # TODO: extract into function
         pupil_circle_short_term = Circle.null()
         pupil_circle_long_term = Circle.null()
         if observation.confidence > self.settings["threshold_swirski"]:
@@ -148,12 +149,13 @@ class Detector3D(object):
             pupil_circle_long_term = self.long_term_model.predict_pupil_circle(
                 observation
             )
-        sphere_center = self.long_term_model.sphere_center
         pupil_circle = Circle(
             pupil_circle_long_term.center,
             pupil_circle_short_term.normal,
             pupil_circle_long_term.radius,
         )
+
+        sphere_center = self.long_term_model.sphere_center
 
         # pupil_circle <-> kalman filter
         # either improve prediction or improve filter
@@ -229,6 +231,7 @@ class Detector3D(object):
         except Exception as e:
             logger.error("Error updating models:")
             logger.error(e)
+            # TODO: Known issues: Can raise SVD error. Remove re-raise.
             raise e
         self.ult_model_update_counter += 1
 

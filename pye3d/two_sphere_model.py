@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 class TwoSphereModel(object):
     def __init__(
         self,
+        # TODO: Default storage for Kai
         storage: ObservationStorage,
         camera: CameraModel,
     ):
@@ -119,6 +120,7 @@ class TwoSphereModel(object):
     def deep_sphere_estimate(
         _observations: Sequence[Observation],
     ) -> Tuple[np.ndarray, float, Dict[str, Any]]:
+        # TODO: delete
         # https://silo.tips/download/least-squares-intersection-of-lines
         # https://www.researchgate.net/publication/333490770_A_fast_approach_to_refraction-aware_eye-model_fitting_and_gaze_prediction
 

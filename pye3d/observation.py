@@ -83,6 +83,7 @@ class Observation(object):
 
 class ObservationStorage:
     def __init__(self, *, camera: CameraModel, confidence_threshold: float):
+        # TODO: move these out of base class
         self.camera = camera
         self.confidence_threshold = confidence_threshold
 
@@ -101,6 +102,9 @@ class ObservationStorage:
     @abstractmethod
     def count(self) -> int:
         pass
+
+
+# TODO: Naive Storage for Kai! :)
 
 
 class BufferedObservationStorage(ObservationStorage):
