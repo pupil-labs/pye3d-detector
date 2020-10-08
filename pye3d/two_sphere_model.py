@@ -46,13 +46,6 @@ class TwoSphereModel(object):
             np.asarray([[*self.sphere_center]])
         )[0]
 
-        self.debug_info = {
-            "cost": -1.0,
-            "residuals": [],
-            "angles": [],
-            "Dierkes_lines": [],
-        }
-
     def add_observation(self, observation: Observation):
         self.storage.add(observation)
 
@@ -248,9 +241,3 @@ class TwoSphereModel(object):
     def reset(self):
         self.sphere_center = np.array([0.0, 0.0, 35.0])
         self.storage.clear()
-        self.debug_info = {
-            "cost": -1.0,
-            "residuals": [],
-            "angles": [],
-            "dierkes_lines": [],
-        }

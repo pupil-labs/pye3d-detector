@@ -9,10 +9,8 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 import logging
-import math
 from typing import Dict
 
-import cv2
 import numpy as np
 
 from .camera import CameraModel
@@ -24,7 +22,7 @@ from .geometry.projections import (
     project_circle_into_image_plane,
     project_sphere_into_image_plane,
 )
-from .geometry.utilities import cart2sph, normalize, sph2cart
+from .geometry.utilities import cart2sph, sph2cart
 from .kalman import KalmanFilter
 from .observation import (
     BinBufferedObservationStorage,
@@ -126,17 +124,15 @@ class Detector3D(object):
 
         self.kalman_filter = KalmanFilter()
 
-        self.debug_info = None
-
-        self.used_3dsearch = False  # TODO: REMOVE, DEBUG!
-        self.counter = 0
+        # TODO: used for not updating ult-model every frame, will be replaced by background process?
+        self.ult_model_update_counter = 0
 
     def update_and_detect(
         self,
         pupil_datum: Dict,
         frame: np.ndarray,
         apply_refraction_correction: bool = True,
-        debug: bool = True,  # TODO: disable again by default
+        debug: bool = False,
     ):
         # update models
         observation = self._extract_observation(pupil_datum)
@@ -184,78 +180,10 @@ class Detector3D(object):
             observation,
             sphere_center,
             pupil_circle,
-            pupil_circle_kalman,
         )
 
-        if debug and not observation.invalid:
-
-            def spherical(circle: Circle):
-                x, y, z = normalize(circle.normal)
-                theta = math.atan2(y, x)
-                phi = math.acos(z)
-                return [theta, phi]
-
-            incoming = self.long_term_model._disambiguate_circle_3d_pair(
-                observation.circle_3d_pair
-            )
-
-            projected_short_term = project_sphere_into_image_plane(
-                Sphere(self.short_term_model.sphere_center, _EYE_RADIUS_DEFAULT),
-                transform=True,
-                focal_length=self.camera.focal_length,
-                width=self.camera.resolution[0],
-                height=self.camera.resolution[1],
-            )
-            projected_long_term = project_sphere_into_image_plane(
-                Sphere(self.long_term_model.sphere_center, _EYE_RADIUS_DEFAULT),
-                transform=True,
-                focal_length=self.camera.focal_length,
-                width=self.camera.resolution[0],
-                height=self.camera.resolution[1],
-            )
-            projected_ultra_long_term = project_sphere_into_image_plane(
-                Sphere(self.ultra_long_term_model.sphere_center, _EYE_RADIUS_DEFAULT),
-                transform=True,
-                focal_length=self.camera.focal_length,
-                width=self.camera.resolution[0],
-                height=self.camera.resolution[1],
-            )
-
-            bin_storage: BinBufferedObservationStorage = self.long_term_model.storage
-            bins = bin_storage.get_bin_counts()
-            m = np.max(bins)
-            if m >= 0:
-                bins = bins / m
-            bins = np.flip(bins, 0)
-
-            self.debug_info = {
-                "incoming": spherical(incoming),
-                "predicted": spherical(pupil_circle),
-                "short_term_center": list(self.short_term_model.sphere_center),
-                "projected_short_term": ellipse2dict(projected_short_term),
-                "projected_long_term": ellipse2dict(projected_long_term),
-                "projected_ultra_long_term": ellipse2dict(projected_ultra_long_term),
-                "Dierkes_lines": [],
-            }
-
-            debug_img = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR) / 255
-
-            bin_img_gray = cv2.resize(
-                bins, debug_img.shape[:2], interpolation=cv2.INTER_NEAREST
-            )
-            zeros = np.zeros_like(bin_img_gray)
-            b = zeros
-            g = zeros
-            r = bin_img_gray
-            bin_img = cv2.merge([b, g, r])
-
-            debug_img = np.maximum(debug_img, bin_img)
-
-            cv2.imshow("debug", debug_img)
-            cv2.waitKey(1)
-
         if debug:
-            result["debug_info"] = self.debug_info
+            result["debug_info"] = self._collect_debug_info()
 
         return result
 
@@ -275,7 +203,10 @@ class Detector3D(object):
 
         try:
             # update ultra long term model normally
-            if self.counter < 1000 or self.counter % 500 == 0:
+            if (
+                self.ult_model_update_counter < 1000
+                or self.ult_model_update_counter % 500 == 0
+            ):
                 (
                     _,
                     ultra_long_term_3d,
@@ -297,7 +228,7 @@ class Detector3D(object):
             logger.error("Error updating models:")
             logger.error(e)
             raise e
-        self.counter += 1
+        self.ult_model_update_counter += 1
 
     def _extract_observation(self, pupil_datum: Dict) -> Observation:
         width, height = self.camera.resolution
@@ -372,7 +303,6 @@ class Detector3D(object):
         observation: Observation,
         sphere_center: np.ndarray,
         pupil_circle: Circle,
-        kalman_prediction: Circle,
         flip_y: bool = True,
     ):
         flip = -1 if flip_y else 1
@@ -395,7 +325,6 @@ class Detector3D(object):
         result["projected_sphere"] = ellipse2dict(eye_sphere_projected)
 
         result["circle_3d"] = circle2dict(pupil_circle, flip_y)
-        result["circle_3d_kalman"] = circle2dict(kalman_prediction, flip_y)
 
         pupil_circle_long_term = self.long_term_model.predict_pupil_circle(observation)
         result["diameter_3d"] = pupil_circle_long_term.radius * 2
@@ -413,9 +342,10 @@ class Detector3D(object):
         result["ellipse"] = ellipse2dict(projected_pupil_circle)
         result["diameter"] = projected_pupil_circle.major_radius
 
-        # TODO: come up with a confidence measure and probably adjust raw pupil
-        # detection confidence?
+        # TODO: remove model confidence? Will require adjustment in Pupil!
         result["model_confidence"] = 1.0
+        # TODO: Adjust confidence measure when observation invalid or when having done
+        # 3D search from kalman result
         result["confidence"] = observation.confidence
 
         phi, theta = cart2sph(pupil_circle.normal)
@@ -426,19 +356,46 @@ class Detector3D(object):
             result["theta"] = 0.0
             result["phi"] = 0.0
 
-        result["used_3dsearch"] = self.used_3dsearch
-        result["long_term_n_observations"] = len(
-            self.long_term_model.storage.observations
-        )
-        result["long_term_n_bins"] = len(self.long_term_model.storage._by_bin)
-
-        result["long_term_oldest"] = (
-            float("inf")
-            if (len(self.long_term_model.storage.observations) <= 0)
-            else self.long_term_model.storage.observations[0].timestamp
-        )
-
         return result
+
+    def _collect_debug_info(self):
+        debug_info = {}
+
+        projected_short_term = project_sphere_into_image_plane(
+            Sphere(self.short_term_model.sphere_center, _EYE_RADIUS_DEFAULT),
+            transform=True,
+            focal_length=self.camera.focal_length,
+            width=self.camera.resolution[0],
+            height=self.camera.resolution[1],
+        )
+        projected_long_term = project_sphere_into_image_plane(
+            Sphere(self.long_term_model.sphere_center, _EYE_RADIUS_DEFAULT),
+            transform=True,
+            focal_length=self.camera.focal_length,
+            width=self.camera.resolution[0],
+            height=self.camera.resolution[1],
+        )
+        projected_ultra_long_term = project_sphere_into_image_plane(
+            Sphere(self.ultra_long_term_model.sphere_center, _EYE_RADIUS_DEFAULT),
+            transform=True,
+            focal_length=self.camera.focal_length,
+            width=self.camera.resolution[0],
+            height=self.camera.resolution[1],
+        )
+        debug_info["projected_short_term"] = ellipse2dict(projected_short_term)
+        debug_info["projected_long_term"] = ellipse2dict(projected_long_term)
+        debug_info["projected_ultra_long_term"] = ellipse2dict(
+            projected_ultra_long_term
+        )
+
+        bin_data = self.long_term_model.storage.get_bin_counts()
+        max_bin_level = np.max(bin_data)
+        if max_bin_level >= 0:
+            bin_data = bin_data / max_bin_level
+        bin_data = np.flip(bin_data, axis=0)
+        debug_info["bin_data"] = bin_data.tolist()
+
+        return debug_info
 
     def reset(self):
         self.short_term_model.reset()
