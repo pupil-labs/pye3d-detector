@@ -171,6 +171,9 @@ class Detector3D(object):
 
         # apply refraction correction
         if apply_refraction_correction:
+            # TODO: Visualizing this in Pupil is kind of weird, as it does not align
+            # well with what the user sees. Maybe we should also always add in the
+            # un-corrected data only for visualization?
             pupil_circle = self.long_term_model.apply_refraction_correction(
                 pupil_circle
             )
