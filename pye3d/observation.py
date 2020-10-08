@@ -162,15 +162,15 @@ class BinBufferedObservationStorage(ObservationStorage):
         if idx not in self._by_bin:
             self._by_bin[idx] = SortedList(key=lambda obs: obs.timestamp)
 
-        # manage within-bin forgetting
-        _bin: SortedList = self._by_bin[idx]
-        while len(_bin) >= self.bin_buffer_length:
-            old = _bin.pop(0)
-            self._by_time.remove(old)
-
         # add to both lookup structures
+        _bin: SortedList = self._by_bin[idx]
         _bin.add(observation)
         self._by_time.add(observation)
+
+        # manage within-bin forgetting
+        while len(_bin) > self.bin_buffer_length:
+            old = _bin.pop(0)
+            self._by_time.remove(old)
 
         # manage across-bin forgetting
         if self.forget_min_observations is None or self.forget_min_time is None:
