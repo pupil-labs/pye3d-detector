@@ -167,6 +167,7 @@ class Detector3D(object):
             pupil_circle = self._predict_from_3d_search(
                 frame, best_guess=pupil_circle_kalman
             )
+            # TODO: adjust observation.confidence
             self.used_3dsearch = True
 
         # apply refraction correction
@@ -345,11 +346,10 @@ class Detector3D(object):
         result["ellipse"] = ellipse2dict(projected_pupil_circle)
         result["diameter"] = projected_pupil_circle.major_radius
 
+        result["confidence"] = observation.confidence
+        result["confidence_2d"] = observation.confidence_2d
         # TODO: remove model confidence? Will require adjustment in Pupil!
         result["model_confidence"] = 1.0
-        # TODO: Adjust confidence measure when observation invalid or when having done
-        # 3D search from kalman result
-        result["confidence"] = observation.confidence
 
         phi, theta = cart2sph(pupil_circle.normal)
         if not np.any(np.isnan([phi, theta])):

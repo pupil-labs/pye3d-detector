@@ -27,7 +27,8 @@ class Observation(object):
         self, ellipse: Ellipse, confidence: float, timestamp: float, focal_length: float
     ):
         self.ellipse = ellipse
-        self.confidence = confidence
+        self.confidence_2d = confidence
+        self.confidence = 0.0
         self.timestamp = timestamp
 
         self.circle_3d_pair = None
@@ -43,6 +44,7 @@ class Observation(object):
             return
 
         self.invalid = False
+        self.confidence = self.confidence_2d
         self.circle_3d_pair = circle_3d_pair
 
         self.gaze_3d_pair = [
