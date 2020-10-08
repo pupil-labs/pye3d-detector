@@ -425,6 +425,16 @@ class Detector3D(object):
             result["phi"] = 0.0
 
         result["used_3dsearch"] = self.used_3dsearch
+        result["long_term_n_observations"] = len(
+            self.long_term_model.storage.observations
+        )
+        result["long_term_n_bins"] = len(self.long_term_model.storage._by_bin)
+
+        result["long_term_oldest"] = (
+            float("inf")
+            if (len(self.long_term_model.storage.observations) <= 0)
+            else self.long_term_model.storage.observations[0].timestamp
+        )
 
         return result
 
