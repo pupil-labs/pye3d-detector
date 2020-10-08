@@ -116,8 +116,8 @@ class Detector3D(object):
                 camera=self.camera,
                 confidence_threshold=threshold_long_term,
                 n_bins_horizontal=10,
-                bin_buffer_length=10,
-                forget_min_observations=20,
+                bin_buffer_length=long_term_buffer_size,
+                forget_min_observations=long_term_forget_observations * 2,
                 forget_min_time=60,
             ),
         )
