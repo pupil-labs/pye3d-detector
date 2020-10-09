@@ -125,7 +125,7 @@ class Detector3D(object):
         self.kalman_filter = KalmanFilter()
 
         # TODO: used for not updating ult-model every frame, will be replaced by background process?
-        self.ult_model_update_counter = 0
+        self.ult_counter = 0
 
     def update_and_detect(
         self,
@@ -206,34 +206,33 @@ class Detector3D(object):
             return
 
         try:
-            # update ultra long term model normally
-            if (
-                self.ult_model_update_counter < 1000
-                or self.ult_model_update_counter % 500 == 0
-            ):
-                (
-                    _,
-                    ultra_long_term_3d,
-                ) = self.ultra_long_term_model.estimate_sphere_center()
-            else:
-                ultra_long_term_3d = self.ultra_long_term_model.sphere_center
+            # update ultra long term model without biases
+            # After having seen 1000 frames, only update every 500th frame for
+            # performance sanity. TODO: cleanup if moving to background process
+            if self.ult_counter < 1000 or self.ult_counter % 500 == 0:
+                self.ultra_long_term_model.estimate_sphere_center()
+            ultra_long_term_3d = self.ultra_long_term_model.sphere_center
 
             # update long term model with ultra long term bias
             long_term_2d, long_term_3d = self.long_term_model.estimate_sphere_center(
-                prior_3d=ultra_long_term_3d, prior_strength=0.1
+                prior_3d=ultra_long_term_3d,
+                prior_strength=0.1,
             )
 
             # update short term model with help of long-term model
             # using 2d center for disambiguation and 3d center as prior bias
             self.short_term_model.estimate_sphere_center(
-                from_2d=long_term_2d, prior_3d=long_term_3d, prior_strength=0.1
+                from_2d=long_term_2d,
+                prior_3d=long_term_3d,
+                prior_strength=0.1,
             )
         except Exception as e:
+            # Known issues:
+            # - Can raise numpy.linalg.LinAlgError: SVD did not converge
             logger.error("Error updating models:")
             logger.error(e)
-            # TODO: Known issues: Can raise SVD error. Remove re-raise.
-            raise e
-        self.ult_model_update_counter += 1
+
+        self.ult_counter += 1
 
     def _extract_observation(self, pupil_datum: Dict) -> Observation:
         width, height = self.camera.resolution
