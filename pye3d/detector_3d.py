@@ -357,7 +357,10 @@ class Detector3D(object):
 
         result["confidence"] = observation.confidence
         result["confidence_2d"] = observation.confidence_2d
-        # TODO: remove model confidence? Will require adjustment in Pupil!
+        # TODO: model_confidence is currently require in Pupil for visualization
+        # (eyeball outline alpha), but we don't yet have a way of estimating the model
+        # confidence. Either remove this and cleanup the visualization in Pupil or come
+        # up with a measure for model confidence.
         result["model_confidence"] = 1.0
 
         phi, theta = cart2sph(pupil_circle.normal)

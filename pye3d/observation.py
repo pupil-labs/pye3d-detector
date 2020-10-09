@@ -76,10 +76,6 @@ class Observation(object):
         direction = self.circle_3d_pair[i].center
         return Line(origin, direction)
 
-    def __bool__(self):
-        # TODO!
-        raise RuntimeError("NONONO!")
-
 
 class ObservationStorage:
     def __init__(self, *, camera: CameraModel, confidence_threshold: float):
