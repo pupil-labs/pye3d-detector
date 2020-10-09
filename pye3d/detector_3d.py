@@ -69,8 +69,7 @@ def circle2dict(circle: Circle, flip_y: bool = True) -> Dict:
 class Detector3D(object):
     def __init__(
         self,
-        focal_length=283.0,
-        resolution=(192, 192),
+        camera: CameraModel,
         threshold_swirski=0.7,
         threshold_kalman=0.98,
         threshold_short_term=0.8,
@@ -79,9 +78,10 @@ class Detector3D(object):
         long_term_forget_time=5,
         long_term_forget_observations=300,
     ):
-        self.settings = {
-            "focal_length": focal_length,
-            "resolution": resolution,
+        self._camera = camera
+        # NOTE: changing settings after intialization can lead to inconsistent behavior
+        # if .reset() is not called.
+        self._settings = {
             "threshold_swirski": threshold_swirski,
             "threshold_kalman": threshold_kalman,
             "threshold_short_term": threshold_short_term,
@@ -90,12 +90,28 @@ class Detector3D(object):
             "long_term_forget_time": long_term_forget_time,
             "long_term_forget_observations": long_term_forget_observations,
         }
-        self.camera = CameraModel(focal_length=focal_length, resolution=resolution)
+        self.reset()
 
+    @property
+    def camera(self) -> CameraModel:
+        return self._camera
+
+    def reset_camera(self, camera: CameraModel):
+        """Change camera model and reset detector state."""
+        self._camera = camera
+        self.reset()
+
+    def reset(self):
+        self._initialize_models()
+        self.kalman_filter = KalmanFilter()
+
+    def _initialize_models(self):
+        # Recreate all models. This is required in case any of the settings (incl
+        # camera) changed in the meantime.
         self.short_term_model = TwoSphereModel(
             camera=self.camera,
             storage=BufferedObservationStorage(
-                confidence_threshold=threshold_short_term,
+                confidence_threshold=self._settings["threshold_short_term"],
                 buffer_length=10,
             ),
         )
@@ -103,27 +119,26 @@ class Detector3D(object):
             camera=self.camera,
             storage=BinBufferedObservationStorage(
                 camera=self.camera,
-                confidence_threshold=threshold_long_term,
+                confidence_threshold=self._settings["threshold_long_term"],
                 n_bins_horizontal=10,
-                bin_buffer_length=long_term_buffer_size,
-                forget_min_observations=long_term_forget_observations,
-                forget_min_time=long_term_forget_time,
+                bin_buffer_length=self._settings["long_term_buffer_size"],
+                forget_min_observations=self._settings["long_term_forget_observations"],
+                forget_min_time=self._settings["long_term_forget_time"],
             ),
         )
         self.ultra_long_term_model = TwoSphereModel(
             camera=self.camera,
             storage=BinBufferedObservationStorage(
                 camera=self.camera,
-                confidence_threshold=threshold_long_term,
+                confidence_threshold=self._settings["threshold_long_term"],
                 n_bins_horizontal=10,
-                bin_buffer_length=long_term_buffer_size,
-                forget_min_observations=long_term_forget_observations * 2,
+                bin_buffer_length=self._settings["long_term_buffer_size"],
+                forget_min_observations=(
+                    2 * self._settings["long_term_forget_observations"]
+                ),
                 forget_min_time=60,
             ),
         )
-
-        self.kalman_filter = KalmanFilter()
-
         # TODO: used for not updating ult-model every frame, will be replaced by background process?
         self.ult_counter = 0
 
@@ -233,7 +248,7 @@ class Detector3D(object):
         # Kalman filter needs to be queried every timestamp to update it internally.
         pupil_circle_kalman = self._predict_from_kalman_filter(observation.timestamp)
 
-        if observation.confidence > self.settings["threshold_swirski"]:
+        if observation.confidence > self._settings["threshold_swirski"]:
             # high-confidence observation, use to construct pupil circle from models
 
             # short-term-model is best for estimating gaze direction (circle normal) and
@@ -246,7 +261,7 @@ class Detector3D(object):
                 radius=long_term.radius,
             )
 
-            if observation.confidence > self.settings["threshold_kalman"]:
+            if observation.confidence > self._settings["threshold_kalman"]:
                 # very-high-confidence: correct kalman filter
                 self._correct_kalman_filter(pupil_circle)
 
@@ -344,10 +359,10 @@ class Detector3D(object):
 
         projected_pupil_circle = project_circle_into_image_plane(
             pupil_circle,
-            focal_length=self.settings["focal_length"],
+            focal_length=self.camera.focal_length,
             transform=True,
-            width=self.settings["resolution"][0],
-            height=self.settings["resolution"][1],
+            width=self.camera.resolution[0],
+            height=self.camera.resolution[1],
         )
         if not projected_pupil_circle:
             projected_pupil_circle = Ellipse(np.asarray([0.0, 0.0]), 0.0, 0.0, 0.0)
@@ -417,10 +432,3 @@ class Detector3D(object):
         debug_info["Dierkes_lines"] = []
 
         return debug_info
-
-    def reset(self):
-        self.short_term_model.reset()
-        self.long_term_model.reset()
-        self.ultra_long_term_model.reset()
-        self.ult_counter = 0
-        self.kalman_filter = KalmanFilter()

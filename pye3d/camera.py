@@ -1,7 +1,6 @@
-from typing import Tuple
+from typing import Tuple, NamedTuple
 
 
-class CameraModel:
-    def __init__(self, focal_length: float, resolution: Tuple[float, float]):
-        self.focal_length = focal_length
-        self.resolution = resolution
+class CameraModel(NamedTuple):
+    focal_length: float
+    resolution: Tuple[float, float]
