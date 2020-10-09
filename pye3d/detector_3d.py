@@ -409,4 +409,6 @@ class Detector3D(object):
     def reset(self):
         self.short_term_model.reset()
         self.long_term_model.reset()
+        self.ultra_long_term_model.reset()
+        self.ult_counter = 0
         self.kalman_filter = KalmanFilter()
