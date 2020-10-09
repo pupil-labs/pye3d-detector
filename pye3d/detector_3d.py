@@ -75,9 +75,9 @@ class Detector3D(object):
         threshold_kalman=0.98,
         threshold_short_term=0.8,
         threshold_long_term=0.98,
-        long_term_buffer_size=10,
+        long_term_buffer_size=30,
         long_term_forget_time=5,
-        long_term_forget_observations=100,
+        long_term_forget_observations=300,
     ):
         self.settings = {
             "focal_length": focal_length,
