@@ -272,9 +272,11 @@ class Detector3D(object):
         return pupil_circle_kalman
 
     def _correct_kalman_filter(self, observed_pupil_circle: Circle):
-        if observed_pupil_circle is not None:
-            phi, theta, r = observed_pupil_circle.spherical_representation()
-            self.kalman_filter.correct(phi, theta, r)
+        if observed_pupil_circle.is_null():
+            return
+
+        phi, theta, r = observed_pupil_circle.spherical_representation()
+        self.kalman_filter.correct(phi, theta, r)
 
     def _predict_from_3d_search(self, frame: np.ndarray, best_guess: Circle) -> Circle:
         if best_guess.is_null():
