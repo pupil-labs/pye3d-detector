@@ -9,19 +9,22 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 import logging
+from typing import Any, Dict, Sequence, Tuple
 
 import numpy as np
+import numpy.linalg
 
+from .camera import CameraModel
 from .constants import _EYE_RADIUS_DEFAULT
 from .geometry.intersections import nearest_point_on_sphere_to_line
-from .geometry.primitives import Circle, Ellipse, Line
+from .geometry.primitives import Circle, Line
 from .geometry.projections import (
     project_line_into_image_plane,
     project_point_into_image_plane,
     unproject_ellipse,
 )
 from .geometry.utilities import normalize
-from .observation import Observation, ObservationStorage
+from .observation import Observation, ObservationStorage, BasicStorage
 from .refraction import Refractionizer
 
 logger = logging.getLogger(__name__)
@@ -30,9 +33,11 @@ logger = logging.getLogger(__name__)
 class TwoSphereModel(object):
     def __init__(
         self,
-        settings={"focal_length": 283.0, "resolution": (192, 192), "maxlen": 10000},
+        camera: CameraModel,
+        storage: ObservationStorage = None,
     ):
-        self.settings = settings
+        self.storage = storage or BasicStorage()
+        self.camera = camera
 
         self.refractionizer = Refractionizer()
 
@@ -41,42 +46,12 @@ class TwoSphereModel(object):
             np.asarray([[*self.sphere_center]])
         )[0]
 
-        self.observation_storage = ObservationStorage(maxlen=self.settings["maxlen"])
+    def add_observation(self, observation: Observation):
+        self.storage.add(observation)
 
-        self.debug_info = {
-            "cost": -1.0,
-            "residuals": [],
-            "angles": [],
-            "Dierkes_lines": [],
-        }
-
-    # OBSERVATION HANDLING
-    def _extract_ellipse(self, pupil_datum):
-        width, height = self.settings["resolution"]
-        center = (
-            +(pupil_datum["ellipse"]["center"][0] - width / 2),
-            -(pupil_datum["ellipse"]["center"][1] - height / 2),
-        )
-        minor_axis = pupil_datum["ellipse"]["axes"][0] / 2.0
-        major_axis = pupil_datum["ellipse"]["axes"][1] / 2.0
-        angle = -(pupil_datum["ellipse"]["angle"] + 90.0) * np.pi / 180.0
-        ellipse = Ellipse(center, minor_axis, major_axis, angle)
-        return ellipse
-
-    def add_to_observation_storage(self, pupil_datum):
-        ellipse = self._extract_ellipse(pupil_datum)
-        circle_3d_pair = unproject_ellipse(ellipse, self.settings["focal_length"])
-        if circle_3d_pair:
-            observation = Observation(
-                ellipse,
-                circle_3d_pair,
-                pupil_datum["timestamp"],
-                self.settings["focal_length"],
-            )
-            self.observation_storage.add_observation(observation)
-            return observation
-        else:
-            return False
+    @property
+    def n_observations(self) -> int:
+        return self.storage.count()
 
     def set_sphere_center(self, new_sphere_center):
         self.sphere_center = new_sphere_center
@@ -84,99 +59,66 @@ class TwoSphereModel(object):
             np.asarray([[*self.sphere_center]])
         )[0]
 
-    def estimate_sphere_center(self, idxs=None, debug=False):
+    def estimate_sphere_center(self, from_2d=None, prior_3d=None, prior_strength=0.0):
+        projected_sphere_center = (
+            from_2d if from_2d is not None else self.estimate_sphere_center_2d()
+        )
+        sphere_center = self.estimate_sphere_center_3d(
+            projected_sphere_center, prior_3d, prior_strength
+        )
+        self.set_sphere_center(sphere_center)
+        return projected_sphere_center, sphere_center
 
-        if not idxs:
-            idxs = range(len(self.observation_storage))
-        idxs = np.asarray(idxs)
-
-        aux_3d = self.observation_storage.aux_3d[idxs]
-        aux_2d = self.observation_storage.aux_2d[idxs]
-        gaze_2d = self.observation_storage.gaze_2d[idxs]
+    def estimate_sphere_center_2d(self):
+        observations = self.storage.observations
+        aux_2d = np.array([obs.aux_2d for obs in observations])
 
         # Estimate projected sphere center by nearest intersection of 2d gaze lines
-        sum_aux_2d = np.sum(aux_2d, axis=0)
+        sum_aux_2d = aux_2d.sum(axis=0)
         projected_sphere_center = np.linalg.pinv(sum_aux_2d[:2, :2]) @ sum_aux_2d[:2, 2]
 
-        # Use projected sphere center for disambiguating Dierkes lines
-        dots = np.einsum(
-            "ij,ij->i", gaze_2d[:, :2] - projected_sphere_center, gaze_2d[:, 2:]
+        return projected_sphere_center
+
+    def estimate_sphere_center_3d(
+        self, sphere_center_2d, prior_3d=None, prior_strength=0.0
+    ):
+        observations = self.storage.observations
+        aux_3d = np.array([obs.aux_3d for obs in observations])
+        gaze_2d = np.array(
+            [[*obs.gaze_2d.origin, *obs.gaze_2d.direction] for obs in observations]
         )
-        disambiguation_indices = (dots < 0).astype(int)
+
+        # Disambiguate Dierkes lines
+        # We want gaze_2d to points towards the sphere center. gaze_2d was collected
+        # from Dierkes[0]. If it points into the correct direction, we know that
+        # Dierkes[0] is the correct one to use, otherwise we need to use Dierkes[1]. We
+        # can check that with the sign of the dot product.
+        gaze_2d_origins = gaze_2d[:, :2]
+        gaze_2d_directions = gaze_2d[:, 2:]
+        gaze_2d_towards_center = gaze_2d_origins - sphere_center_2d
+
+        dot_products = np.sum(gaze_2d_towards_center * gaze_2d_directions, axis=1)
+        disambiguation_indices = np.where(dot_products < 0, 1, 0)
+
+        observation_indices = np.arange(len(disambiguation_indices))
+        aux_3d_disambiguated = aux_3d[observation_indices, disambiguation_indices, :, :]
 
         # Estimate sphere center by nearest intersection of Dierkes lines
-        sum_aux_3d = np.sum(
-            [aux_3d[n, idx] for n, idx in enumerate(disambiguation_indices)], axis=0
-        )
-        sphere_center = np.linalg.pinv(sum_aux_3d[:3, :3]) @ sum_aux_3d[:3, 3]
+        sum_aux_3d = aux_3d_disambiguated.sum(axis=0)
 
-        if debug:
-
-            # Final Dierkes lines
-            Dierkes_lines = [
-                self.observation_storage.observations[n].get_Dierkes_line(idx)
-                for n, idx in enumerate(disambiguation_indices)
-            ]
-            self.debug_info["Dierkes_lines"] = [
-                [
-                    *(line.origin - 20 * line.direction),
-                    *(line.origin + 20 * line.direction),
-                ]
-                for line in Dierkes_lines
-            ]
-
-            # Calculate residuals and cost
-            a_minus_p = [line.origin - sphere_center for line in Dierkes_lines]
-            residuals = [
-                a_minus_p[n].T @ aux_3d[n, idx, :3, :3] @ a_minus_p[n]
-                for n, idx in enumerate(disambiguation_indices)
-            ]
-            self.debug_info["residuals"] = residuals
-            self.debug_info["cost"] = np.sum(residuals)
-
-            # Calculate gaze angles
-            angles = [
-                180.0
-                / np.pi
-                * np.arccos(
-                    np.dot(
-                        np.asarray([0.0, 0.0, -1.0]),
-                        self.observation_storage.observations[n]
-                        .circle_3d_pair[idx]
-                        .normal,
-                    )
-                )
-                for n, idx in enumerate(disambiguation_indices)
-            ]
-            self.debug_info["angles"] = angles
-
-        return sphere_center
-
-    @staticmethod
-    def deep_sphere_estimate(aux_2d, aux_3d, gaze_2d):
-
-        # Estimate projected sphere center by nearest intersection of 2d gaze lines
-        sum_aux_2d = np.sum(aux_2d, axis=0)
-        projected_sphere_center = np.linalg.pinv(sum_aux_2d[:2, :2]) @ sum_aux_2d[:2, 2]
-
-        # Use projected sphere center for disambiguating Dierkes lines
-        dots = np.einsum(
-            "ij,ij->i", gaze_2d[:, :2] - projected_sphere_center, gaze_2d[:, 2:]
-        )
-        disambiguation_indices = (dots < 0).astype(int)
-
-        # Estimate sphere center by nearest intersection of Dierkes lines
-        sum_aux_3d = np.sum(
-            [aux_3d[n, idx] for n, idx in enumerate(disambiguation_indices)], axis=0
-        )
-        sphere_center = np.linalg.pinv(sum_aux_3d[:3, :3]) @ sum_aux_3d[:3, 3]
+        if prior_3d is None:
+            sphere_center = np.linalg.pinv(sum_aux_3d[:3, :3]) @ sum_aux_3d[:3, 3]
+        else:
+            sphere_center = np.linalg.pinv(
+                sum_aux_3d[:3, :3] + prior_strength * np.eye(3)
+            ) @ (sum_aux_3d[:3, 3] + prior_strength * prior_3d)
 
         return sphere_center
 
     # GAZE PREDICTION
     def _extract_unproject_disambiguate(self, pupil_datum):
         ellipse = self._extract_ellipse(pupil_datum)
-        circle_3d_pair = unproject_ellipse(ellipse, self.settings["focal_length"])
+        circle_3d_pair = unproject_ellipse(ellipse, self.camera.focal_length)
         if circle_3d_pair:
             circle_3d = self._disambiguate_circle_3d_pair(circle_3d_pair)
         else:
@@ -185,16 +127,16 @@ class TwoSphereModel(object):
 
     def _disambiguate_circle_3d_pair(self, circle_3d_pair):
         circle_center_2d = project_point_into_image_plane(
-            circle_3d_pair[0].center, self.settings["focal_length"]
+            circle_3d_pair[0].center, self.camera.focal_length
         )
         circle_normal_2d = normalize(
             project_line_into_image_plane(
                 Line(circle_3d_pair[0].center, circle_3d_pair[0].normal),
-                self.settings["focal_length"],
+                self.camera.focal_length,
             ).direction
         )
         sphere_center_2d = project_point_into_image_plane(
-            self.sphere_center, self.settings["focal_length"]
+            self.sphere_center, self.camera.focal_length
         )
 
         if np.dot(circle_center_2d - sphere_center_2d, circle_normal_2d) >= 0:
@@ -203,27 +145,26 @@ class TwoSphereModel(object):
             return circle_3d_pair[1]
 
     def predict_pupil_circle(
-        self, input_, from_given_circle_3d_pair=False, use_unprojection=False
-    ):
-        if from_given_circle_3d_pair:
-            circle_3d = self._disambiguate_circle_3d_pair(input_)
+        self, observation: Observation, use_unprojection: bool = False
+    ) -> Circle:
+        if observation.invalid:
+            return Circle.null()
+
+        circle_3d = self._disambiguate_circle_3d_pair(observation.circle_3d_pair)
+        direction = normalize(circle_3d.center)
+        nearest_point_on_sphere = nearest_point_on_sphere_to_line(
+            self.sphere_center, _EYE_RADIUS_DEFAULT, [0.0, 0.0, 0.0], direction
+        )
+
+        if use_unprojection:
+            gaze_vector = circle_3d.normal
         else:
-            circle_3d = self._extract_unproject_disambiguate(input_)
-        if circle_3d:
-            direction = normalize(circle_3d.center)
-            nearest_point_on_sphere = nearest_point_on_sphere_to_line(
-                self.sphere_center, _EYE_RADIUS_DEFAULT, [0.0, 0.0, 0.0], direction
-            )
-            if use_unprojection:
-                gaze_vector = circle_3d.normal
-            else:
-                gaze_vector = normalize(nearest_point_on_sphere - self.sphere_center)
-            radius = np.linalg.norm(nearest_point_on_sphere) / np.linalg.norm(
-                circle_3d.center
-            )
-            pupil_circle = Circle(nearest_point_on_sphere, gaze_vector, radius)
-        else:
-            pupil_circle = Circle([0.0, 0.0, 0.0], [0.0, 0.0, -1.0], 0.0)
+            gaze_vector = normalize(nearest_point_on_sphere - self.sphere_center)
+
+        radius = np.linalg.norm(nearest_point_on_sphere) / np.linalg.norm(
+            circle_3d.center
+        )
+        pupil_circle = Circle(nearest_point_on_sphere, gaze_vector, radius)
         return pupil_circle
 
     def apply_refraction_correction(self, pupil_circle):
@@ -252,10 +193,4 @@ class TwoSphereModel(object):
     # UTILITY FUNCTIONS
     def reset(self):
         self.sphere_center = np.array([0.0, 0.0, 35.0])
-        self.observation_storage = ObservationStorage(maxlen=self.settings["maxlen"])
-        self.debug_info = {
-            "cost": -1.0,
-            "residuals": [],
-            "angles": [],
-            "dierkes_lines": [],
-        }
+        self.storage.clear()

@@ -8,21 +8,44 @@ Lesser General Public License (LGPL v3.0).
 See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
+from abc import abstractmethod, abstractproperty
 from collections import deque
+from math import floor
+from typing import Sequence, Optional
 
 import numpy as np
+from sortedcontainers import SortedList
 
+from .camera import CameraModel
 from .constants import _EYE_RADIUS_DEFAULT
-from .geometry.primitives import Line
-from .geometry.projections import project_line_into_image_plane
+from .geometry.primitives import Ellipse, Line
+from .geometry.projections import project_line_into_image_plane, unproject_ellipse
 
 
 class Observation(object):
-    def __init__(self, ellipse, circle_3d_pair, timestamp=0.0, focal_length=620.0):
-
+    def __init__(
+        self, ellipse: Ellipse, confidence: float, timestamp: float, focal_length: float
+    ):
         self.ellipse = ellipse
-        self.circle_3d_pair = circle_3d_pair
+        self.confidence_2d = confidence
+        self.confidence = 0.0
         self.timestamp = timestamp
+
+        self.circle_3d_pair = None
+        self.gaze_3d_pair = None
+        self.gaze_2d = None
+        self.aux_2d = None
+        self.aux_3d = None
+        self.invalid = True
+
+        circle_3d_pair = unproject_ellipse(ellipse, focal_length)
+        if not circle_3d_pair:
+            # unprojecting ellipse failed, invalid observation!
+            return
+
+        self.invalid = False
+        self.confidence = self.confidence_2d
+        self.circle_3d_pair = circle_3d_pair
 
         self.gaze_3d_pair = [
             Line(
@@ -53,62 +76,156 @@ class Observation(object):
         direction = self.circle_3d_pair[i].center
         return Line(origin, direction)
 
-    def __bool__(self):
-        return True
+
+class ObservationStorage:
+    @abstractmethod
+    def add(self, observation: Observation):
+        pass
+
+    @abstractproperty
+    def observations(self) -> Sequence[Observation]:
+        pass
+
+    @abstractmethod
+    def clear(self):
+        pass
+
+    @abstractmethod
+    def count(self) -> int:
+        pass
 
 
-class ObservationStorage(object):
-    def __init__(self, maxlen=5000):
-        self.observations = deque(maxlen=maxlen)
-        self._gaze_2d_list = deque(maxlen=maxlen)
-        self._aux_2d_list = deque(maxlen=maxlen)
-        self._aux_3d_list = deque(maxlen=maxlen)
-        self._timestamps = deque(maxlen=maxlen)
-        self.counter = 0
+class BasicStorage(ObservationStorage):
+    def __init__(self):
+        self._storage = []
 
-    def add_observation(self, observation):
-        self.observations.append(observation)
-        self._gaze_2d_list.append(
-            [*observation.gaze_2d.origin, *observation.gaze_2d.direction]
+    def add(self, observation: Observation):
+        if observation.invalid:
+            return
+        self._storage.append(observation)
+
+    @property
+    def observations(self) -> Sequence[Observation]:
+        return self._storage
+
+    def clear(self):
+        self._storage.clear()
+
+    def count(self) -> int:
+        return len(self._storage)
+
+
+class BufferedObservationStorage(ObservationStorage):
+    def __init__(self, confidence_threshold: float, buffer_length: int):
+        self.confidence_threshold = confidence_threshold
+        self._storage = deque(maxlen=buffer_length)
+
+    def add(self, observation: Observation):
+        if observation.invalid:
+            return
+        if observation.confidence < self.confidence_threshold:
+            return
+
+        self._storage.append(observation)
+
+    @property
+    def observations(self) -> Sequence[Observation]:
+        return list(self._storage)
+
+    def clear(self):
+        self._storage.clear()
+
+    def count(self) -> int:
+        return len(self._storage)
+
+
+class BinBufferedObservationStorage(ObservationStorage):
+    def __init__(
+        self,
+        camera: CameraModel,
+        confidence_threshold: float,
+        n_bins_horizontal: int,
+        bin_buffer_length: int,
+        forget_min_observations: Optional[int] = None,
+        forget_min_time: Optional[float] = None,
+    ):
+        self.camera = camera
+        self.confidence_threshold = confidence_threshold
+        self.bin_buffer_length = bin_buffer_length
+        self.forget_min_observations = forget_min_observations
+        self.forget_min_time = forget_min_time
+        self.pixels_per_bin = self.camera.resolution[0] / n_bins_horizontal
+        self.w = n_bins_horizontal
+        self.h = int(round(self.camera.resolution[1] / self.pixels_per_bin))
+
+        self._by_time = SortedList(key=lambda obs: obs.timestamp)
+        self._by_bin = dict()
+
+    def add(self, observation: Observation):
+        if observation.invalid:
+            return
+        if observation.confidence < self.confidence_threshold:
+            return
+
+        idx = self._get_bin(observation)
+        if idx < 0 or idx >= self.w * self.h:
+            print(f"INDEX OUT OF BOUNDS: {idx}")
+            return
+
+        if idx not in self._by_bin:
+            self._by_bin[idx] = SortedList(key=lambda obs: obs.timestamp)
+
+        # add to both lookup structures
+        _bin: SortedList = self._by_bin[idx]
+        _bin.add(observation)
+        self._by_time.add(observation)
+
+        # manage within-bin forgetting
+        while len(_bin) > self.bin_buffer_length:
+            old = _bin.pop(0)
+            self._by_time.remove(old)
+
+        # manage across-bin forgetting
+        if self.forget_min_observations is None or self.forget_min_time is None:
+            return
+
+        while self.count() > self.forget_min_observations:
+            oldest_age = observation.timestamp - self._by_time[0].timestamp
+            if oldest_age < self.forget_min_time:
+                break
+
+            # forget oldest entry
+            old = self._by_time.pop(0)
+            idx = self._get_bin(old)
+            _bin = self._by_bin[idx]
+            _bin.remove(old)
+            # make sure to remove bin if empty for bin-counting to work
+            if len(_bin) == 0:
+                self._by_bin.pop(idx)
+
+    @property
+    def observations(self) -> Sequence[Observation]:
+        return list(self._by_time)
+
+    def clear(self):
+        self._by_time.clear()
+        self._by_bin.clear()
+
+    def count(self) -> int:
+        return len(self._by_time)
+
+    def get_bin_counts(self) -> np.ndarray:
+        dense_1d = np.zeros((self.w * self.h,))
+        for idx, _bin in self._by_bin.items():
+            dense_1d[idx] = len(_bin)
+        return np.reshape(dense_1d, (self.w, self.h))
+
+    def _get_bin(self, observation: Observation) -> int:
+        x, y = (
+            floor((ellipse_center + resolution / 2) / self.pixels_per_bin)
+            for ellipse_center, resolution in zip(
+                observation.ellipse.center, self.camera.resolution
+            )
         )
-        self._aux_2d_list.append(observation.aux_2d)
-        self._aux_3d_list.append(observation.aux_3d)
-        self._timestamps.append(observation.timestamp)
-        self.counter += 1
-
-    def count(self):
-        return self.counter
-
-    def purge(self, cutoff_time):
-        N = np.searchsorted(self.timestamps, cutoff_time)
-        for _ in range(N):
-            self.observations.popleft()
-            self._gaze_2d_list.popleft()
-            self._aux_2d_list.popleft()
-            self._aux_3d_list.popleft()
-            self._timestamps.popleft()
-
-    @property
-    def aux_2d(self):
-        return np.asarray(self._aux_2d_list)
-
-    @property
-    def aux_3d(self):
-        return np.asarray(self._aux_3d_list)
-
-    @property
-    def gaze_2d(self):
-        return np.asarray(self._gaze_2d_list)
-
-    @property
-    def timestamps(self):
-        return np.asarray(self._timestamps)
-
-    def __getitem__(self, item):
-        return self.observations[item]
-
-    def __len__(self):
-        return len(self.observations)
-
-    def __bool__(self):
-        True
+        # convert to 1D bin index
+        return x + y * self.h

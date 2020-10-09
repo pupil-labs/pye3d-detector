@@ -9,11 +9,12 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 import logging
-import sys
+import traceback
+from typing import Dict
 
 import numpy as np
 
-from .background_helper import BackgroundProcess
+from .camera import CameraModel
 from .constants import _EYE_RADIUS_DEFAULT
 from .cpp.pupil_detection_3d import get_edges
 from .cpp.pupil_detection_3d import search_on_sphere as search_on_sphere
@@ -24,218 +25,303 @@ from .geometry.projections import (
 )
 from .geometry.utilities import cart2sph, sph2cart
 from .kalman import KalmanFilter
+from .observation import (
+    BinBufferedObservationStorage,
+    BufferedObservationStorage,
+    Observation,
+)
 from .two_sphere_model import TwoSphereModel
 
 logger = logging.getLogger(__name__)
 
 
+def ellipse2dict(ellipse: Ellipse) -> Dict:
+    return {
+        "center": (
+            ellipse.center[0],
+            ellipse.center[1],
+        ),
+        "axes": (
+            ellipse.minor_radius,
+            ellipse.major_radius,
+        ),
+        "angle": ellipse.angle,
+    }
+
+
+def circle2dict(circle: Circle, flip_y: bool = True) -> Dict:
+    flip = -1 if flip_y else 1
+    return {
+        "center": (
+            circle.center[0],
+            flip * circle.center[1],
+            circle.center[2],
+        ),
+        "normal": (
+            circle.normal[0],
+            flip * circle.normal[1],
+            circle.normal[2],
+        ),
+        "radius": float(circle.radius),
+    }
+
+
 class Detector3D(object):
     def __init__(
         self,
-        settings={
-            "focal_length": 283.0,
-            "resolution": (192, 192),
-            "maximum_integration_time": 30.0,
-            "maxlen": 10000,
-            "threshold_data_storage": 0.98,
-            "threshold_swirski": 0.7,
-            "threshold_kalman": 0.98,
-        },
-        log_handler=None,
+        focal_length=283.0,
+        resolution=(192, 192),
+        threshold_swirski=0.7,
+        threshold_kalman=0.98,
+        threshold_short_term=0.8,
+        threshold_long_term=0.98,
+        long_term_buffer_size=10,
+        long_term_forget_time=5,
+        long_term_forget_observations=100,
     ):
-        self.settings = settings
+        self.settings = {
+            "focal_length": focal_length,
+            "resolution": resolution,
+            "threshold_swirski": threshold_swirski,
+            "threshold_kalman": threshold_kalman,
+            "threshold_short_term": threshold_short_term,
+            "threshold_long_term": threshold_long_term,
+            "long_term_buffer_size": long_term_buffer_size,
+            "long_term_forget_time": long_term_forget_time,
+            "long_term_forget_observations": long_term_forget_observations,
+        }
+        self.camera = CameraModel(focal_length=focal_length, resolution=resolution)
 
-        self.two_sphere_model = TwoSphereModel(settings=self.settings)
-        self.currently_optimizing = False
-        self.new_observations = False
-        self.observation = False
+        self.short_term_model = TwoSphereModel(
+            camera=self.camera,
+            storage=BufferedObservationStorage(
+                confidence_threshold=threshold_short_term,
+                buffer_length=10,
+            ),
+        )
+        self.long_term_model = TwoSphereModel(
+            camera=self.camera,
+            storage=BinBufferedObservationStorage(
+                camera=self.camera,
+                confidence_threshold=threshold_long_term,
+                n_bins_horizontal=10,
+                bin_buffer_length=long_term_buffer_size,
+                forget_min_observations=long_term_forget_observations,
+                forget_min_time=long_term_forget_time,
+            ),
+        )
+        self.ultra_long_term_model = TwoSphereModel(
+            camera=self.camera,
+            storage=BinBufferedObservationStorage(
+                camera=self.camera,
+                confidence_threshold=threshold_long_term,
+                n_bins_horizontal=10,
+                bin_buffer_length=long_term_buffer_size,
+                forget_min_observations=long_term_forget_observations * 2,
+                forget_min_time=60,
+            ),
+        )
 
         self.kalman_filter = KalmanFilter()
-        self.last_kalman_call = -1
 
-        self._external_log_handler = log_handler
-        self.task = BackgroundProcess(
-            TwoSphereModel.deep_sphere_estimate, self._external_log_handler
-        )
-        self._discard_next_task_result = False
-
-        self.debug_result = {}
-
-    def cleanup(self):
-        """
-        Cleanup detector after usage.
-
-        This will shut down the continuously running background process. Use this
-        function when you are done using the detector, but your application continues.
-        Using the detector again after cleanup() will result in errors. Prefer to call
-        reset() if you want to simply re-initialize and continue using the detector.
-        """
-        self.task.cancel()
+        # TODO: used for not updating ult-model every frame, will be replaced by background process?
+        self.ult_counter = 0
 
     def update_and_detect(
-        self, pupil_datum, frame, refraction_toggle=True, debug_toggle=False
+        self,
+        pupil_datum: Dict,
+        frame: np.ndarray,
+        apply_refraction_correction: bool = True,
+        debug: bool = False,
     ):
+        # update models
+        observation = self._extract_observation(pupil_datum)
+        self.update_models(observation)
 
-        observation = self._estimate_sphere_center(pupil_datum)
+        # predict target variables
+        sphere_center = self.long_term_model.sphere_center
+        pupil_circle = self._predict_pupil_circle(observation, frame)
 
-        pupil_circle = self._predict_from_two_sphere_model(pupil_datum, observation)
+        # apply refraction correction
+        if apply_refraction_correction:
+            # TODO: Visualizing this in Pupil is kind of weird, as it does not align
+            # well with what the user sees. Maybe we should also always add in the
+            # un-corrected data only for visualization?
+            pupil_circle = self.long_term_model.apply_refraction_correction(
+                pupil_circle
+            )
+            sphere_center = self.long_term_model.corrected_sphere_center
 
-        pupil_circle_kalman = self._predict_from_kalman_filter(
-            pupil_datum, pupil_circle
-        )
-
-        pupil_circle = self._predict_from_3d_search(
-            frame, pupil_datum, pupil_circle, pupil_circle_kalman
-        )
-
-        if refraction_toggle:
-            pupil_circle = self._apply_refraction_correction(pupil_circle)
-            sphere_center = self.two_sphere_model.corrected_sphere_center
-        else:
-            sphere_center = self.two_sphere_model.sphere_center
-
-        py_result = self._prepare_result(
+        result = self._prepare_result(
+            observation,
             sphere_center,
-            pupil_datum,
             pupil_circle,
-            pupil_circle_kalman,
-            flip=-1,
-            debug_toggle=debug_toggle,
         )
 
-        return py_result
+        if debug:
+            result["debug_info"] = self._collect_debug_info()
 
-    def _estimate_sphere_center(self, pupil_datum):
-        # CHECK WHETHER NEW SPHERE ESTIMATE IS AVAILABLE
-        if self.task.poll():
-            if self._discard_next_task_result:
-                _ = self.task.recv()
-                self._discard_next_task_result = False
-            else:
-                result = self.task.recv()
-                self._process_sphere_center_estimate(result)
+        return result
 
-        # SPHERE CENTER UPDATE
-        if pupil_datum["confidence"] > self.settings["threshold_data_storage"]:
-            observation = self.two_sphere_model.add_to_observation_storage(pupil_datum)
-            if observation:
-                self.new_observations = True
+    def update_models(self, observation: Observation):
+        self.short_term_model.add_observation(observation)
+        self.long_term_model.add_observation(observation)
+        self.ultra_long_term_model.add_observation(observation)
 
-            if self._sphere_center_should_be_estimated():
-                self.currently_optimizing = True
-                self.new_observations = False
-                self.task.send(
-                    self.two_sphere_model.observation_storage.aux_2d,
-                    self.two_sphere_model.observation_storage.aux_3d,
-                    self.two_sphere_model.observation_storage.gaze_2d,
-                )
+        # TODO: dont trigger every frame? background process maybe?
 
-            return observation
-
-    def _sphere_center_should_be_estimated(self):
-        n = self.two_sphere_model.observation_storage.count()
         if (
-            ((49 < n and n % 100 == 0) or (20 < n < 50 and n % 10 == 0))
-            and self.new_observations
-            and not self.currently_optimizing
+            self.short_term_model.n_observations <= 0
+            or self.long_term_model.n_observations <= 0
+            or self.ultra_long_term_model.n_observations <= 0
         ):
-            return True
-        else:
-            False
+            return
 
-    def _process_sphere_center_estimate(self, new_sphere_center):
-        self.two_sphere_model.set_sphere_center(new_sphere_center)
-        self.currently_optimizing = False
+        try:
+            # update ultra long term model without biases
+            # After having seen 1000 frames, only update every 500th frame for
+            # performance sanity. TODO: cleanup if moving to background process
+            if self.ult_counter < 1000 or self.ult_counter % 500 == 0:
+                self.ultra_long_term_model.estimate_sphere_center()
+            ultra_long_term_3d = self.ultra_long_term_model.sphere_center
 
-    def _predict_from_two_sphere_model(self, pupil_datum, observation=False):
-        if pupil_datum["confidence"] > self.settings["threshold_swirski"]:
-            if observation:
-                pupil_circle = self.two_sphere_model.predict_pupil_circle(
-                    observation.circle_3d_pair, from_given_circle_3d_pair=True
-                )
-            else:
-                pupil_circle = self.two_sphere_model.predict_pupil_circle(pupil_datum)
+            # update long term model with ultra long term bias
+            long_term_2d, long_term_3d = self.long_term_model.estimate_sphere_center(
+                prior_3d=ultra_long_term_3d,
+                prior_strength=0.1,
+            )
+
+            # update short term model with help of long-term model
+            # using 2d center for disambiguation and 3d center as prior bias
+            self.short_term_model.estimate_sphere_center(
+                from_2d=long_term_2d,
+                prior_3d=long_term_3d,
+                prior_strength=0.1,
+            )
+        except Exception as e:
+            # Known issues:
+            # - Can raise numpy.linalg.LinAlgError: SVD did not converge
+            logger.error("Error updating models:")
+            logger.debug(traceback.format_exc())
+
+        self.ult_counter += 1
+
+    def _extract_observation(self, pupil_datum: Dict) -> Observation:
+        width, height = self.camera.resolution
+        center = (
+            +(pupil_datum["ellipse"]["center"][0] - width / 2),
+            -(pupil_datum["ellipse"]["center"][1] - height / 2),
+        )
+        minor_axis = pupil_datum["ellipse"]["axes"][0] / 2.0
+        major_axis = pupil_datum["ellipse"]["axes"][1] / 2.0
+        angle = -(pupil_datum["ellipse"]["angle"] + 90.0) * np.pi / 180.0
+        ellipse = Ellipse(center, minor_axis, major_axis, angle)
+
+        return Observation(
+            ellipse,
+            pupil_datum["confidence"],
+            pupil_datum["timestamp"],
+            self.camera.focal_length,
+        )
+
+    def _predict_pupil_circle(
+        self, observation: Observation, frame: np.ndarray
+    ) -> Circle:
+        # NOTE: General idea: predict pupil circle from long and short term models based
+        # on current observation. Filter results with a kalman filter.
+
+        # Kalman filter needs to be queried every timestamp to update it internally.
+        pupil_circle_kalman = self._predict_from_kalman_filter(observation.timestamp)
+
+        if observation.confidence > self.settings["threshold_swirski"]:
+            # high-confidence observation, use to construct pupil circle from models
+
+            # short-term-model is best for estimating gaze direction (circle normal) and
+            # long-term-model ist more stable for positions (center and radius)
+            short_term = self.short_term_model.predict_pupil_circle(observation)
+            long_term = self.long_term_model.predict_pupil_circle(observation)
+            pupil_circle = Circle(
+                normal=short_term.normal,
+                center=long_term.center,
+                radius=long_term.radius,
+            )
+
+            if observation.confidence > self.settings["threshold_kalman"]:
+                # very-high-confidence: correct kalman filter
+                self._correct_kalman_filter(pupil_circle)
+
         else:
-            pupil_circle = Circle([0, 0, 0], [0, 0, -1], 0)
+            # low confidence: use kalman prediction to search for circles in image
+            pupil_circle = self._predict_from_3d_search(
+                frame, best_guess=pupil_circle_kalman
+            )
+            # TODO: adjust observation.confidence
+
         return pupil_circle
 
-    def _predict_from_kalman_filter(self, pupil_datum, observed_pupil_circle):
-        phi, theta, pupil_radius_kalman = self.kalman_filter.predict(
-            pupil_datum["timestamp"]
-        )
+    def _predict_from_kalman_filter(self, timestamp):
+        phi, theta, pupil_radius_kalman = self.kalman_filter.predict(timestamp)
         gaze_vector_kalman = sph2cart(phi, theta)
         pupil_center_kalman = (
-            self.two_sphere_model.sphere_center
+            self.short_term_model.sphere_center
             + _EYE_RADIUS_DEFAULT * gaze_vector_kalman
         )
         pupil_circle_kalman = Circle(
             pupil_center_kalman, gaze_vector_kalman, pupil_radius_kalman
         )
-        if (
-            observed_pupil_circle
-            and pupil_datum["confidence"] > self.settings["threshold_kalman"]
-        ):
-            phi, theta, r = observed_pupil_circle.spherical_representation()
-            self.kalman_filter.correct(phi, theta, r)
         return pupil_circle_kalman
 
-    def _predict_from_3d_search(
-        self, frame, pupil_datum, pupil_circle, pupil_circle_kalman
-    ):
-        if (
-            pupil_datum["confidence"] <= self.settings["threshold_swirski"]
-            and pupil_circle_kalman
-        ):
+    def _correct_kalman_filter(self, observed_pupil_circle: Circle):
+        if observed_pupil_circle.is_null():
+            return
 
-            frame, frame_roi, edge_frame, edges, roi = get_edges(
-                frame,
-                pupil_circle_kalman.normal,
-                pupil_circle_kalman.radius,
-                self.two_sphere_model.sphere_center,
-                _EYE_RADIUS_DEFAULT,
-                self.settings["focal_length"],
-                self.settings["resolution"],
-                major_axis_factor=2.0,
-            )
+        phi, theta, r = observed_pupil_circle.spherical_representation()
+        self.kalman_filter.correct(phi, theta, r)
 
-            if len(edges) > 0:
-                (
-                    gaze_vector,
-                    pupil_radius,
-                    final_edges,
-                    edges_on_sphere,
-                ) = search_on_sphere(
-                    edges,
-                    pupil_circle_kalman.normal,
-                    pupil_circle_kalman.radius,
-                    self.two_sphere_model.sphere_center,
-                    _EYE_RADIUS_DEFAULT,
-                    self.settings["focal_length"],
-                    self.settings["resolution"],
-                )
-                pupil_center = (
-                    self.two_sphere_model.sphere_center
-                    + _EYE_RADIUS_DEFAULT * gaze_vector
-                )
-                pupil_circle = Circle(pupil_center, gaze_vector, pupil_radius)
+    def _predict_from_3d_search(self, frame: np.ndarray, best_guess: Circle) -> Circle:
+        if best_guess.is_null():
+            return best_guess
 
+        frame, frame_roi, edge_frame, edges, roi = get_edges(
+            frame,
+            best_guess.normal,
+            best_guess.radius,
+            self.long_term_model.sphere_center,
+            _EYE_RADIUS_DEFAULT,
+            self.camera.focal_length,
+            self.camera.resolution,
+            major_axis_factor=2.0,
+        )
+
+        if len(edges) <= 0:
+            return best_guess
+
+        (gaze_vector, pupil_radius, final_edges, edges_on_sphere) = search_on_sphere(
+            edges,
+            best_guess.normal,
+            best_guess.radius,
+            self.long_term_model.sphere_center,
+            _EYE_RADIUS_DEFAULT,
+            self.camera.focal_length,
+            self.camera.resolution,
+        )
+        pupil_center = (
+            self.long_term_model.sphere_center + _EYE_RADIUS_DEFAULT * gaze_vector
+        )
+        pupil_circle = Circle(pupil_center, gaze_vector, pupil_radius)
         return pupil_circle
-
-    def _apply_refraction_correction(self, pupil_circle):
-        return self.two_sphere_model.apply_refraction_correction(pupil_circle)
 
     def _prepare_result(
         self,
-        sphere_center,
-        pupil_datum,
-        pupil_circle,
-        kalman_prediction=None,
-        flip=-1,
-        debug_toggle=False,
+        observation: Observation,
+        sphere_center: np.ndarray,
+        pupil_circle: Circle,
+        flip_y: bool = True,
     ):
+        flip = -1 if flip_y else 1
 
-        py_result = {
-            "topic": "pupil",
+        result = {
+            "timestamp": observation.timestamp,
             "sphere": {
                 "center": (sphere_center[0], flip * sphere_center[1], sphere_center[2]),
                 "radius": _EYE_RADIUS_DEFAULT,
@@ -245,51 +331,16 @@ class Detector3D(object):
         eye_sphere_projected = project_sphere_into_image_plane(
             Sphere(sphere_center, _EYE_RADIUS_DEFAULT),
             transform=True,
-            focal_length=self.settings["focal_length"],
-            width=self.settings["resolution"][0],
-            height=self.settings["resolution"][1],
+            focal_length=self.camera.focal_length,
+            width=self.camera.resolution[0],
+            height=self.camera.resolution[1],
         )
+        result["projected_sphere"] = ellipse2dict(eye_sphere_projected)
 
-        py_result["projected_sphere"] = {
-            "center": (eye_sphere_projected.center[0], eye_sphere_projected.center[1]),
-            "axes": (
-                eye_sphere_projected.minor_radius,
-                eye_sphere_projected.major_radius,
-            ),
-            "angle": eye_sphere_projected.angle,
-        }
+        result["circle_3d"] = circle2dict(pupil_circle, flip_y)
 
-        py_result["circle_3d"] = {
-            "center": (
-                pupil_circle.center[0],
-                flip * pupil_circle.center[1],
-                pupil_circle.center[2],
-            ),
-            "normal": (
-                pupil_circle.normal[0],
-                flip * pupil_circle.normal[1],
-                pupil_circle.normal[2],
-            ),
-            "radius": pupil_circle.radius,
-        }
-
-        py_result["circle_3d_kalman"] = {
-            "center": (
-                kalman_prediction.center[0],
-                flip * kalman_prediction.center[1],
-                kalman_prediction.center[2],
-            ),
-            "normal": (
-                kalman_prediction.normal[0],
-                flip * kalman_prediction.normal[1],
-                kalman_prediction.normal[2],
-            ),
-            "radius": float(kalman_prediction.radius),
-        }
-
-        py_result["confidence"] = pupil_datum["confidence"]
-        py_result["timestamp"] = pupil_datum["timestamp"]
-        py_result["diameter_3d"] = pupil_circle.radius * 2
+        pupil_circle_long_term = self.long_term_model.predict_pupil_circle(observation)
+        result["diameter_3d"] = pupil_circle_long_term.radius * 2
 
         projected_pupil_circle = project_circle_into_image_plane(
             pupil_circle,
@@ -301,53 +352,75 @@ class Detector3D(object):
         if not projected_pupil_circle:
             projected_pupil_circle = Ellipse(np.asarray([0.0, 0.0]), 0.0, 0.0, 0.0)
 
-        py_result["raw_ellipse"] = pupil_datum["ellipse"]
+        result["ellipse"] = ellipse2dict(projected_pupil_circle)
+        result["diameter"] = projected_pupil_circle.major_radius
 
-        py_result["ellipse"] = {
-            "center": (
-                projected_pupil_circle.center[0],
-                projected_pupil_circle.center[1],
-            ),
-            "axes": (
-                projected_pupil_circle.minor_radius,
-                projected_pupil_circle.major_radius,
-            ),
-            "angle": projected_pupil_circle.angle,
-        }
-
-        norm_center = (0.0, 0.0)
-        py_result["norm_pos"] = norm_center
-
-        py_result["diameter"] = py_result["ellipse"]["axes"][1]
-
-        py_result["model_confidence"] = 1.0
-        py_result["model_id"] = 1
-        py_result["model_birth_timestamp"] = 0.0
+        result["confidence"] = observation.confidence
+        result["confidence_2d"] = observation.confidence_2d
+        # TODO: model_confidence is currently require in Pupil for visualization
+        # (eyeball outline alpha), but we don't yet have a way of estimating the model
+        # confidence. Either remove this and cleanup the visualization in Pupil or come
+        # up with a measure for model confidence.
+        result["model_confidence"] = 1.0
 
         phi, theta = cart2sph(pupil_circle.normal)
         if not np.any(np.isnan([phi, theta])):
-            py_result["theta"] = theta
-            py_result["phi"] = phi
+            result["theta"] = theta
+            result["phi"] = phi
         else:
-            py_result["theta"] = 0.0
-            py_result["phi"] = 0.0
+            result["theta"] = 0.0
+            result["phi"] = 0.0
 
-        py_result["method"] = "3d c++"
+        return result
 
-        if debug_toggle:
-            self.debug_result = {
-                **py_result,
-                "debug_info": self.two_sphere_model.debug_info,
-            }
+    def _collect_debug_info(self):
+        debug_info = {}
 
-        return py_result
+        projected_short_term = project_sphere_into_image_plane(
+            Sphere(self.short_term_model.sphere_center, _EYE_RADIUS_DEFAULT),
+            transform=True,
+            focal_length=self.camera.focal_length,
+            width=self.camera.resolution[0],
+            height=self.camera.resolution[1],
+        )
+        projected_long_term = project_sphere_into_image_plane(
+            Sphere(self.long_term_model.sphere_center, _EYE_RADIUS_DEFAULT),
+            transform=True,
+            focal_length=self.camera.focal_length,
+            width=self.camera.resolution[0],
+            height=self.camera.resolution[1],
+        )
+        projected_ultra_long_term = project_sphere_into_image_plane(
+            Sphere(self.ultra_long_term_model.sphere_center, _EYE_RADIUS_DEFAULT),
+            transform=True,
+            focal_length=self.camera.focal_length,
+            width=self.camera.resolution[0],
+            height=self.camera.resolution[1],
+        )
+        debug_info["projected_short_term"] = ellipse2dict(projected_short_term)
+        debug_info["projected_long_term"] = ellipse2dict(projected_long_term)
+        debug_info["projected_ultra_long_term"] = ellipse2dict(
+            projected_ultra_long_term
+        )
+
+        bin_data = self.long_term_model.storage.get_bin_counts()
+        max_bin_level = np.max(bin_data)
+        if max_bin_level >= 0:
+            bin_data = bin_data / max_bin_level
+        bin_data = np.flip(bin_data, axis=0)
+        debug_info["bin_data"] = bin_data.tolist()
+
+        # TODO: Pupil visualizer_pye3d.py attempts to draw Dierkes lines. Currently we
+        # don't calculate them here, we could probably do that again. Based on which
+        # model? Might be hard to do when things run in the background. We might have to
+        # remove this from the visualizer_pye3d.py
+        debug_info["Dierkes_lines"] = []
+
+        return debug_info
 
     def reset(self):
-        self.two_sphere_model = TwoSphereModel(settings=self.settings)
+        self.short_term_model.reset()
+        self.long_term_model.reset()
+        self.ultra_long_term_model.reset()
+        self.ult_counter = 0
         self.kalman_filter = KalmanFilter()
-        self.last_kalman_call = -1
-        if self.task.busy:
-            # previous calculation is still running, need to make sure we discard that
-            self._discard_next_task_result = True
-        self.currently_optimizing = False
-        self.new_observations = False
