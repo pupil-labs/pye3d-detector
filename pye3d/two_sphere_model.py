@@ -24,7 +24,7 @@ from .geometry.projections import (
     unproject_ellipse,
 )
 from .geometry.utilities import normalize
-from .observation import Observation, ObservationStorage
+from .observation import Observation, ObservationStorage, BasicStorage
 from .refraction import Refractionizer
 
 logger = logging.getLogger(__name__)
@@ -33,11 +33,10 @@ logger = logging.getLogger(__name__)
 class TwoSphereModel(object):
     def __init__(
         self,
-        # TODO: Default storage for Kai
-        storage: ObservationStorage,
         camera: CameraModel,
+        storage: ObservationStorage = None,
     ):
-        self.storage = storage
+        self.storage = storage or BasicStorage()
         self.camera = camera
 
         self.refractionizer = Refractionizer()

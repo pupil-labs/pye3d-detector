@@ -9,6 +9,7 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 import logging
+import traceback
 from typing import Dict
 
 import numpy as np
@@ -201,7 +202,7 @@ class Detector3D(object):
             # Known issues:
             # - Can raise numpy.linalg.LinAlgError: SVD did not converge
             logger.error("Error updating models:")
-            logger.error(e)
+            logger.debug(traceback.format_exc())
 
         self.ult_counter += 1
 

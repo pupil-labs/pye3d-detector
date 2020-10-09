@@ -95,7 +95,24 @@ class ObservationStorage:
         pass
 
 
-# TODO: Naive Storage for Kai! :)
+class BasicStorage(ObservationStorage):
+    def __init__(self):
+        self._storage = []
+
+    def add(self, observation: Observation):
+        if observation.invalid:
+            return
+        self._storage.append(observation)
+
+    @property
+    def observations(self) -> Sequence[Observation]:
+        return self._storage
+
+    def clear(self):
+        self._storage.clear()
+
+    def count(self) -> int:
+        return len(self._storage)
 
 
 class BufferedObservationStorage(ObservationStorage):
