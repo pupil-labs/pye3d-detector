@@ -78,11 +78,6 @@ class Observation(object):
 
 
 class ObservationStorage:
-    def __init__(self, *, camera: CameraModel, confidence_threshold: float):
-        # TODO: move these out of base class
-        self.camera = camera
-        self.confidence_threshold = confidence_threshold
-
     @abstractmethod
     def add(self, observation: Observation):
         pass
@@ -104,8 +99,8 @@ class ObservationStorage:
 
 
 class BufferedObservationStorage(ObservationStorage):
-    def __init__(self, *, buffer_length: int, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, confidence_threshold: float, buffer_length: int):
+        self.confidence_threshold = confidence_threshold
         self._storage = deque(maxlen=buffer_length)
 
     def add(self, observation: Observation):
@@ -130,14 +125,15 @@ class BufferedObservationStorage(ObservationStorage):
 class BinBufferedObservationStorage(ObservationStorage):
     def __init__(
         self,
-        *,
+        camera: CameraModel,
+        confidence_threshold: float,
         n_bins_horizontal: int,
         bin_buffer_length: int,
         forget_min_observations: Optional[int] = None,
         forget_min_time: Optional[float] = None,
-        **kwargs,
     ):
-        super().__init__(**kwargs)
+        self.camera = camera
+        self.confidence_threshold = confidence_threshold
         self.bin_buffer_length = bin_buffer_length
         self.forget_min_observations = forget_min_observations
         self.forget_min_time = forget_min_time

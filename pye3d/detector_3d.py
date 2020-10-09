@@ -94,7 +94,6 @@ class Detector3D(object):
         self.short_term_model = TwoSphereModel(
             camera=self.camera,
             storage=BufferedObservationStorage(
-                camera=self.camera,
                 confidence_threshold=threshold_short_term,
                 buffer_length=10,
             ),
