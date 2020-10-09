@@ -138,37 +138,9 @@ class Detector3D(object):
         observation = self._extract_observation(pupil_datum)
         self.update_models(observation)
 
-        # make initial predictions
-        # TODO: extract into function
-        pupil_circle_short_term = Circle.null()
-        pupil_circle_long_term = Circle.null()
-        if observation.confidence > self.settings["threshold_swirski"]:
-            pupil_circle_short_term = self.short_term_model.predict_pupil_circle(
-                observation
-            )
-            pupil_circle_long_term = self.long_term_model.predict_pupil_circle(
-                observation
-            )
-        pupil_circle = Circle(
-            pupil_circle_long_term.center,
-            pupil_circle_short_term.normal,
-            pupil_circle_long_term.radius,
-        )
-
+        # predict target variables
         sphere_center = self.long_term_model.sphere_center
-
-        # pupil_circle <-> kalman filter
-        # either improve prediction or improve filter
-        pupil_circle_kalman = self._predict_from_kalman_filter(pupil_datum["timestamp"])
-        if observation.confidence > self.settings["threshold_kalman"]:
-            # high confidence: use to correct kalman filter
-            self._correct_kalman_filter(pupil_circle)
-        elif observation.confidence < self.settings["threshold_swirski"]:
-            # low confidence: use kalman result to search for circles in image
-            pupil_circle = self._predict_from_3d_search(
-                frame, best_guess=pupil_circle_kalman
-            )
-            # TODO: adjust observation.confidence
+        pupil_circle = self._predict_pupil_circle(observation, frame)
 
         # apply refraction correction
         if apply_refraction_correction:
@@ -251,6 +223,41 @@ class Detector3D(object):
             pupil_datum["timestamp"],
             self.camera.focal_length,
         )
+
+    def _predict_pupil_circle(
+        self, observation: Observation, frame: np.ndarray
+    ) -> Circle:
+        # NOTE: General idea: predict pupil circle from long and short term models based
+        # on current observation. Filter results with a kalman filter.
+
+        # Kalman filter needs to be queried every timestamp to update it internally.
+        pupil_circle_kalman = self._predict_from_kalman_filter(observation.timestamp)
+
+        if observation.confidence > self.settings["threshold_swirski"]:
+            # high-confidence observation, use to construct pupil circle from models
+
+            # short-term-model is best for estimating gaze direction (circle normal) and
+            # long-term-model ist more stable for positions (center and radius)
+            short_term = self.short_term_model.predict_pupil_circle(observation)
+            long_term = self.long_term_model.predict_pupil_circle(observation)
+            pupil_circle = Circle(
+                normal=short_term.normal,
+                center=long_term.center,
+                radius=long_term.radius,
+            )
+
+            if observation.confidence > self.settings["threshold_kalman"]:
+                # very-high-confidence: correct kalman filter
+                self._correct_kalman_filter(pupil_circle)
+
+        else:
+            # low confidence: use kalman prediction to search for circles in image
+            pupil_circle = self._predict_from_3d_search(
+                frame, best_guess=pupil_circle_kalman
+            )
+            # TODO: adjust observation.confidence
+
+        return pupil_circle
 
     def _predict_from_kalman_filter(self, timestamp):
         phi, theta, pupil_radius_kalman = self.kalman_filter.predict(timestamp)
