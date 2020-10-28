@@ -10,7 +10,7 @@ See COPYING and COPYING.LESSER for license details.
 """
 import logging
 import traceback
-from typing import Dict
+from typing import Dict, NamedTuple
 
 import numpy as np
 
@@ -64,6 +64,11 @@ def circle2dict(circle: Circle, flip_y: bool = True) -> Dict:
         ),
         "radius": float(circle.radius),
     }
+
+
+class Prediction(NamedTuple):
+    sphere_center: np.ndarray
+    pupil_circle: Circle
 
 
 class Detector3D(object):
@@ -156,21 +161,21 @@ class Detector3D(object):
         # predict target variables
         sphere_center = self.long_term_model.sphere_center
         pupil_circle = self._predict_pupil_circle(observation, frame)
+        prediction_uncorrected = Prediction(sphere_center, pupil_circle)
 
         # apply refraction correction
         if apply_refraction_correction:
-            # TODO: Visualizing this in Pupil is kind of weird, as it does not align
-            # well with what the user sees. Maybe we should also always add in the
-            # un-corrected data only for visualization?
             pupil_circle = self.long_term_model.apply_refraction_correction(
                 pupil_circle
             )
             sphere_center = self.long_term_model.corrected_sphere_center
+        # Falls back to uncorrected version if correction is disabled
+        prediction_corrected = Prediction(sphere_center, pupil_circle)
 
         result = self._prepare_result(
             observation,
-            sphere_center,
-            pupil_circle,
+            prediction_uncorrected=prediction_uncorrected,
+            prediction_corrected=prediction_corrected,
         )
 
         if debug:
@@ -329,22 +334,37 @@ class Detector3D(object):
     def _prepare_result(
         self,
         observation: Observation,
-        sphere_center: np.ndarray,
-        pupil_circle: Circle,
+        prediction_uncorrected: Prediction,
+        prediction_corrected: Prediction,
         flip_y: bool = True,
-    ):
+    ) -> Dict:
+        """[summary]
+
+        Args:
+            observation (Observation): [description]
+            prediction_uncorrected (Prediction): Used for 2d projections
+            prediction_corrected (Prediction): Used for 3d data
+            flip_y (bool, optional): Flips y-axis of 3d data. Defaults to True.
+
+        Returns:
+            Dict: pye3d pupil detection result
+        """
         flip = -1 if flip_y else 1
 
         result = {
             "timestamp": observation.timestamp,
             "sphere": {
-                "center": (sphere_center[0], flip * sphere_center[1], sphere_center[2]),
+                "center": (
+                    prediction_corrected.sphere_center[0],
+                    prediction_corrected.sphere_center[1] * flip,
+                    prediction_corrected.sphere_center[2],
+                ),
                 "radius": _EYE_RADIUS_DEFAULT,
             },
         }
 
         eye_sphere_projected = project_sphere_into_image_plane(
-            Sphere(sphere_center, _EYE_RADIUS_DEFAULT),
+            Sphere(prediction_uncorrected.sphere_center, _EYE_RADIUS_DEFAULT),
             transform=True,
             focal_length=self.camera.focal_length,
             width=self.camera.resolution[0],
@@ -352,13 +372,13 @@ class Detector3D(object):
         )
         result["projected_sphere"] = ellipse2dict(eye_sphere_projected)
 
-        result["circle_3d"] = circle2dict(pupil_circle, flip_y)
+        result["circle_3d"] = circle2dict(prediction_corrected.pupil_circle, flip_y)
 
         pupil_circle_long_term = self.long_term_model.predict_pupil_circle(observation)
         result["diameter_3d"] = pupil_circle_long_term.radius * 2
 
         projected_pupil_circle = project_circle_into_image_plane(
-            pupil_circle,
+            prediction_uncorrected.pupil_circle,
             focal_length=self.camera.focal_length,
             transform=True,
             width=self.camera.resolution[0],
@@ -378,7 +398,7 @@ class Detector3D(object):
         # up with a measure for model confidence.
         result["model_confidence"] = 1.0
 
-        phi, theta = cart2sph(pupil_circle.normal)
+        phi, theta = cart2sph(prediction_corrected.pupil_circle.normal)
         if not np.any(np.isnan([phi, theta])):
             result["theta"] = theta
             result["phi"] = phi
