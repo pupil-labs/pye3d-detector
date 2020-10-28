@@ -119,14 +119,16 @@ class Detector3D(object):
         # camera) changed in the meantime.
         self.short_term_model = TwoSphereModel(
             camera=self.camera,
-            storage=BufferedObservationStorage(
+            storage_cls=BufferedObservationStorage,
+            storage_kwargs=dict(
                 confidence_threshold=self._settings["threshold_short_term"],
                 buffer_length=10,
             ),
         )
         self.long_term_model = TwoSphereModel(
             camera=self.camera,
-            storage=BinBufferedObservationStorage(
+            storage_cls=BinBufferedObservationStorage,
+            storage_kwargs=dict(
                 camera=self.camera,
                 confidence_threshold=self._settings["threshold_long_term"],
                 n_bins_horizontal=10,
@@ -137,7 +139,8 @@ class Detector3D(object):
         )
         self.ultra_long_term_model = TwoSphereModel(
             camera=self.camera,
-            storage=BinBufferedObservationStorage(
+            storage_cls=BinBufferedObservationStorage,
+            storage_kwargs=dict(
                 camera=self.camera,
                 confidence_threshold=self._settings["threshold_long_term"],
                 n_bins_horizontal=10,

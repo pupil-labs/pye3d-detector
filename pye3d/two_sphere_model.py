@@ -9,7 +9,7 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 import logging
-from typing import Any, Dict, Sequence, Tuple
+from typing import Any, Dict, Sequence, Tuple, Type
 
 import numpy as np
 import numpy.linalg
@@ -34,9 +34,14 @@ class TwoSphereModel(object):
     def __init__(
         self,
         camera: CameraModel,
-        storage: ObservationStorage = None,
+        storage_cls: Type[ObservationStorage] = None,
+        storage_kwargs: Dict = None,
     ):
-        self.storage = storage or BasicStorage()
+        if storage_cls:
+            kwargs = storage_kwargs if storage_kwargs is not None else {}
+            self.storage = storage_cls(**kwargs)
+        else:
+            self.storage = BasicStorage()
         self.camera = camera
 
         self.refractionizer = Refractionizer()
