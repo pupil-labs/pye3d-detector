@@ -10,7 +10,7 @@ See COPYING and COPYING.LESSER for license details.
 """
 import logging
 import traceback
-from typing import Dict, NamedTuple
+from typing import Dict, NamedTuple, Type
 
 import numpy as np
 
@@ -114,10 +114,15 @@ class Detector3D(object):
         self._initialize_models()
         self.kalman_filter = KalmanFilter()
 
-    def _initialize_models(self):
+    def _initialize_models(
+        self,
+        short_term_model_cls: Type[TwoSphereModel] = TwoSphereModel,
+        long_term_model_cls: Type[TwoSphereModel] = TwoSphereModel,
+        ultra_long_term_model_cls: Type[TwoSphereModel] = TwoSphereModel,
+    ):
         # Recreate all models. This is required in case any of the settings (incl
         # camera) changed in the meantime.
-        self.short_term_model = TwoSphereModel(
+        self.short_term_model = short_term_model_cls(
             camera=self.camera,
             storage_cls=BufferedObservationStorage,
             storage_kwargs=dict(
@@ -125,7 +130,7 @@ class Detector3D(object):
                 buffer_length=10,
             ),
         )
-        self.long_term_model = TwoSphereModel(
+        self.long_term_model = long_term_model_cls(
             camera=self.camera,
             storage_cls=BinBufferedObservationStorage,
             storage_kwargs=dict(
@@ -137,7 +142,7 @@ class Detector3D(object):
                 forget_min_time=self._settings["long_term_forget_time"],
             ),
         )
-        self.ultra_long_term_model = TwoSphereModel(
+        self.ultra_long_term_model = ultra_long_term_model_cls(
             camera=self.camera,
             storage_cls=BinBufferedObservationStorage,
             storage_kwargs=dict(
