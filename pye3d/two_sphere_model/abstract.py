@@ -19,6 +19,7 @@ from ..camera import CameraModel
 
 
 class AbstractTwoSphereModel(abc.ABC):
+    @abc.abstractmethod
     def __init__(
         self,
         camera: CameraModel,

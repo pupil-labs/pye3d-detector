@@ -8,6 +8,7 @@ Lesser General Public License (LGPL v3.0).
 See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
+import enum
 import logging
 import traceback
 from typing import Dict, NamedTuple, Type
@@ -33,9 +34,15 @@ from .observation import (
 from .two_sphere_model import (
     AbstractTwoSphereModel,
     BlockingTwoSphereModel,
+    AsyncTwoSphereModel,
 )
 
 logger = logging.getLogger(__name__)
+
+
+class DetectorMode(enum.Enum):
+    blocking = BlockingTwoSphereModel
+    asynchronous = AsyncTwoSphereModel
 
 
 def ellipse2dict(ellipse: Ellipse) -> Dict:
@@ -89,8 +96,10 @@ class Detector3D(object):
         long_term_buffer_size=30,
         long_term_forget_time=5,
         long_term_forget_observations=300,
+        long_term_mode: DetectorMode = DetectorMode.blocking,
     ):
         self._camera = camera
+        self._long_term_mode = long_term_mode
         # NOTE: changing settings after intialization can lead to inconsistent behavior
         # if .reset() is not called.
         self._settings = {
@@ -114,7 +123,10 @@ class Detector3D(object):
         self.reset()
 
     def reset(self):
-        self._initialize_models()
+        self._initialize_models(
+            long_term_model_cls=self._long_term_mode.value,
+            ultra_long_term_model_cls=self._long_term_mode.value,
+        )
         self.kalman_filter = KalmanFilter()
 
     def _initialize_models(
