@@ -13,23 +13,23 @@ import typing as T
 
 import numpy as np
 
-from .camera import CameraModel
-from .constants import _EYE_RADIUS_DEFAULT
-from .geometry.intersections import nearest_point_on_sphere_to_line
-from .geometry.primitives import Circle, Line
-from .geometry.projections import (
+from ..camera import CameraModel
+from ..constants import _EYE_RADIUS_DEFAULT
+from ..geometry.intersections import nearest_point_on_sphere_to_line
+from ..geometry.primitives import Circle, Line
+from ..geometry.projections import (
     project_line_into_image_plane,
     project_point_into_image_plane,
     unproject_ellipse,
 )
-from .geometry.utilities import normalize
-from .observation import Observation, ObservationStorage, BasicStorage
-from .refraction import Refractionizer
+from ..geometry.utilities import normalize
+from ..observation import BasicStorage, Observation, ObservationStorage
+from ..refraction import Refractionizer
 
 logger = logging.getLogger(__name__)
 
 
-class TwoSphereModel(object):
+class BlockingTwoSphereModel(object):
     def __init__(
         self,
         camera: CameraModel,
