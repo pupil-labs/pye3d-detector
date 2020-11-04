@@ -14,7 +14,7 @@ import typing as T
 
 import numpy as np
 
-from ..background_helper import mp
+from .background_helper import mp
 from .abstract import (
     AbstractTwoSphereModel,
     Observation,
