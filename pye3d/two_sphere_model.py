@@ -12,7 +12,6 @@ import logging
 import typing as T
 
 import numpy as np
-import numpy.linalg
 
 from .camera import CameraModel
 from .constants import _EYE_RADIUS_DEFAULT
