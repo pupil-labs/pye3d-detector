@@ -11,11 +11,10 @@ See COPYING and COPYING.LESSER for license details.
 
 import logging
 import multiprocessing as mp
-import multiprocessing.connection
 import signal
 import time
 from ctypes import c_bool
-from logging import Handler, StreamHandler
+from logging import Handler
 from logging.handlers import QueueHandler, QueueListener
 from typing import Any, Callable, Dict, Optional, Tuple
 
