@@ -13,6 +13,7 @@ import typing as T
 
 import numpy as np
 
+from .abstract import AbstractTwoSphereModel
 from ..camera import CameraModel
 from ..constants import _EYE_RADIUS_DEFAULT
 from ..geometry.intersections import nearest_point_on_sphere_to_line
@@ -29,7 +30,7 @@ from ..refraction import Refractionizer
 logger = logging.getLogger(__name__)
 
 
-class BlockingTwoSphereModel(object):
+class BlockingTwoSphereModel(AbstractTwoSphereModel):
     def __init__(
         self,
         camera: CameraModel,
