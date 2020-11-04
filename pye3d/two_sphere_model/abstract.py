@@ -85,5 +85,5 @@ class AbstractTwoSphereModel(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def reset(self):
+    def cleanup(self):
         raise NotImplementedError

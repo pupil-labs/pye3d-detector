@@ -201,3 +201,6 @@ class BlockingTwoSphereModel(AbstractTwoSphereModel):
             for observation in self.storage.observations
         ]
         return np.mean(observation_circularities)
+
+    def cleanup(self):
+        pass
