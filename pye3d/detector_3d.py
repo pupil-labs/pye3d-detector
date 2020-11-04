@@ -123,6 +123,7 @@ class Detector3D(object):
         self.reset()
 
     def reset(self):
+        self._cleanup_models()
         self._initialize_models(
             long_term_model_cls=self._long_term_mode.value,
             ultra_long_term_model_cls=self._long_term_mode.value,
@@ -175,6 +176,14 @@ class Detector3D(object):
         )
         # TODO: used for not updating ult-model every frame, will be replaced by background process?
         self.ult_counter = 0
+
+    def _cleanup_models(self):
+        try:
+            self.short_term_model.cleanup()
+            self.long_term_model.cleanup()
+            self.ultra_long_term_model.cleanup()
+        except AttributeError:
+            pass  # models have not been initialized yet
 
     def update_and_detect(
         self,
