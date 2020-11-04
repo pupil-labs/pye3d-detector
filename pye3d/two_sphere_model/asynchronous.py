@@ -10,11 +10,13 @@ See COPYING and COPYING.LESSER for license details.
 """
 
 import abc
+import ctypes
+import logging
 import typing as T
 
 import numpy as np
 
-from .background_helper import mp
+from .background_helper import mp, BackgroundProcess, Handler
 from .abstract import (
     AbstractTwoSphereModel,
     Observation,
@@ -24,6 +26,8 @@ from .abstract import (
 )
 from .blocking import BlockingTwoSphereModel
 
+logger = logging.getLogger(__name__)
+
 
 class AsyncTwoSphereModel(AbstractTwoSphereModel):
     def __init__(
@@ -31,15 +35,60 @@ class AsyncTwoSphereModel(AbstractTwoSphereModel):
         camera: CameraModel,
         storage_cls: T.Type[ObservationStorage] = None,
         storage_kwargs: T.Dict = None,
+        log_handler: T.Optional[Handler] = None,
     ):
-        raise NotImplementedError
+        synced_sphere_center = mp.Array(ctypes.c_double, 3)
+        synced_corrected_sphere_center = mp.Array(ctypes.c_double, 3)
+        synced_observation_count = mp.Value(ctypes.c_long)
+
+        self._frontend = _SyncedTwoSphereModelFrontend(
+            synced_sphere_center,
+            synced_corrected_sphere_center,
+            synced_observation_count,
+            camera=camera,
+        )
+
+        self._backend_process = BackgroundProcess(
+            function=self._relay_commands,
+            setup=self._setup_backend,
+            setup_args=(
+                synced_sphere_center,
+                synced_corrected_sphere_center,
+                synced_observation_count,
+                camera,
+                storage_cls,
+                storage_kwargs,
+            ),
+            cleanup=self._cleanup_backend,
+            log_handler=log_handler,
+        )
+
+    @staticmethod
+    def _relay_commands(
+        backend: "_SyncedTwoSphereModelBackend", function_name: str, *args, **kwargs
+    ):
+        logger.debug(f"Relayed: {backend}.{function_name}({args}, {kwargs})")
+        function = getattr(backend, function_name)
+        result = function(*args, **kwargs)
+        logger.debug(f"Result: {result}")
+        return result
+
+    @staticmethod
+    def _setup_backend(*args, **kwargs) -> "_SyncedTwoSphereModelBackend":
+        logger.debug(f"Setting up backend: {args}, {kwargs}")
+        return _SyncedTwoSphereModelBackend(*args, **kwargs)
+
+    @staticmethod
+    def _cleanup_backend(backend: "_SyncedTwoSphereModelBackend"):
+        backend.cleanup()
+        logger.debug(f"Backend cleaned")
 
     def add_observation(self, observation: Observation):
-        raise NotImplementedError
+        self._backend_process.send("add_observation", observation)
 
     @property
     def n_observations(self) -> int:
-        raise NotImplementedError
+        return self._frontend.n_observations
 
     def set_sphere_center(self, new_sphere_center: np.ndarray):
         raise NotImplementedError
@@ -65,23 +114,26 @@ class AsyncTwoSphereModel(AbstractTwoSphereModel):
 
     # GAZE PREDICTION
     def _extract_unproject_disambiguate(self, pupil_datum: T.Dict) -> Circle:
-        raise NotImplementedError
+        return BlockingTwoSphereModel._extract_unproject_disambiguate(self, pupil_datum)
 
     def _disambiguate_circle_3d_pair(
         self, circle_3d_pair: T.Tuple[Circle, Circle]
     ) -> Circle:
-        raise NotImplementedError
+        return BlockingTwoSphereModel._disambiguate_circle_3d_pair(self, circle_3d_pair)
 
     def predict_pupil_circle(
         self, observation: Observation, use_unprojection: bool = False
     ) -> Circle:
-        raise NotImplementedError
+        return BlockingTwoSphereModel.predict_pupil_circle(
+            self, observation, use_unprojection
+        )
 
     def apply_refraction_correction(self, pupil_circle: Circle) -> Circle:
-        raise NotImplementedError
+        return BlockingTwoSphereModel.apply_refraction_correction(self, pupil_circle)
 
     def reset(self):
-        raise NotImplementedError
+        logger.debug("Cancelling backend process")
+        self._backend_process.cancel()
 
 
 class _SyncedTwoSphereModelAbstract(BlockingTwoSphereModel, metaclass=abc.ABCMeta):
