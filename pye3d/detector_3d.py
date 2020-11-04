@@ -30,7 +30,10 @@ from .observation import (
     BufferedObservationStorage,
     Observation,
 )
-from .two_sphere_model import TwoSphereModel
+from .two_sphere_model import (
+    AbstractTwoSphereModel,
+    BlockingTwoSphereModel,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -116,9 +119,11 @@ class Detector3D(object):
 
     def _initialize_models(
         self,
-        short_term_model_cls: Type[TwoSphereModel] = TwoSphereModel,
-        long_term_model_cls: Type[TwoSphereModel] = TwoSphereModel,
-        ultra_long_term_model_cls: Type[TwoSphereModel] = TwoSphereModel,
+        short_term_model_cls: Type[AbstractTwoSphereModel] = BlockingTwoSphereModel,
+        long_term_model_cls: Type[AbstractTwoSphereModel] = BlockingTwoSphereModel,
+        ultra_long_term_model_cls: Type[
+            AbstractTwoSphereModel
+        ] = BlockingTwoSphereModel,
     ):
         # Recreate all models. This is required in case any of the settings (incl
         # camera) changed in the meantime.
