@@ -16,9 +16,11 @@ import time
 from ctypes import c_bool
 from logging import Handler
 from logging.handlers import QueueHandler, QueueListener
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
 
 logger = logging.getLogger(__name__)
+WorkerSetupResult = TypeVar("WorkerSetupResult")
+WorkerFunctionResult = TypeVar("WorkerFunctionResult")
 
 
 class BackgroundProcess:
@@ -31,7 +33,15 @@ class BackgroundProcess:
     class MultipleSendError(Exception):
         """Trying to send data without first receiving previous output."""
 
-    def __init__(self, function: Callable, log_handler: Optional[Handler]):
+    def __init__(
+        self,
+        setup: Callable[..., WorkerSetupResult],
+        function: Callable[[WorkerSetupResult], WorkerFunctionResult],
+        cleanup: Callable[[WorkerSetupResult], None],
+        setup_args: Optional[Tuple] = None,
+        setup_kwargs: Optional[Dict] = None,
+        log_handler: Optional[Handler] = None,
+    ):
         self._running = True
         self._busy = False
 
@@ -49,10 +59,14 @@ class BackgroundProcess:
             daemon=True,
             target=BackgroundProcess._worker,
             kwargs=dict(
+                setup=setup,
                 function=function,
+                cleanup=cleanup,
                 pipe=remote_pipe,
                 should_terminate_flag=self._should_terminate_flag,
                 logging_queue=logging_queue,
+                setup_args=setup_args if setup_args else (),
+                setup_kwargs=setup_kwargs if setup_kwargs else {},
             ),
         )
         self._process.start()
@@ -144,16 +158,22 @@ class BackgroundProcess:
 
     @staticmethod
     def _worker(
-        function: Callable,
+        setup: Callable[..., WorkerSetupResult],
+        function: Callable[[WorkerSetupResult], WorkerFunctionResult],
+        cleanup: Callable[[WorkerSetupResult], None],
         pipe: mp.connection.Connection,
         should_terminate_flag: mp.Value,
         logging_queue: mp.Queue,
+        setup_args: Tuple,
+        setup_kwargs: Dict,
     ):
         log_queue_handler = QueueHandler(logging_queue)
         logger.addHandler(log_queue_handler)
 
         # Intercept SIGINT (ctrl-c), do required cleanup in foreground process!
         BackgroundProcess._install_sigint_interception()
+
+        setup_result: WorkerSetupResult = setup(*setup_args, **setup_kwargs)
 
         while not should_terminate_flag.value:
             try:
@@ -166,7 +186,7 @@ class BackgroundProcess:
 
             try:
                 t0 = time.perf_counter()
-                results = function(*args, **kwargs)
+                results: WorkerFunctionResult = function(setup_result, *args, **kwargs)
                 t1 = time.perf_counter()
                 logger.debug(f"Finished background calculation in {(t1 - t0):.2}s")
             except Exception as e:
@@ -179,6 +199,8 @@ class BackgroundProcess:
             pipe.send(results)
         else:
             logger.info("Background process received termination signal.")
+
+        cleanup(setup_result)
 
         logger.info("Stopping background process.")
         pipe.close()
