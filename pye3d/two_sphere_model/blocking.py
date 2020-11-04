@@ -195,11 +195,6 @@ class BlockingTwoSphereModel(AbstractTwoSphereModel):
 
         return refraction_corrected_pupil_circle
 
-    # UTILITY FUNCTIONS
-    def reset(self):
-        self.sphere_center = np.array([0.0, 0.0, 35.0])
-        self.storage.clear()
-
     def mean_observation_circularity(self):
         observation_circularities = [
             observation.ellipse.circularity()
