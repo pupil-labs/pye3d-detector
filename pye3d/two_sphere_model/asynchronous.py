@@ -25,7 +25,7 @@ from .abstract import (
     ObservationStorage,
     SphereCenterEstimates,
 )
-from .background_helper import BackgroundProcess, Handler, mp
+from .background_helper import BackgroundProcess, mp
 from .blocking import BlockingTwoSphereModel
 
 logger = logging.getLogger(__name__)
@@ -37,7 +37,6 @@ class AsyncTwoSphereModel(AbstractTwoSphereModel):
         camera: CameraModel,
         storage_cls: T.Type[ObservationStorage] = None,
         storage_kwargs: T.Dict = None,
-        log_handler: T.Optional[Handler] = None,
     ):
         synced_sphere_center = mp.Array(ctypes.c_double, 3)
         synced_corrected_sphere_center = mp.Array(ctypes.c_double, 3)
@@ -51,7 +50,6 @@ class AsyncTwoSphereModel(AbstractTwoSphereModel):
             synced_observation_count,
             camera=camera,
         )
-
         self._backend_process = BackgroundProcess(
             function=self._process_relayed_commands,
             setup=self._setup_backend,
@@ -67,7 +65,7 @@ class AsyncTwoSphereModel(AbstractTwoSphereModel):
                 storage_kwargs=storage_kwargs,
             ),
             cleanup=self._cleanup_backend,
-            log_handler=log_handler,
+            log_handlers=logging.getLogger().handlers,
         )
 
     @property
@@ -85,20 +83,20 @@ class AsyncTwoSphereModel(AbstractTwoSphereModel):
     def _process_relayed_commands(
         backend: "_SyncedTwoSphereModelBackend", function_name: str, *args, **kwargs
     ):
-        logger.debug(f"Relayed: {backend}.{function_name}({args}, {kwargs})")
         function = getattr(backend, function_name)
         result = function(*args, **kwargs)
-        logger.debug(f"Result: {result}")
         return result
 
     @staticmethod
     def _setup_backend(*args, **kwargs) -> "_SyncedTwoSphereModelBackend":
+        logger = logging.getLogger(__name__)
         logger.debug(f"Setting up backend: {args}, {kwargs}")
         return _SyncedTwoSphereModelBackend(*args, **kwargs)
 
     @staticmethod
     def _cleanup_backend(backend: "_SyncedTwoSphereModelBackend"):
         backend.cleanup()
+        logger = logging.getLogger(__name__)
         logger.debug(f"Backend cleaned")
 
     def add_observation(self, observation: Observation):
