@@ -10,21 +10,27 @@ LOAD_DIR = Path(__file__).parent / "refraction_models"
 
 
 def pipeline_to_list(pipeline):
-    return [pipeline[0].powers_.T.astype(np.float),
-            pipeline[1].mean_[np.newaxis, :].T,
-            pipeline[1].var_[np.newaxis, :].T,
-            pipeline[2].coef_.T,
-            pipeline[2].intercept_[:, np.newaxis].T]
+    return [
+        pipeline[0].powers_.T.astype(np.float),
+        pipeline[1].mean_[np.newaxis, :].T,
+        pipeline[1].var_[np.newaxis, :].T,
+        pipeline[2].coef_.T,
+        pipeline[2].intercept_[:, np.newaxis].T,
+    ]
 
 
 class Refractionizer(object):
     def __init__(self, degree=3, type_="default"):
         self.pipeline_radius = joblib.load(
-            os.path.join(LOAD_DIR, f"{type_}_refraction_model_radius_degree_{degree}.save")
+            os.path.join(
+                LOAD_DIR, f"{type_}_refraction_model_radius_degree_{degree}.save"
+            )
         )
 
         self.pipeline_gaze_vector = joblib.load(
-            os.path.join(LOAD_DIR, f"{type_}_refraction_model_gaze_vector_degree_{degree}.save")
+            os.path.join(
+                LOAD_DIR, f"{type_}_refraction_model_gaze_vector_degree_{degree}.save"
+            )
         )
 
         self.pipeline_sphere_center = joblib.load(
@@ -41,29 +47,33 @@ class Refractionizer(object):
 
         self.pipeline_radius_as_list = pipeline_to_list(self.pipeline_radius)
         self.pipeline_gaze_vector_as_list = pipeline_to_list(self.pipeline_gaze_vector)
-        self.pipeline_sphere_center_as_list = pipeline_to_list(self.pipeline_sphere_center)
-        self.pipeline_pupil_circle_as_list = pipeline_to_list(self.pipeline_pupil_circle)
+        self.pipeline_sphere_center_as_list = pipeline_to_list(
+            self.pipeline_sphere_center
+        )
+        self.pipeline_pupil_circle_as_list = pipeline_to_list(
+            self.pipeline_pupil_circle
+        )
 
     @staticmethod
     def _apply_correction_pipeline(X, pipeline_arrays):
         return apply_correction_pipeline(np.asarray(X).T, *pipeline_arrays)
 
     def correct_radius(self, X, implementation="cpp"):
-        if implementation=="cpp":
+        if implementation == "cpp":
             y = self._apply_correction_pipeline(X, self.pipeline_radius_as_list)
         else:
             y = self.pipeline_radius.predict(X)
         return y
 
     def correct_gaze_vector(self, X, implementation="cpp"):
-        if implementation=="cpp":
+        if implementation == "cpp":
             y = self._apply_correction_pipeline(X, self.pipeline_gaze_vector_as_list)
         else:
             y = self.pipeline_gaze_vector.predict(X)
         return y
 
     def correct_sphere_center(self, X, implementation="cpp"):
-        if implementation=="cpp":
+        if implementation == "cpp":
             y = self._apply_correction_pipeline(X, self.pipeline_sphere_center_as_list)
         else:
             y = self.pipeline_sphere_center.predict(X)

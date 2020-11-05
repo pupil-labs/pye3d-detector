@@ -71,6 +71,10 @@ class Prediction(NamedTuple):
     pupil_circle: Circle
 
 
+def sigmoid(x, baseline=0.1, amplitude=500.0, center=0.99, width=0.02):
+    return baseline + amplitude * 1.0 / (1.0 + np.exp(-(x - center) / width))
+
+
 class Detector3D(object):
     def __init__(
         self,
@@ -213,10 +217,13 @@ class Detector3D(object):
 
             # update short term model with help of long-term model
             # using 2d center for disambiguation and 3d center as prior bias
+            # prior strength is set as a funcition of circularity of the 2D pupil
+
+            circularity_mean = self.short_term_model.mean_observation_circularity()
             self.short_term_model.estimate_sphere_center(
                 from_2d=long_term_2d,
                 prior_3d=long_term_3d,
-                prior_strength=0.1,
+                prior_strength=sigmoid(circularity_mean),
             )
         except Exception as e:
             # Known issues:
