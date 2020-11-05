@@ -154,7 +154,7 @@ class AsyncTwoSphereModel(AbstractTwoSphereModel):
         self._frontend.cleanup()
 
 
-class _SyncedTwoSphereModelAbstract(BlockingTwoSphereModel, metaclass=abc.ABCMeta):
+class _SyncedTwoSphereModelAbstract(BlockingTwoSphereModel):
     def __init__(
         self,
         synced_sphere_center: mp.Array,  # c_double_Array_3
@@ -193,10 +193,6 @@ class _SyncedTwoSphereModelAbstract(BlockingTwoSphereModel, metaclass=abc.ABCMet
     def projected_sphere_center(self, coordinates: np.array):
         raise NotImplementedError
 
-    @property
-    def n_observations(self) -> int:
-        return self._synced_observation_count.value
-
 
 class _SyncedTwoSphereModelFrontend(_SyncedTwoSphereModelAbstract):
     def __init__(self, *args, **kwargs):
@@ -213,6 +209,10 @@ class _SyncedTwoSphereModelFrontend(_SyncedTwoSphereModelAbstract):
         )[0]
         with self._synced_corrected_sphere_center:
             self._synced_corrected_sphere_center[:] = corrected_sphere_center
+
+    @property
+    def n_observations(self) -> int:
+        return self._synced_observation_count.value
 
 
 class _SyncedTwoSphereModelBackend(_SyncedTwoSphereModelAbstract):
@@ -248,6 +248,10 @@ class _SyncedTwoSphereModelBackend(_SyncedTwoSphereModelAbstract):
         n_observations = super().n_observations
         with self._synced_observation_count:
             self._synced_observation_count.value = n_observations
+
+    @property
+    def n_observations(self) -> int:
+        return self._synced_observation_count.value
 
     def estimate_sphere_center_2d(self) -> np.ndarray:
         estimated: np.ndarray = super().estimate_sphere_center_2d()
