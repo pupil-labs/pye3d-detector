@@ -23,4 +23,4 @@ jobs:
       - uses: actions/checkout@v2
       - name: Black Check
         # You may pin to the exact commit or the version.
-        uses: jpetrucciani/black-check
+        uses: jpetrucciani/black-check@20.8b1
