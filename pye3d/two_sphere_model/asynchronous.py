@@ -173,7 +173,8 @@ class _SyncedTwoSphereModelAbstract(BlockingTwoSphereModel):
 
     @property
     def sphere_center(self):
-        return np.asarray(self._synced_sphere_center)
+        with self._synced_sphere_center:
+            return np.array(self._synced_sphere_center.get_obj())
 
     @sphere_center.setter
     def sphere_center(self, coordinates: np.array):
@@ -181,7 +182,8 @@ class _SyncedTwoSphereModelAbstract(BlockingTwoSphereModel):
 
     @property
     def corrected_sphere_center(self):
-        return np.asarray(self._synced_corrected_sphere_center)
+        with self._synced_corrected_sphere_center:
+            return np.array(self._synced_corrected_sphere_center.get_obj())
 
     @corrected_sphere_center.setter
     def corrected_sphere_center(self, coordinates: np.array):
@@ -189,7 +191,8 @@ class _SyncedTwoSphereModelAbstract(BlockingTwoSphereModel):
 
     @property
     def projected_sphere_center(self):
-        return np.asarray(self._synced_projected_sphere_center)
+        with self._synced_projected_sphere_center:
+            return np.array(self._synced_projected_sphere_center.get_obj())
 
     @projected_sphere_center.setter
     def projected_sphere_center(self, coordinates: np.array):
@@ -205,7 +208,6 @@ class _SyncedTwoSphereModelFrontend(_SyncedTwoSphereModelAbstract):
         del self.storage  # There is no storage in the frontend
 
     def _set_default_model_params(self):
-        pass  # (corrected_)sphere_center cannot be set in the frontend
         with self._synced_sphere_center:
             self._synced_sphere_center[:] = DEFAULT_SPHERE_CENTER
 
