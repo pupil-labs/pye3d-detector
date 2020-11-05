@@ -16,14 +16,16 @@ import typing as T
 
 import numpy as np
 
-from .background_helper import mp, BackgroundProcess, Handler
+from ..constants import DEFAULT_SPHERE_CENTER
 from .abstract import (
     AbstractTwoSphereModel,
-    Observation,
-    ObservationStorage,
     CameraModel,
     Circle,
+    Observation,
+    ObservationStorage,
+    SphereCenterEstimates,
 )
+from .background_helper import BackgroundProcess, Handler, mp
 from .blocking import BlockingTwoSphereModel
 
 logger = logging.getLogger(__name__)
@@ -39,32 +41,48 @@ class AsyncTwoSphereModel(AbstractTwoSphereModel):
     ):
         synced_sphere_center = mp.Array(ctypes.c_double, 3)
         synced_corrected_sphere_center = mp.Array(ctypes.c_double, 3)
+        synced_projected_sphere_center = mp.Array(ctypes.c_double, 2)
         synced_observation_count = mp.Value(ctypes.c_long)
 
         self._frontend = _SyncedTwoSphereModelFrontend(
             synced_sphere_center,
             synced_corrected_sphere_center,
+            synced_projected_sphere_center,
             synced_observation_count,
             camera=camera,
         )
 
         self._backend_process = BackgroundProcess(
-            function=self._relay_commands,
+            function=self._process_relayed_commands,
             setup=self._setup_backend,
             setup_args=(
                 synced_sphere_center,
                 synced_corrected_sphere_center,
+                synced_projected_sphere_center,
                 synced_observation_count,
-                camera,
-                storage_cls,
-                storage_kwargs,
+            ),
+            setup_kwargs=dict(
+                camera=camera,
+                storage_cls=storage_cls,
+                storage_kwargs=storage_kwargs,
             ),
             cleanup=self._cleanup_backend,
             log_handler=log_handler,
         )
 
+    @property
+    def sphere_center(self) -> np.ndarray:
+        return self._frontend.sphere_center
+
+    @property
+    def corrected_sphere_center(self) -> np.ndarray:
+        return self._frontend.corrected_sphere_center
+
+    def relay_command(self, function_name: str, *args, **kwargs):
+        self._backend_process.send(function_name, *args, **kwargs)
+
     @staticmethod
-    def _relay_commands(
+    def _process_relayed_commands(
         backend: "_SyncedTwoSphereModelBackend", function_name: str, *args, **kwargs
     ):
         logger.debug(f"Relayed: {backend}.{function_name}({args}, {kwargs})")
@@ -84,7 +102,7 @@ class AsyncTwoSphereModel(AbstractTwoSphereModel):
         logger.debug(f"Backend cleaned")
 
     def add_observation(self, observation: Observation):
-        self._backend_process.send("add_observation", observation)
+        self.relay_command("add_observation", observation)
 
     @property
     def n_observations(self) -> int:
@@ -117,26 +135,25 @@ class AsyncTwoSphereModel(AbstractTwoSphereModel):
 
     # GAZE PREDICTION
     def _extract_unproject_disambiguate(self, pupil_datum: T.Dict) -> Circle:
-        return BlockingTwoSphereModel._extract_unproject_disambiguate(self, pupil_datum)
+        return self._frontend._extract_unproject_disambiguate(pupil_datum)
 
     def _disambiguate_circle_3d_pair(
         self, circle_3d_pair: T.Tuple[Circle, Circle]
     ) -> Circle:
-        return BlockingTwoSphereModel._disambiguate_circle_3d_pair(self, circle_3d_pair)
+        return self._frontend._disambiguate_circle_3d_pair(circle_3d_pair)
 
     def predict_pupil_circle(
         self, observation: Observation, use_unprojection: bool = False
     ) -> Circle:
-        return BlockingTwoSphereModel.predict_pupil_circle(
-            self, observation, use_unprojection
-        )
+        return self._frontend.predict_pupil_circle(observation, use_unprojection)
 
     def apply_refraction_correction(self, pupil_circle: Circle) -> Circle:
-        return BlockingTwoSphereModel.apply_refraction_correction(self, pupil_circle)
+        return self._frontend.apply_refraction_correction(pupil_circle)
 
-    def reset(self):
+    def cleanup(self):
         logger.debug("Cancelling backend process")
         self._backend_process.cancel()
+        self._frontend.cleanup()
 
 
 class _SyncedTwoSphereModelAbstract(BlockingTwoSphereModel, metaclass=abc.ABCMeta):
@@ -144,17 +161,19 @@ class _SyncedTwoSphereModelAbstract(BlockingTwoSphereModel, metaclass=abc.ABCMet
         self,
         synced_sphere_center: mp.Array,  # c_double_Array_3
         synced_corrected_sphere_center: mp.Array,  # c_double_Array_3
+        synced_projected_sphere_center: mp.Array,  # c_double_Array_2
         synced_observation_count: mp.Value,  # c_long
         **kwargs,
     ):
-        self.__synced_sphere_center = synced_sphere_center
-        self.__synced_corrected_sphere_center = synced_corrected_sphere_center
-        self.__synced_observation_count = synced_observation_count
+        self._synced_sphere_center = synced_sphere_center
+        self._synced_corrected_sphere_center = synced_corrected_sphere_center
+        self._synced_projected_sphere_center = synced_projected_sphere_center
+        self._synced_observation_count = synced_observation_count
         super().__init__(**kwargs)
 
     @property
     def sphere_center(self):
-        return np.asarray(self.__synced_sphere_center)
+        return np.asarray(self._synced_sphere_center)
 
     @sphere_center.setter
     def sphere_center(self, coordinates: np.array):
@@ -162,21 +181,40 @@ class _SyncedTwoSphereModelAbstract(BlockingTwoSphereModel, metaclass=abc.ABCMet
 
     @property
     def corrected_sphere_center(self):
-        return np.asarray(self.__synced_corrected_sphere_center)
+        return np.asarray(self._synced_corrected_sphere_center)
 
     @corrected_sphere_center.setter
     def corrected_sphere_center(self, coordinates: np.array):
         raise NotImplementedError
 
     @property
+    def projected_sphere_center(self):
+        return np.asarray(self._synced_projected_sphere_center)
+
+    @projected_sphere_center.setter
+    def projected_sphere_center(self, coordinates: np.array):
+        raise NotImplementedError
+
+    @property
     def n_observations(self) -> int:
-        return self.__synced_observation_count.value
+        return self._synced_observation_count.value
 
 
 class _SyncedTwoSphereModelFrontend(_SyncedTwoSphereModelAbstract):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         del self.storage  # There is no storage in the frontend
+
+    def _set_default_model_params(self):
+        pass  # (corrected_)sphere_center cannot be set in the frontend
+        with self._synced_sphere_center:
+            self._synced_sphere_center[:] = DEFAULT_SPHERE_CENTER
+
+        corrected_sphere_center = self.refractionizer.correct_sphere_center(
+            np.asarray([[*self.sphere_center]])
+        )[0]
+        with self._synced_corrected_sphere_center:
+            self._synced_corrected_sphere_center[:] = corrected_sphere_center
 
 
 class _SyncedTwoSphereModelBackend(_SyncedTwoSphereModelAbstract):
@@ -186,8 +224,8 @@ class _SyncedTwoSphereModelBackend(_SyncedTwoSphereModelAbstract):
 
     @sphere_center.setter
     def sphere_center(self, coordinates: np.array):
-        with self.__synced_sphere_center:
-            self.__synced_sphere_center[:] = coordinates
+        with self._synced_sphere_center:
+            self._synced_sphere_center[:] = coordinates
 
     @property
     def corrected_sphere_center(self):
@@ -195,11 +233,25 @@ class _SyncedTwoSphereModelBackend(_SyncedTwoSphereModelAbstract):
 
     @corrected_sphere_center.setter
     def corrected_sphere_center(self, coordinates: np.array):
-        with self.__synced_corrected_sphere_center:
-            self.__synced_corrected_sphere_center[:] = coordinates
+        with self._synced_corrected_sphere_center:
+            self._synced_corrected_sphere_center[:] = coordinates
+
+    @property
+    def projected_sphere_center(self):
+        return super().projected_sphere_center
+
+    @projected_sphere_center.setter
+    def projected_sphere_center(self, coordinates: np.array):
+        with self._synced_projected_sphere_center:
+            self._synced_projected_sphere_center[:] = coordinates
 
     def add_observation(self, observation: Observation):
         super().add_observation(observation=observation)
         n_observations = super().n_observations
-        with self.__synced_observation_count:
-            self.__synced_observation_count.value = n_observations
+        with self._synced_observation_count:
+            self._synced_observation_count.value = n_observations
+
+    def estimate_sphere_center_2d(self) -> np.ndarray:
+        estimated: np.ndarray = super().estimate_sphere_center_2d()
+        self.projected_sphere_center = estimated
+        return estimated

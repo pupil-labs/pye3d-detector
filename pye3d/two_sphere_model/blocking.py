@@ -70,8 +70,8 @@ class BlockingTwoSphereModel(AbstractTwoSphereModel):
         return self.storage.count()
 
     def set_sphere_center(self, new_sphere_center):
-        self.sphere_center = new_sphere_center
-        self.corrected_sphere_center = self.refractionizer.correct_sphere_center(
+        self._sphere_center = new_sphere_center
+        self._corrected_sphere_center = self.refractionizer.correct_sphere_center(
             np.asarray([[*self.sphere_center]])
         )[0]
 
