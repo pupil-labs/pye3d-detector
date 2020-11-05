@@ -153,6 +153,9 @@ class AsyncTwoSphereModel(AbstractTwoSphereModel):
         self._backend_process.cancel()
         self._frontend.cleanup()
 
+    def mean_observation_circularity(self) -> float:
+        raise NotImplementedError
+
 
 class _SyncedTwoSphereModelAbstract(BlockingTwoSphereModel):
     def __init__(
@@ -191,6 +194,9 @@ class _SyncedTwoSphereModelAbstract(BlockingTwoSphereModel):
 
     @projected_sphere_center.setter
     def projected_sphere_center(self, coordinates: np.array):
+        raise NotImplementedError
+
+    def mean_observation_circularity(self) -> float:
         raise NotImplementedError
 
 

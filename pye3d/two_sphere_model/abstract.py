@@ -100,5 +100,9 @@ class AbstractTwoSphereModel(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
+    def mean_observation_circularity(self) -> float:
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def cleanup(self):
         raise NotImplementedError
