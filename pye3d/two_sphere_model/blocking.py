@@ -15,7 +15,7 @@ import numpy as np
 
 from .abstract import AbstractTwoSphereModel, SphereCenterEstimates
 from ..camera import CameraModel
-from ..constants import _EYE_RADIUS_DEFAULT
+from ..constants import _EYE_RADIUS_DEFAULT, DEFAULT_SPHERE_CENTER
 from ..geometry.intersections import nearest_point_on_sphere_to_line
 from ..geometry.primitives import Circle, Line
 from ..geometry.projections import (
@@ -45,9 +45,20 @@ class BlockingTwoSphereModel(AbstractTwoSphereModel):
         self.camera = camera
 
         self.refractionizer = Refractionizer()
+        self._set_default_model_params()
 
-        self.sphere_center = np.asarray([0.0, 0.0, 35.0])
-        self.corrected_sphere_center = self.refractionizer.correct_sphere_center(
+    @property
+    def sphere_center(self) -> np.ndarray:
+        return self._sphere_center
+
+    @property
+    def corrected_sphere_center(self) -> np.ndarray:
+        return self._corrected_sphere_center
+
+    def _set_default_model_params(self):
+        # Overwrite in subclasses that do not allow setting these attributes
+        self._sphere_center = np.asarray(DEFAULT_SPHERE_CENTER)
+        self._corrected_sphere_center = self.refractionizer.correct_sphere_center(
             np.asarray([[*self.sphere_center]])
         )[0]
 
