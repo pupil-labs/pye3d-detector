@@ -18,6 +18,11 @@ from ..observation import Observation, ObservationStorage
 from ..camera import CameraModel
 
 
+class SphereCenterEstimates(T.NamedTuple):
+    projected: np.ndarray
+    three_dim: np.ndarray
+
+
 class AbstractTwoSphereModel(abc.ABC):
     @abc.abstractmethod
     def __init__(
@@ -37,6 +42,16 @@ class AbstractTwoSphereModel(abc.ABC):
     def n_observations(self) -> int:
         raise NotImplementedError
 
+    @property
+    @abc.abstractmethod
+    def sphere_center(self) -> np.ndarray:
+        raise NotImplementedError
+
+    @property
+    @abc.abstractmethod
+    def corrected_sphere_center(self) -> np.ndarray:
+        raise NotImplementedError
+
     @abc.abstractmethod
     def set_sphere_center(self, new_sphere_center: np.ndarray):
         raise NotImplementedError
@@ -47,7 +62,7 @@ class AbstractTwoSphereModel(abc.ABC):
         from_2d: T.Optional[np.ndarray] = None,
         prior_3d: T.Optional[np.ndarray] = None,
         prior_strength: float = 0.0,
-    ) -> T.Tuple[np.ndarray, np.ndarray]:
+    ) -> SphereCenterEstimates:
         raise NotImplementedError
 
     @abc.abstractmethod

@@ -98,8 +98,11 @@ class AsyncTwoSphereModel(AbstractTwoSphereModel):
         from_2d: T.Optional[np.ndarray] = None,
         prior_3d: T.Optional[np.ndarray] = None,
         prior_strength: float = 0.0,
-    ) -> T.Tuple[np.ndarray, np.ndarray]:
-        raise NotImplementedError
+    ) -> SphereCenterEstimates:
+        self.relay_command("estimate_sphere_center", from_2d, prior_3d, prior_strength)
+        projected_sphere_center = self._frontend.projected_sphere_center
+        sphere_center = self._frontend.sphere_center
+        return SphereCenterEstimates(projected_sphere_center, sphere_center)
 
     def estimate_sphere_center_2d(self) -> np.ndarray:
         raise NotImplementedError

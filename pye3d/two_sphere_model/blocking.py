@@ -13,7 +13,7 @@ import typing as T
 
 import numpy as np
 
-from .abstract import AbstractTwoSphereModel
+from .abstract import AbstractTwoSphereModel, SphereCenterEstimates
 from ..camera import CameraModel
 from ..constants import _EYE_RADIUS_DEFAULT
 from ..geometry.intersections import nearest_point_on_sphere_to_line
@@ -72,7 +72,7 @@ class BlockingTwoSphereModel(AbstractTwoSphereModel):
             projected_sphere_center, prior_3d, prior_strength
         )
         self.set_sphere_center(sphere_center)
-        return projected_sphere_center, sphere_center
+        return SphereCenterEstimates(projected_sphere_center, sphere_center)
 
     def estimate_sphere_center_2d(self):
         observations = self.storage.observations
