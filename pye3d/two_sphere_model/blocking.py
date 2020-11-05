@@ -51,9 +51,17 @@ class BlockingTwoSphereModel(AbstractTwoSphereModel):
     def sphere_center(self) -> np.ndarray:
         return self._sphere_center
 
+    @sphere_center.setter
+    def sphere_center(self, coordinates: np.ndarray):
+        self._sphere_center = coordinates
+
     @property
     def corrected_sphere_center(self) -> np.ndarray:
         return self._corrected_sphere_center
+
+    @corrected_sphere_center.setter
+    def corrected_sphere_center(self, coordinates: np.ndarray):
+        self._corrected_sphere_center = coordinates
 
     def _set_default_model_params(self):
         # Overwrite in subclasses that do not allow setting these attributes
@@ -70,8 +78,8 @@ class BlockingTwoSphereModel(AbstractTwoSphereModel):
         return self.storage.count()
 
     def set_sphere_center(self, new_sphere_center):
-        self._sphere_center = new_sphere_center
-        self._corrected_sphere_center = self.refractionizer.correct_sphere_center(
+        self.sphere_center = new_sphere_center
+        self.corrected_sphere_center = self.refractionizer.correct_sphere_center(
             np.asarray([[*self.sphere_center]])
         )[0]
 
