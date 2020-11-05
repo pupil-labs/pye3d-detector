@@ -119,8 +119,8 @@ def nearest_point_on_sphere_to_line(center, radius, origin, direction):
 
 
 def nearest_intersection_points(p1, p2, p3, p4):
-    """ Calculates the two nearest points, and their distance to each other on
-        two lines defined by (p1,p2) respectively (p3,p4)
+    """Calculates the two nearest points, and their distance to each other on
+    two lines defined by (p1,p2) respectively (p3,p4)
     """
 
     def mag(p):
