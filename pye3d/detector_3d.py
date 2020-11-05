@@ -189,7 +189,8 @@ class Detector3D(object):
                 forget_min_time=60,
             ),
         )
-        # TODO: used for not updating ult-model every frame, will be replaced by background process?
+        # TODO: used for not updating ult-model every frame,
+        # will be replaced by background process?
         self.ult_counter = 0
 
     def _cleanup_models(self):
@@ -274,7 +275,7 @@ class Detector3D(object):
                 prior_3d=long_term_3d,
                 prior_strength=sigmoid(circularity_mean),
             )
-        except Exception as e:
+        except Exception:
             # Known issues:
             # - Can raise numpy.linalg.LinAlgError: SVD did not converge
             logger.error("Error updating models:")

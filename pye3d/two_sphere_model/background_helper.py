@@ -18,7 +18,7 @@ from ctypes import c_bool
 from logging import Handler
 from logging.handlers import QueueHandler, QueueListener
 import traceback
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, TypeVar
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple, TypeVar
 
 logger = logging.getLogger(__name__)
 WorkerSetupResult = TypeVar("WorkerSetupResult")
