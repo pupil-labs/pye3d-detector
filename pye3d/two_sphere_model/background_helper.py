@@ -49,9 +49,7 @@ class BackgroundProcess:
         self._task_queue = mp.Queue(maxsize=0)  # TODO: figure out good value
 
         logging_queue = mp.Queue()
-        self._log_listener = QueueListener(
-            logging_queue, logging.StreamHandler(), *log_handlers
-        )
+        self._log_listener = QueueListener(logging_queue, *log_handlers)
         self._log_listener.start()
 
         self._should_terminate_flag = mp.Value(c_bool, 0)
@@ -150,7 +148,7 @@ class BackgroundProcess:
                 t0 = time.perf_counter()
                 function(setup_result, *args, **kwargs)
                 t1 = time.perf_counter()
-                logger.debug(f"Finished background calculation in {(t1 - t0):.2}s")
+                # logger.debug(f"Finished background calculation in {(t1 - t0):.2}s")
             except Exception as e:
                 logger.error(
                     f"Error executing background process with parameters {params}:\n{e}"
