@@ -44,6 +44,10 @@ class DetectorMode(enum.Enum):
     blocking = BlockingTwoSphereModel
     asynchronous = AsyncTwoSphereModel
 
+    @classmethod
+    def from_name(cls, mode_name: str):
+        return {mode.name: mode for mode in cls}[mode_name]
+
 
 def ellipse2dict(ellipse: Ellipse) -> Dict:
     return {
@@ -116,6 +120,17 @@ class Detector3D(object):
     @property
     def camera(self) -> CameraModel:
         return self._camera
+
+    @property
+    def long_term_mode(self) -> DetectorMode:
+        return self._long_term_mode
+
+    @long_term_mode.setter
+    def long_term_mode(self, mode: DetectorMode):
+        needs_reset = mode != self._long_term_mode
+        self._long_term_mode = mode
+        if needs_reset:
+            self.reset()
 
     def reset_camera(self, camera: CameraModel):
         """Change camera model and reset detector state."""
