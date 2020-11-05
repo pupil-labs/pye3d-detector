@@ -219,12 +219,7 @@ class Detector3D(object):
             # using 2d center for disambiguation and 3d center as prior bias
             # prior strength is set as a funcition of circularity of the 2D pupil
 
-            circularity_mean = np.mean(
-                [
-                    observation.ellipse.circularity()
-                    for observation in self.short_term_model.storage.observations
-                ]
-            )
+            circularity_mean = self.short_term_model.mean_observation_circularity()
             self.short_term_model.estimate_sphere_center(
                 from_2d=long_term_2d,
                 prior_3d=long_term_3d,
