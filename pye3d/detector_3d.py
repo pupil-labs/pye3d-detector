@@ -260,7 +260,7 @@ class Detector3D(object):
             ultra_long_term_3d = self.ultra_long_term_model.sphere_center
 
             # update long term model with ultra long term bias
-            long_term_2d, long_term_3d = self.long_term_model.estimate_sphere_center(
+            long_term_estimate = self.long_term_model.estimate_sphere_center(
                 prior_3d=ultra_long_term_3d,
                 prior_strength=0.1,
             )
@@ -271,8 +271,8 @@ class Detector3D(object):
 
             circularity_mean = self.short_term_model.mean_observation_circularity()
             self.short_term_model.estimate_sphere_center(
-                from_2d=long_term_2d,
-                prior_3d=long_term_3d,
+                from_2d=long_term_estimate.projected,
+                prior_3d=long_term_estimate.three_dim,
                 prior_strength=sigmoid(circularity_mean),
             )
         except Exception:
