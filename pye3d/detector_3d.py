@@ -273,16 +273,16 @@ class Detector3D(object):
                 radius=long_term.radius,
             )
 
-            if observation.confidence > self._settings["threshold_kalman"]:
-                # very-high-confidence: correct kalman filter
-                self._correct_kalman_filter(pupil_circle)
-
         else:
             # low confidence: use kalman prediction to search for circles in image
-            pupil_circle = self._predict_from_3d_search(
+            pupil_circle, confidence_3d_search = self._predict_from_3d_search(
                 frame, best_guess=pupil_circle_kalman
             )
-            # TODO: adjust observation.confidence
+            observation.confidence = confidence_3d_search
+
+        if observation.confidence > self._settings["threshold_kalman"]:
+            # very-high-confidence: correct kalman filter
+            self._correct_kalman_filter(pupil_circle)
 
         return pupil_circle
 
@@ -307,7 +307,7 @@ class Detector3D(object):
 
     def _predict_from_3d_search(self, frame: np.ndarray, best_guess: Circle) -> Circle:
         if best_guess.is_null():
-            return best_guess
+            return best_guess, -1.0
 
         frame, frame_roi, edge_frame, edges, roi = get_edges(
             frame,
@@ -317,11 +317,11 @@ class Detector3D(object):
             _EYE_RADIUS_DEFAULT,
             self.camera.focal_length,
             self.camera.resolution,
-            major_axis_factor=2.0,
+            major_axis_factor=2.5,
         )
 
         if len(edges) <= 0:
-            return best_guess
+            return best_guess, -1.0  # Todo: Do we really want to return the Kalman prediction if 3dsearch fails?
 
         (gaze_vector, pupil_radius, final_edges, edges_on_sphere) = search_on_sphere(
             edges,
@@ -336,7 +336,22 @@ class Detector3D(object):
             self.long_term_model.sphere_center + _EYE_RADIUS_DEFAULT * gaze_vector
         )
         pupil_circle = Circle(pupil_center, gaze_vector, pupil_radius)
-        return pupil_circle
+
+        if pupil_circle.is_null():
+            confidence_3d_search = 0.0
+        else:
+            ellipse_2d = project_circle_into_image_plane(
+                pupil_circle,
+                focal_length=self.camera.focal_length,
+                transform=False,
+                width=self.camera.resolution[0],
+                height=self.camera.resolution[1],
+            )
+            circumference = ellipse_2d.circumference()
+            confidence_3d_search = np.clip(len(final_edges) / circumference, 0.0, 1.0)
+
+        #Todo: Discuss about how to further process confidence_3d_search
+        return pupil_circle, confidence_3d_search
 
     def _prepare_result(
         self,
