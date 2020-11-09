@@ -76,6 +76,11 @@ class Prediction(NamedTuple):
     pupil_circle: Circle
 
 
+class Search3DResult(NamedTuple):
+    circle: Circle
+    confidence: float
+
+
 def sigmoid(x, baseline=0.1, amplitude=500.0, center=0.99, width=0.02):
     return baseline + amplitude * 1.0 / (1.0 + np.exp(-(x - center) / width))
 
@@ -312,9 +317,11 @@ class Detector3D(object):
 
     def _predict_from_3d_search(
         self, frame: np.ndarray, best_guess: Circle, debug=True
-    ) -> Circle:
+    ) -> Search3DResult:
+        no_result = Search3DResult(Circle.null(), 0.0)
+
         if best_guess.is_null():
-            return best_guess, -1.0
+            return no_result
 
         frame, frame_roi, edge_frame, edges, roi = get_edges(
             frame,
@@ -328,7 +335,7 @@ class Detector3D(object):
         )
 
         if len(edges) <= 0:
-            return best_guess, -1.0  # Todo: Do we really want to return the Kalman prediction if 3dsearch fails?
+            return no_result
 
         (gaze_vector, pupil_radius, final_edges, edges_on_sphere) = search_on_sphere(
             edges,
@@ -396,8 +403,7 @@ class Detector3D(object):
             circumference = ellipse_2d.circumference()
             confidence_3d_search = np.clip(len(final_edges) / circumference, 0.0, 1.0)
 
-        #Todo: Discuss about how to further process confidence_3d_search
-        return pupil_circle, confidence_3d_search
+        return Search3DResult(pupil_circle, confidence_3d_search)
 
     def _prepare_result(
         self,
