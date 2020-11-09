@@ -13,11 +13,6 @@ See COPYING and COPYING.LESSER for license details.
 #include <math.h>
 #include <Eigen/Dense>
 #include <iostream>
-#include <opencv2/core.hpp>
-#include <opencv2/opencv.hpp>
-#include <opencv2/imgproc.hpp>
-#include <opencv2/videoio.hpp>
-#include <opencv2/core/eigen.hpp>
 
 struct numpy_matrix_view {
     double * data;
@@ -43,7 +38,7 @@ struct search_3d_result {
 
 };
 
-search_3d_result find_best_circle(const Eigen::MatrixXd & edges_on_sphere,
+search_3d_result find_best_circle(const Eigen::MatrixXd & edges_on_sphere_T,
                      const Eigen::Vector3d & initial_pupil_normal,
                      const double & initial_pupil_radius,
                      const Eigen::Vector3d & sphere_center,
@@ -53,6 +48,7 @@ search_3d_result find_best_circle(const Eigen::MatrixXd & edges_on_sphere,
                      const double & bandwidth_in_pixels,
                      const double & focal_length){
 
+    Eigen::MatrixXd edges_on_sphere = edges_on_sphere_T.transpose();
 
     const double h = sphere_radius - sqrt(pow(sphere_radius,2)-pow(initial_pupil_radius,2));
     const double pupil_chord = sqrt(2.0 * sphere_radius * h);
