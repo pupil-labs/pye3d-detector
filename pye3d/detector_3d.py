@@ -13,6 +13,11 @@ import traceback
 from typing import Dict, NamedTuple
 
 import numpy as np
+import cv2  # Todo: DELETE
+from .geometry.projections import (
+    unproject_edges_to_sphere,
+    project_point_into_image_plane,
+)  # Todo: DELETE
 
 from .camera import CameraModel
 from .constants import _EYE_RADIUS_DEFAULT
@@ -305,7 +310,9 @@ class Detector3D(object):
         phi, theta, r = observed_pupil_circle.spherical_representation()
         self.kalman_filter.correct(phi, theta, r)
 
-    def _predict_from_3d_search(self, frame: np.ndarray, best_guess: Circle) -> Circle:
+    def _predict_from_3d_search(
+        self, frame: np.ndarray, best_guess: Circle, debug=True
+    ) -> Circle:
         if best_guess.is_null():
             return best_guess, -1.0
 
@@ -332,6 +339,45 @@ class Detector3D(object):
             self.camera.focal_length,
             self.camera.resolution,
         )
+
+        if debug:
+            frame_ = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
+            try:
+                for edge in edges_on_sphere:
+                    edge = project_point_into_image_plane(
+                        edge, self.camera.focal_length
+                    ).astype(np.int)
+                    edge[1] *= -1
+                    edge[0] += self.camera.resolution[0] / 2
+                    edge[1] += self.camera.resolution[1] / 2
+                    cv2.rectangle(
+                        frame_,
+                        (edge[0] - roi[2], edge[1] - roi[0]),
+                        (edge[0] + 1 - roi[2], edge[1] + 1 - roi[0]),
+                        (255, 0, 0),
+                        2,
+                    )
+
+                for edge in final_edges:
+                    edge = project_point_into_image_plane(
+                        edge, self.camera.focal_length
+                    ).astype(np.int)
+                    edge[1] *= -1
+                    edge[0] += self.camera.resolution[0] / 2
+                    edge[1] += self.camera.resolution[1] / 2
+                    cv2.rectangle(
+                        frame_,
+                        (edge[0] - roi[2], edge[1] - roi[0]),
+                        (edge[0] + 1 - roi[2], edge[1] + 1 - roi[0]),
+                        (255, 255, 255),
+                        1,
+                    )
+
+                cv2.imshow("", frame_)
+                cv2.waitKey(1)
+            except Exception as e:
+                print(e)
+
         pupil_center = (
             self.long_term_model.sphere_center + _EYE_RADIUS_DEFAULT * gaze_vector
         )
