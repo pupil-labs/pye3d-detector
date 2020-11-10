@@ -13,7 +13,7 @@ import typing as T
 
 import numpy as np
 
-from .abstract import AbstractTwoSphereModel, SphereCenterEstimates
+from .abstract import TwoSphereModelAbstract, SphereCenterEstimates
 from ..camera import CameraModel
 from ..constants import _EYE_RADIUS_DEFAULT, DEFAULT_SPHERE_CENTER
 from ..geometry.intersections import nearest_point_on_sphere_to_line
@@ -30,7 +30,7 @@ from ..refraction import Refractionizer
 logger = logging.getLogger(__name__)
 
 
-class TwoSphereModel(AbstractTwoSphereModel):
+class TwoSphereModel(TwoSphereModelAbstract):
     def __init__(
         self,
         camera: CameraModel,

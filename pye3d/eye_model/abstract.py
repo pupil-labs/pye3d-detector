@@ -23,7 +23,7 @@ class SphereCenterEstimates(T.NamedTuple):
     three_dim: np.ndarray
 
 
-class AbstractTwoSphereModel(abc.ABC):
+class TwoSphereModelAbstract(abc.ABC):
     @abc.abstractmethod
     def __init__(
         self,

@@ -17,7 +17,7 @@ import numpy as np
 
 from ..constants import DEFAULT_SPHERE_CENTER
 from .abstract import (
-    AbstractTwoSphereModel,
+    TwoSphereModelAbstract,
     CameraModel,
     Circle,
     Observation,
@@ -30,7 +30,7 @@ from .base import TwoSphereModel
 logger = logging.getLogger(__name__)
 
 
-class AsyncTwoSphereModel(AbstractTwoSphereModel):
+class TwoSphereModelAsync(TwoSphereModelAbstract):
     def __init__(
         self,
         camera: CameraModel,

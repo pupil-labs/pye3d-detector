@@ -32,9 +32,9 @@ from .observation import (
     Observation,
 )
 from .eye_model import (
-    AbstractTwoSphereModel,
+    TwoSphereModelAbstract,
     TwoSphereModel,
-    AsyncTwoSphereModel,
+    TwoSphereModelAsync,
 )
 
 logger = logging.getLogger(__name__)
@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 
 class DetectorMode(enum.Enum):
     blocking = TwoSphereModel
-    asynchronous = AsyncTwoSphereModel
+    asynchronous = TwoSphereModelAsync
 
     @classmethod
     def from_name(cls, mode_name: str):
@@ -147,9 +147,9 @@ class Detector3D(object):
 
     def _initialize_models(
         self,
-        short_term_model_cls: Type[AbstractTwoSphereModel] = TwoSphereModel,
-        long_term_model_cls: Type[AbstractTwoSphereModel] = TwoSphereModel,
-        ultra_long_term_model_cls: Type[AbstractTwoSphereModel] = TwoSphereModel,
+        short_term_model_cls: Type[TwoSphereModelAbstract] = TwoSphereModel,
+        long_term_model_cls: Type[TwoSphereModelAbstract] = TwoSphereModel,
+        ultra_long_term_model_cls: Type[TwoSphereModelAbstract] = TwoSphereModel,
     ):
         # Recreate all models. This is required in case any of the settings (incl
         # camera) changed in the meantime.
