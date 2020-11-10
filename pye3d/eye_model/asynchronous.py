@@ -25,7 +25,7 @@ from .abstract import (
     SphereCenterEstimates,
 )
 from .background_helper import BackgroundProcess, mp
-from .base import BlockingTwoSphereModel
+from .base import TwoSphereModel
 
 logger = logging.getLogger(__name__)
 
@@ -156,7 +156,7 @@ class AsyncTwoSphereModel(AbstractTwoSphereModel):
         raise NotImplementedError
 
 
-class _SyncedTwoSphereModelAbstract(BlockingTwoSphereModel):
+class _SyncedTwoSphereModelAbstract(TwoSphereModel):
     def __init__(
         self,
         synced_sphere_center: mp.Array,  # c_double_Array_3

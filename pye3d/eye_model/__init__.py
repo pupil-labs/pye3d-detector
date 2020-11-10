@@ -10,5 +10,5 @@ See COPYING and COPYING.LESSER for license details.
 """
 
 from .abstract import AbstractTwoSphereModel
-from .base import BlockingTwoSphereModel
+from .base import TwoSphereModel
 from .asynchronous import AsyncTwoSphereModel

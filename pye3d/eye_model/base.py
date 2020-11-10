@@ -30,7 +30,7 @@ from ..refraction import Refractionizer
 logger = logging.getLogger(__name__)
 
 
-class BlockingTwoSphereModel(AbstractTwoSphereModel):
+class TwoSphereModel(AbstractTwoSphereModel):
     def __init__(
         self,
         camera: CameraModel,
