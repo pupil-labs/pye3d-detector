@@ -42,7 +42,7 @@ class TwoSphereModelAsync(TwoSphereModelAbstract):
         synced_projected_sphere_center = mp.Array(ctypes.c_double, 2)
         synced_observation_count = mp.Value(ctypes.c_long)
 
-        self._frontend = _SyncedTwoSphereModelFrontend(
+        self._frontend = _TwoSphereModelSyncedFrontend(
             synced_sphere_center,
             synced_corrected_sphere_center,
             synced_projected_sphere_center,
@@ -80,20 +80,20 @@ class TwoSphereModelAsync(TwoSphereModelAbstract):
 
     @staticmethod
     def _process_relayed_commands(
-        backend: "_SyncedTwoSphereModelBackend", function_name: str, *args, **kwargs
+        backend: "_TwoSphereModelSyncedBackend", function_name: str, *args, **kwargs
     ):
         function = getattr(backend, function_name)
         result = function(*args, **kwargs)
         return result
 
     @staticmethod
-    def _setup_backend(*args, **kwargs) -> "_SyncedTwoSphereModelBackend":
+    def _setup_backend(*args, **kwargs) -> "_TwoSphereModelSyncedBackend":
         logger = logging.getLogger(__name__)
         logger.debug(f"Setting up backend: {args}, {kwargs}")
-        return _SyncedTwoSphereModelBackend(*args, **kwargs)
+        return _TwoSphereModelSyncedBackend(*args, **kwargs)
 
     @staticmethod
-    def _cleanup_backend(backend: "_SyncedTwoSphereModelBackend"):
+    def _cleanup_backend(backend: "_TwoSphereModelSyncedBackend"):
         backend.cleanup()
         logger = logging.getLogger(__name__)
         logger.debug(f"Backend cleaned")
@@ -156,7 +156,7 @@ class TwoSphereModelAsync(TwoSphereModelAbstract):
         raise NotImplementedError
 
 
-class _SyncedTwoSphereModelAbstract(TwoSphereModel):
+class _TwoSphereModelSyncedAbstract(TwoSphereModel):
     def __init__(
         self,
         synced_sphere_center: mp.Array,  # c_double_Array_3
@@ -202,7 +202,7 @@ class _SyncedTwoSphereModelAbstract(TwoSphereModel):
         raise NotImplementedError
 
 
-class _SyncedTwoSphereModelFrontend(_SyncedTwoSphereModelAbstract):
+class _TwoSphereModelSyncedFrontend(_TwoSphereModelSyncedAbstract):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         del self.storage  # There is no storage in the frontend
@@ -222,7 +222,7 @@ class _SyncedTwoSphereModelFrontend(_SyncedTwoSphereModelAbstract):
         return self._synced_observation_count.value
 
 
-class _SyncedTwoSphereModelBackend(_SyncedTwoSphereModelAbstract):
+class _TwoSphereModelSyncedBackend(_TwoSphereModelSyncedAbstract):
     @property
     def sphere_center(self):
         return super().sphere_center
