@@ -31,7 +31,7 @@ from .observation import (
     BufferedObservationStorage,
     Observation,
 )
-from .two_sphere_model import (
+from .eye_model import (
     AbstractTwoSphereModel,
     BlockingTwoSphereModel,
     AsyncTwoSphereModel,
