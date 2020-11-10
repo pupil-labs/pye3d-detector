@@ -25,7 +25,7 @@ from .abstract import (
     SphereCenterEstimates,
 )
 from .background_helper import BackgroundProcess, mp
-from .blocking import BlockingTwoSphereModel
+from .base import BlockingTwoSphereModel
 
 logger = logging.getLogger(__name__)
 
