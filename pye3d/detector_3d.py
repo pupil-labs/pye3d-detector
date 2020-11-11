@@ -365,7 +365,10 @@ class Detector3D(object):
 
     def _predict_from_3d_search(
         # TODO: Remove debug code
-        self, frame: np.ndarray, best_guess: Circle, debug=False
+        self,
+        frame: np.ndarray,
+        best_guess: Circle,
+        debug=False,
     ) -> Search3DResult:
         no_result = Search3DResult(Circle.null(), 0.0)
 
@@ -561,12 +564,15 @@ class Detector3D(object):
             projected_ultra_long_term
         )
 
-        bin_data = self.long_term_model.storage.get_bin_counts()
-        max_bin_level = np.max(bin_data)
-        if max_bin_level >= 0:
-            bin_data = bin_data / max_bin_level
-        bin_data = np.flip(bin_data, axis=0)
-        debug_info["bin_data"] = bin_data.tolist()
+        try:
+            bin_data = self.long_term_model.storage.get_bin_counts()
+            max_bin_level = np.max(bin_data)
+            if max_bin_level >= 0:
+                bin_data = bin_data / max_bin_level
+            bin_data = np.flip(bin_data, axis=0)
+            debug_info["bin_data"] = bin_data.tolist()
+        except AttributeError:
+            debug_info["bin_data"] = []
 
         # TODO: Pupil visualizer_pye3d.py attempts to draw Dierkes lines. Currently we
         # don't calculate them here, we could probably do that again. Based on which
