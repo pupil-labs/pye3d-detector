@@ -118,15 +118,17 @@ def search_on_sphere(edges,
     edges_on_sphere, idxs = unproject_edges_to_sphere(
         edges, focal_length, sphere_center, sphere_radius, resolution[0], resolution[1]
     )
+    if len(edges_on_sphere)<=0:
+         return np.asarray([0.,0.,-1.]), 0.0, [], []
 
     # convert edges numpy array to custom struct for passing to c++
     if edges_on_sphere.shape[0] == 0:
         return np.asarray([0, 0, -1]), 0, [], edges_on_sphere
     # first: make sure 2d data is c-contiguous, otherwise make c-contiguous copies
-    if not edges_on_sphere.flags["C_CONTIGUOUS"]:
-        edges_on_sphere = np.ascontiguousarray(edges_on_sphere)
+    if not edges_on_sphere.flags["F_CONTIGUOUS"]:  #EIGEN USES COLUMN-MAJOR MEMORY ALIGNMENT (AS FORTRAN DOES)
+        edges_on_sphere = np.asfortranarray(edges_on_sphere)
     # then create cython memory view, for raw pointer access
-    cdef double[:, ::1] edges_on_sphere_memview = edges_on_sphere
+    cdef double [:, :] edges_on_sphere_memview = edges_on_sphere
     # then copy data information
     # NOTE: This will provide direct access to the underlying data of the numpy array
     #  (given that it is c-contiguous and we did not copy). Therefore watch out to only

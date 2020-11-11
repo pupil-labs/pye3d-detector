@@ -14,6 +14,11 @@ import traceback
 from typing import Dict, NamedTuple, Type
 
 import numpy as np
+import cv2  # Todo: DELETE
+from .geometry.projections import (
+    unproject_edges_to_sphere,
+    project_point_into_image_plane,
+)  # Todo: DELETE
 
 from .camera import CameraModel
 from .constants import _EYE_RADIUS_DEFAULT
@@ -83,6 +88,11 @@ def circle2dict(circle: Circle, flip_y: bool = True) -> Dict:
 class Prediction(NamedTuple):
     sphere_center: np.ndarray
     pupil_circle: Circle
+
+
+class Search3DResult(NamedTuple):
+    circle: Circle
+    confidence: float
 
 
 def sigmoid(x, baseline=0.1, amplitude=500.0, center=0.99, width=0.02):
@@ -321,16 +331,16 @@ class Detector3D(object):
                 radius=long_term.radius,
             )
 
-            if observation.confidence > self._settings["threshold_kalman"]:
-                # very-high-confidence: correct kalman filter
-                self._correct_kalman_filter(pupil_circle)
-
         else:
             # low confidence: use kalman prediction to search for circles in image
-            pupil_circle = self._predict_from_3d_search(
+            pupil_circle, confidence_3d_search = self._predict_from_3d_search(
                 frame, best_guess=pupil_circle_kalman
             )
-            # TODO: adjust observation.confidence
+            observation.confidence = confidence_3d_search
+
+        if observation.confidence > self._settings["threshold_kalman"]:
+            # very-high-confidence: correct kalman filter
+            self._correct_kalman_filter(pupil_circle)
 
         return pupil_circle
 
@@ -353,9 +363,14 @@ class Detector3D(object):
         phi, theta, r = observed_pupil_circle.spherical_representation()
         self.kalman_filter.correct(phi, theta, r)
 
-    def _predict_from_3d_search(self, frame: np.ndarray, best_guess: Circle) -> Circle:
+    def _predict_from_3d_search(
+        # TODO: Remove debug code
+        self, frame: np.ndarray, best_guess: Circle, debug=False
+    ) -> Search3DResult:
+        no_result = Search3DResult(Circle.null(), 0.0)
+
         if best_guess.is_null():
-            return best_guess
+            return no_result
 
         frame, frame_roi, edge_frame, edges, roi = get_edges(
             frame,
@@ -365,11 +380,11 @@ class Detector3D(object):
             _EYE_RADIUS_DEFAULT,
             self.camera.focal_length,
             self.camera.resolution,
-            major_axis_factor=2.0,
+            major_axis_factor=2.5,
         )
 
         if len(edges) <= 0:
-            return best_guess
+            return no_result
 
         (gaze_vector, pupil_radius, final_edges, edges_on_sphere) = search_on_sphere(
             edges,
@@ -380,11 +395,64 @@ class Detector3D(object):
             self.camera.focal_length,
             self.camera.resolution,
         )
+
+        if debug:
+            frame_ = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
+            try:
+                for edge in edges_on_sphere:
+                    edge = project_point_into_image_plane(
+                        edge, self.camera.focal_length
+                    ).astype(np.int)
+                    edge[1] *= -1
+                    edge[0] += self.camera.resolution[0] / 2
+                    edge[1] += self.camera.resolution[1] / 2
+                    cv2.rectangle(
+                        frame_,
+                        (edge[0] - roi[2], edge[1] - roi[0]),
+                        (edge[0] + 1 - roi[2], edge[1] + 1 - roi[0]),
+                        (255, 0, 0),
+                        2,
+                    )
+
+                for edge in final_edges:
+                    edge = project_point_into_image_plane(
+                        edge, self.camera.focal_length
+                    ).astype(np.int)
+                    edge[1] *= -1
+                    edge[0] += self.camera.resolution[0] / 2
+                    edge[1] += self.camera.resolution[1] / 2
+                    cv2.rectangle(
+                        frame_,
+                        (edge[0] - roi[2], edge[1] - roi[0]),
+                        (edge[0] + 1 - roi[2], edge[1] + 1 - roi[0]),
+                        (255, 255, 255),
+                        1,
+                    )
+
+                cv2.imshow("", frame_)
+                cv2.waitKey(1)
+            except Exception as e:
+                print(e)
+
         pupil_center = (
             self.long_term_model.sphere_center + _EYE_RADIUS_DEFAULT * gaze_vector
         )
         pupil_circle = Circle(pupil_center, gaze_vector, pupil_radius)
-        return pupil_circle
+
+        if pupil_circle.is_null():
+            confidence_3d_search = 0.0
+        else:
+            ellipse_2d = project_circle_into_image_plane(
+                pupil_circle,
+                focal_length=self.camera.focal_length,
+                transform=False,
+                width=self.camera.resolution[0],
+                height=self.camera.resolution[1],
+            )
+            circumference = ellipse_2d.circumference()
+            confidence_3d_search = np.clip(len(final_edges) / circumference, 0.0, 1.0)
+
+        return Search3DResult(pupil_circle, confidence_3d_search)
 
     def _prepare_result(
         self,
