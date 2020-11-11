@@ -25,7 +25,10 @@ with open(here / "README.md") as f:
     long_description = f.read()
 
 requirements = ["scipy>=1.2.1", "numpy", "joblib", "scikit-learn", "sortedcontainers"]
-extras_require = {"dev": ["pytest", "tox"], "with-opencv": ["opencv-python"]}
+extras_require = {
+    "dev": ["pytest", "tox", "bump2version"],
+    "with-opencv": ["opencv-python"],
+}
 
 cmake_args = []
 if platform.system() == "Windows":
