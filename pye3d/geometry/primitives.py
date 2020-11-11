@@ -79,6 +79,11 @@ class Ellipse(Primitive):
             self.major_radius = current_minor_radius
             self.angle = self.angle + np.pi / 2
 
+    def circumference(self):
+        a = self.minor_radius
+        b = self.major_radius
+        return np.pi * (3.0 * (a + b) - np.sqrt((3.0 * a + b) * (a + 3.0 * b)))
+
     def area(self):
         return np.pi * self.minor_radius * self.major_radius
 
