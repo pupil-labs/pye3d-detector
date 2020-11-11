@@ -316,7 +316,8 @@ class Detector3D(object):
         self.kalman_filter.correct(phi, theta, r)
 
     def _predict_from_3d_search(
-        self, frame: np.ndarray, best_guess: Circle, debug=True
+        # TODO: Remove debug code
+        self, frame: np.ndarray, best_guess: Circle, debug=False
     ) -> Search3DResult:
         no_result = Search3DResult(Circle.null(), 0.0)
 
