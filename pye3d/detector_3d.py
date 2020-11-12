@@ -54,17 +54,16 @@ def ellipse2dict(ellipse: Ellipse) -> Dict:
     }
 
 
-def circle2dict(circle: Circle, flip_y: bool = True) -> Dict:
-    flip = -1 if flip_y else 1
+def circle2dict(circle: Circle) -> Dict:
     return {
         "center": (
             circle.center[0],
-            flip * circle.center[1],
+            circle.center[1],
             circle.center[2],
         ),
         "normal": (
             circle.normal[0],
-            flip * circle.normal[1],
+            circle.normal[1],
             circle.normal[2],
         ),
         "radius": float(circle.radius),
@@ -246,12 +245,12 @@ class Detector3D(object):
     def _extract_observation(self, pupil_datum: Dict) -> Observation:
         width, height = self.camera.resolution
         center = (
-            +(pupil_datum["ellipse"]["center"][0] - width / 2),
-            -(pupil_datum["ellipse"]["center"][1] - height / 2),
+            pupil_datum["ellipse"]["center"][0] - width / 2,
+            pupil_datum["ellipse"]["center"][1] - height / 2,
         )
         minor_axis = pupil_datum["ellipse"]["axes"][0] / 2.0
         major_axis = pupil_datum["ellipse"]["axes"][1] / 2.0
-        angle = -(pupil_datum["ellipse"]["angle"] + 90.0) * np.pi / 180.0
+        angle = (pupil_datum["ellipse"]["angle"] - 90.0) * np.pi / 180.0
         ellipse = Ellipse(center, minor_axis, major_axis, angle)
 
         return Observation(
@@ -358,7 +357,6 @@ class Detector3D(object):
                     edge = project_point_into_image_plane(
                         edge, self.camera.focal_length
                     ).astype(np.int)
-                    edge[1] *= -1
                     edge[0] += self.camera.resolution[0] / 2
                     edge[1] += self.camera.resolution[1] / 2
                     cv2.rectangle(
@@ -373,7 +371,6 @@ class Detector3D(object):
                     edge = project_point_into_image_plane(
                         edge, self.camera.focal_length
                     ).astype(np.int)
-                    edge[1] *= -1
                     edge[0] += self.camera.resolution[0] / 2
                     edge[1] += self.camera.resolution[1] / 2
                     cv2.rectangle(
@@ -419,7 +416,6 @@ class Detector3D(object):
         observation: Observation,
         prediction_uncorrected: Prediction,
         prediction_corrected: Prediction,
-        flip_y: bool = True,
     ) -> Dict:
         """[summary]
 
@@ -427,19 +423,17 @@ class Detector3D(object):
             observation (Observation): [description]
             prediction_uncorrected (Prediction): Used for 2d projections
             prediction_corrected (Prediction): Used for 3d data
-            flip_y (bool, optional): Flips y-axis of 3d data. Defaults to True.
 
         Returns:
             Dict: pye3d pupil detection result
         """
-        flip = -1 if flip_y else 1
 
         result = {
             "timestamp": observation.timestamp,
             "sphere": {
                 "center": (
                     prediction_corrected.sphere_center[0],
-                    prediction_corrected.sphere_center[1] * flip,
+                    prediction_corrected.sphere_center[1],
                     prediction_corrected.sphere_center[2],
                 ),
                 "radius": _EYE_RADIUS_DEFAULT,
@@ -455,7 +449,7 @@ class Detector3D(object):
         )
         result["projected_sphere"] = ellipse2dict(eye_sphere_projected)
 
-        result["circle_3d"] = circle2dict(prediction_corrected.pupil_circle, flip_y)
+        result["circle_3d"] = circle2dict(prediction_corrected.pupil_circle)
 
         pupil_circle_long_term = self.long_term_model.predict_pupil_circle(observation)
         result["diameter_3d"] = pupil_circle_long_term.radius * 2

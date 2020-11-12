@@ -28,8 +28,6 @@ def unproject_edges_to_sphere(
     n_edges = edges.shape[0]
 
     directions = edges - np.asarray([width / 2, height / 2])
-    directions[:, 1] *= -1
-
     directions = np.hstack((directions, focal_length * np.ones((n_edges, 1))))
     directions = directions / np.linalg.norm(directions, axis=1, keepdims=1)
 
@@ -99,9 +97,9 @@ def project_circle_into_image_plane(
         # TO BE CONSISTENT WITH PUPIL
         if transform:
             center_x = center_x + width / 2.0
-            center_y = height / 2.0 - center_y
+            center_y = center_y + height / 2.0
             minor_axis, major_axis = 2.0 * minor_axis, 2.0 * major_axis
-            angle = -(angle * 180.0 / np.pi - 90.0)
+            angle = angle * 180.0 / np.pi + 90.0
 
         return Ellipse(np.asarray([center_x, center_y]), minor_axis, major_axis, angle)
 
@@ -121,7 +119,6 @@ def project_sphere_into_image_plane(
     if transform:
 
         projected_sphere_center[0] += width / 2.0
-        projected_sphere_center[1] *= -1.0
         projected_sphere_center[1] += height / 2
         projected_radius *= 2.0
 

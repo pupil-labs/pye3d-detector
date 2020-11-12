@@ -84,7 +84,7 @@ def get_edges(frame,
 
     x, y = projected_pupil_center
     x = x + resolution[0]/2
-    y = -y + resolution[1]/2
+    y = y + resolution[1]/2
     major_axis =  major_axis_factor * major_axis_estimate
     N,M = frame.shape
     ymin, ymax = max(0,int(y-major_axis)), min(N,int(y+major_axis))
