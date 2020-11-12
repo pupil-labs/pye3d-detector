@@ -121,6 +121,7 @@ class TwoSphereModel(object):
 
         rms_residual = None
         if calculate_rms_residual:
+            # Here we use eq. (10) in https://docplayer.net/21072949-Least-squares-intersection-of-lines.html.
             origins_dierkes_lines = np.array(
                 [
                     observations[i].get_Dierkes_line(disambiguation_indices[i]).origin
