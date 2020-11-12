@@ -69,6 +69,7 @@ class TwoSphereModel(TwoSphereModelAbstract):
         self._corrected_sphere_center = self.refractionizer.correct_sphere_center(
             np.asarray([[*self.sphere_center]])
         )[0]
+        self.rms_residual = None
 
     def add_observation(self, observation: Observation):
         self.storage.add(observation)
@@ -87,10 +88,11 @@ class TwoSphereModel(TwoSphereModelAbstract):
         projected_sphere_center = (
             from_2d if from_2d is not None else self.estimate_sphere_center_2d()
         )
-        sphere_center = self.estimate_sphere_center_3d(
+        sphere_center, rms_residual = self.estimate_sphere_center_3d(
             projected_sphere_center, prior_3d, prior_strength
         )
         self.set_sphere_center(sphere_center)
+        self.rms_residual = rms_residual
         return SphereCenterEstimates(projected_sphere_center, sphere_center)
 
     def estimate_sphere_center_2d(self):
@@ -104,7 +106,11 @@ class TwoSphereModel(TwoSphereModelAbstract):
         return projected_sphere_center
 
     def estimate_sphere_center_3d(
-        self, sphere_center_2d, prior_3d=None, prior_strength=0.0
+        self,
+        sphere_center_2d,
+        prior_3d=None,
+        prior_strength=0.0,
+        calculate_rms_residual=True,
     ):
         observations = self.storage.observations
         aux_3d = np.array([obs.aux_3d for obs in observations])
@@ -137,7 +143,24 @@ class TwoSphereModel(TwoSphereModelAbstract):
                 sum_aux_3d[:3, :3] + prior_strength * np.eye(3)
             ) @ (sum_aux_3d[:3, 3] + prior_strength * prior_3d)
 
-        return sphere_center
+        rms_residual = None
+        if calculate_rms_residual:
+            # Here we use eq. (10) in https://docplayer.net/21072949-Least-squares-intersection-of-lines.html.
+            origins_dierkes_lines = np.array(
+                [
+                    observations[i].get_Dierkes_line(disambiguation_indices[i]).origin
+                    for i in observation_indices
+                ]
+            )
+            origins_dierkes_lines.shape = -1, 3, 1
+            deltas = origins_dierkes_lines - sphere_center[:, np.newaxis]
+            tmp = np.einsum("ijk,ikl->ijl", aux_3d_disambiguated[:, :3, :3], deltas)
+            squared_residuals = np.einsum(
+                "ikj,ijk->i", np.transpose(deltas, (0, 2, 1)), tmp
+            )
+            rms_residual = np.mean(np.sqrt(squared_residuals))
+
+        return sphere_center, rms_residual
 
     # GAZE PREDICTION
     def _extract_unproject_disambiguate(self, pupil_datum):
@@ -175,7 +198,9 @@ class TwoSphereModel(TwoSphereModelAbstract):
             return Circle.null()
 
         circle_3d = self._disambiguate_circle_3d_pair(observation.circle_3d_pair)
-        direction = normalize(circle_3d.center)
+        unprojection_depth = np.linalg.norm(circle_3d.center)
+        direction = circle_3d.center / unprojection_depth
+
         nearest_point_on_sphere = nearest_point_on_sphere_to_line(
             self.sphere_center, _EYE_RADIUS_DEFAULT, [0.0, 0.0, 0.0], direction
         )
@@ -185,9 +210,7 @@ class TwoSphereModel(TwoSphereModelAbstract):
         else:
             gaze_vector = normalize(nearest_point_on_sphere - self.sphere_center)
 
-        radius = np.linalg.norm(nearest_point_on_sphere) / np.linalg.norm(
-            circle_3d.center
-        )
+        radius = np.linalg.norm(nearest_point_on_sphere) / unprojection_depth
         pupil_circle = Circle(nearest_point_on_sphere, gaze_vector, radius)
         return pupil_circle
 
