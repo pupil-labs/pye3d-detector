@@ -1,5 +1,6 @@
 import warnings
 
+import numpy as np
 from libcpp.pair cimport pair
 
 from .common_types cimport Vector3d
