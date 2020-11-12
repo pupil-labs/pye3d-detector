@@ -91,7 +91,7 @@ if __name__ == "__main__":
 
     refractionizer = Refractionizer()
 
-    print(refractionizer.correct_sphere_center([[0, 0, 35]]))
-    print(refractionizer.correct_radius([[0, 0, 35, 0, 0, -1, 2]]))
-    print(refractionizer.correct_gaze_vector([[0, 0, 35, 0, 0, -1, 2]]))
-    print(refractionizer.correct_pupil_circle([[0, 0, 35, 0, 0, -1, 2]]))
+    print(refractionizer.correct_sphere_center([[0.0, 0.0, 35.0]]))
+    print(refractionizer.correct_radius([[0.0, 0.0, 35.0, 0.0, 0.0, -1.0, 2.0]]))
+    print(refractionizer.correct_gaze_vector([[0.0, 0.0, 35.0, 0.0, 0.0, -1.0, 2.0]]))
+    print(refractionizer.correct_pupil_circle([[0.0, 0.0, 35.0, 0.0, 0.0, -1.0, 2.0]]))

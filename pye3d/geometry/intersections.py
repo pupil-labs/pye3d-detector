@@ -39,11 +39,7 @@ def intersect_line_line(p11, p12, p21, p22, internal=False):
         return [False]
 
 
-# todo: There is a different version of this in plsd. Which to choose?
-
-
 def intersect_sphere_multiple_lines(sphere_center, radius, points, directions):
-
     # Note: Directions need to be normalized!
     intermediate = np.einsum("ij,ij->i", directions, points - sphere_center)
     discriminant = (
@@ -60,10 +56,6 @@ def intersect_sphere_multiple_lines(sphere_center, radius, points, directions):
 
 
 def intersect_sphere_line(sphere_center, radius, point, direction):
-
-    sphere_center = np.asarray(sphere_center).astype(np.float)
-    point = np.asarray(point).astype(np.float)
-    direction = np.asarray(direction).astype(np.float)
     temp = np.dot(direction, point - sphere_center)
     discriminant = temp ** 2 - np.linalg.norm(point - sphere_center) ** 2 + radius ** 2
     if discriminant >= 0.0:
@@ -76,11 +68,6 @@ def intersect_sphere_line(sphere_center, radius, point, direction):
 
 
 def intersect_plane_line(p_plane, n_plane, p_line, l_line, radius=-1):
-    p_plane = np.asarray(p_plane)
-    n_plane = np.asarray(n_plane)
-    p_line = np.asarray(p_line)
-    l_line = np.asarray(l_line)
-
     if np.dot(n_plane, l_line) == 0 or np.dot(p_plane - p_line, n_plane) == 0:
         return [False]
     else:
@@ -96,9 +83,6 @@ def intersect_plane_line(p_plane, n_plane, p_line, l_line, radius=-1):
 
 
 def nearest_point_on_sphere_to_line(center, radius, origin, direction):
-
-    assert np.allclose(np.linalg.norm(direction), 1.0)
-
     intersection = intersect_sphere_line(center, radius, origin, direction)
     if intersection[0]:
         d = np.min(intersection[1:])
@@ -163,9 +147,6 @@ def nearest_intersection_points(p1, p2, p3, p4):
 
 
 def nearest_intersection_lines(lines):
-
-    assert len(lines) > 0
-
     dim = len(lines[0].origin)
 
     R = np.zeros((dim, dim))

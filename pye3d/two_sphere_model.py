@@ -151,7 +151,9 @@ class TwoSphereModel(object):
             return Circle.null()
 
         circle_3d = self._disambiguate_circle_3d_pair(observation.circle_3d_pair)
-        direction = normalize(circle_3d.center)
+        unprojection_depth = np.linalg.norm(circle_3d.center)
+        direction = circle_3d.center / unprojection_depth
+
         nearest_point_on_sphere = nearest_point_on_sphere_to_line(
             self.sphere_center, _EYE_RADIUS_DEFAULT, [0.0, 0.0, 0.0], direction
         )
@@ -161,9 +163,7 @@ class TwoSphereModel(object):
         else:
             gaze_vector = normalize(nearest_point_on_sphere - self.sphere_center)
 
-        radius = np.linalg.norm(nearest_point_on_sphere) / np.linalg.norm(
-            circle_3d.center
-        )
+        radius = np.linalg.norm(nearest_point_on_sphere) / unprojection_depth
         pupil_circle = Circle(nearest_point_on_sphere, gaze_vector, radius)
         return pupil_circle
 

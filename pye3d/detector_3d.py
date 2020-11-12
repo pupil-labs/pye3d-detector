@@ -334,7 +334,7 @@ class Detector3D(object):
             _EYE_RADIUS_DEFAULT,
             self.camera.focal_length,
             self.camera.resolution,
-            major_axis_factor=2.5,
+            major_axis_factor=2.0,
         )
 
         if len(edges) <= 0:
