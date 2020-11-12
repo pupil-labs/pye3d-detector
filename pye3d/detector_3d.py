@@ -42,30 +42,16 @@ logger = logging.getLogger(__name__)
 
 def ellipse2dict(ellipse: Ellipse) -> Dict:
     return {
-        "center": (
-            ellipse.center[0],
-            ellipse.center[1],
-        ),
-        "axes": (
-            ellipse.minor_radius,
-            ellipse.major_radius,
-        ),
+        "center": (ellipse.center[0], ellipse.center[1],),
+        "axes": (ellipse.minor_radius, ellipse.major_radius,),
         "angle": ellipse.angle,
     }
 
 
 def circle2dict(circle: Circle) -> Dict:
     return {
-        "center": (
-            circle.center[0],
-            circle.center[1],
-            circle.center[2],
-        ),
-        "normal": (
-            circle.normal[0],
-            circle.normal[1],
-            circle.normal[2],
-        ),
+        "center": (circle.center[0], circle.center[1], circle.center[2],),
+        "normal": (circle.normal[0], circle.normal[1], circle.normal[2],),
         "radius": float(circle.radius),
     }
 
@@ -220,8 +206,7 @@ class Detector3D(object):
 
             # update long term model with ultra long term bias
             long_term_2d, long_term_3d = self.long_term_model.estimate_sphere_center(
-                prior_3d=ultra_long_term_3d,
-                prior_strength=0.1,
+                prior_3d=ultra_long_term_3d, prior_strength=0.1,
             )
 
             # update short term model with help of long-term model
@@ -316,7 +301,10 @@ class Detector3D(object):
 
     def _predict_from_3d_search(
         # TODO: Remove debug code
-        self, frame: np.ndarray, best_guess: Circle, debug=True
+        self,
+        frame: np.ndarray,
+        best_guess: Circle,
+        debug=True,
     ) -> Search3DResult:
         no_result = Search3DResult(Circle.null(), 0.0)
 
