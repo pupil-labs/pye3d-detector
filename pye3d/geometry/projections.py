@@ -24,10 +24,9 @@ logger = logging.getLogger(__name__)
 def unproject_edges_to_sphere(
     edges, focal_length, sphere_center, sphere_radius, width=640, height=480
 ):
-
     n_edges = edges.shape[0]
 
-    directions = edges - np.asarray([width / 2, height / 2])
+    directions = edges - np.asarray([width / 2.0, height / 2.0])
     directions = np.hstack((directions, focal_length * np.ones((n_edges, 1))))
     directions = directions / np.linalg.norm(directions, axis=1, keepdims=1)
 
@@ -117,7 +116,6 @@ def project_sphere_into_image_plane(
     projected_radius = scale * sphere.radius
 
     if transform:
-
         projected_sphere_center[0] += width / 2.0
         projected_sphere_center[1] += height / 2
         projected_radius *= 2.0
