@@ -146,15 +146,17 @@ class Conic(Primitive):
             self.B = 2.0 * ax * ay / a2 - 2.0 * ax * ay / b2
             self.C = ay * ay / a2 + ax * ax / b2
             self.D = (
-                -2 * ax * ay * ellipse.center[1] - 2 * ax * ax * ellipse.center[0]
-            ) / a2 + (
-                2 * ax * ay * ellipse.center[1] - 2 * ay * ay * ellipse.center[0]
-            ) / b2
+                (-2 * ax * ay * ellipse.center[1] - 2 * ax * ax * ellipse.center[0])
+                / a2
+                + (2 * ax * ay * ellipse.center[1] - 2 * ay * ay * ellipse.center[0])
+                / b2
+            )
             self.E = (
-                -2 * ax * ay * ellipse.center[0] - 2 * ay * ay * ellipse.center[1]
-            ) / a2 + (
-                2 * ax * ay * ellipse.center[0] - 2 * ax * ax * ellipse.center[1]
-            ) / b2
+                (-2 * ax * ay * ellipse.center[0] - 2 * ay * ay * ellipse.center[1])
+                / a2
+                + (2 * ax * ay * ellipse.center[0] - 2 * ax * ax * ellipse.center[1])
+                / b2
+            )
             self.F = (
                 (
                     2 * ax * ay * ellipse.center[0] * ellipse.center[1]
