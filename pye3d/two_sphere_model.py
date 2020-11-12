@@ -32,7 +32,9 @@ logger = logging.getLogger(__name__)
 
 class TwoSphereModel(object):
     def __init__(
-        self, camera: CameraModel, storage: ObservationStorage = None,
+        self,
+        camera: CameraModel,
+        storage: ObservationStorage = None,
     ):
         self.storage = storage or BasicStorage()
         self.camera = camera
