@@ -50,17 +50,21 @@ def unproject_ellipse(ellipse, focal_length, radius=1.0):
             )
 
             # cannot iterate over C++ std::pair, that's why this looks so ugly
-            return [
-                Circle(
+            circle_A = Circle(
                     center=(circles.first.center[0], circles.first.center[1], circles.first.center[2]),
                     normal=(circles.first.normal[0], circles.first.normal[1], circles.first.normal[2]),
                     radius=circles.first.radius
-                ),
-                Circle(
+                )
+            circle_B = Circle(
                     center=(circles.second.center[0], circles.second.center[1], circles.second.center[2]),
                     normal=(circles.second.normal[0], circles.second.normal[1], circles.second.normal[2]),
                     radius=circles.second.radius
-                ),
-            ]
+                )
+            # cannot iterate over C++ std::pair, that's why this looks so ugly
+            if np.isnan([circle_A.radius, *circle_A.center, *circle_A.normal, circle_B.radius, *circle_B.center, *circle_B.normal]).any():
+                return False
+            else:
+                return [circle_A, circle_B]
+
         except Warning as e:
             return False
