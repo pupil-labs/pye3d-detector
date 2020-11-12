@@ -319,7 +319,7 @@ class Detector3D(object):
         self,
         frame: np.ndarray,
         best_guess: Circle,
-        debug=True,
+        debug=False,
     ) -> Search3DResult:
         no_result = Search3DResult(Circle.null(), 0.0)
 
@@ -401,8 +401,13 @@ class Detector3D(object):
                 width=self.camera.resolution[0],
                 height=self.camera.resolution[1],
             )
-            circumference = ellipse_2d.circumference()
-            confidence_3d_search = np.clip(len(final_edges) / circumference, 0.0, 1.0)
+            if ellipse_2d:
+                circumference = ellipse_2d.circumference()
+                confidence_3d_search = np.clip(
+                    len(final_edges) / circumference, 0.0, 1.0
+                )
+            else:
+                confidence_3d_search = 0.0
 
         return Search3DResult(pupil_circle, confidence_3d_search)
 
