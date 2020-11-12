@@ -45,7 +45,7 @@ class TwoSphereModel(object):
         self.corrected_sphere_center = self.refractionizer.correct_sphere_center(
             np.asarray([[*self.sphere_center]])
         )[0]
-        self.last_rms_residual = None
+        self.rms_residual = None
 
     def add_observation(self, observation: Observation):
         self.storage.add(observation)
@@ -68,7 +68,7 @@ class TwoSphereModel(object):
             projected_sphere_center, prior_3d, prior_strength
         )
         self.set_sphere_center(sphere_center)
-        self.last_rms_residual = rms_residual
+        self.rms_residual = rms_residual
         return projected_sphere_center, sphere_center
 
     def estimate_sphere_center_2d(self):
