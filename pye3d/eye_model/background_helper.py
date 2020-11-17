@@ -46,7 +46,7 @@ class BackgroundProcess:
     ):
         self._running = True
 
-        self._task_queue = mp.Queue(maxsize=0)  # TODO: figure out good value
+        self._task_queue = mp.Queue(maxsize=500)  # TODO: figure out good value
 
         logging_queue = mp.Queue()
         self._log_listener = QueueListener(logging_queue, *log_handlers)
