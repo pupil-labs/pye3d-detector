@@ -41,12 +41,14 @@ class TwoSphereModelAsync(TwoSphereModelAbstract):
         synced_corrected_sphere_center = mp.Array(ctypes.c_double, 3)
         synced_projected_sphere_center = mp.Array(ctypes.c_double, 2)
         synced_observation_count = mp.Value(ctypes.c_long)
+        is_estimation_ongoing_flag = mp.Event()
 
         self._frontend = _TwoSphereModelSyncedFrontend(
             synced_sphere_center,
             synced_corrected_sphere_center,
             synced_projected_sphere_center,
             synced_observation_count,
+            is_estimation_ongoing_flag,
             camera=camera,
         )
         self._backend_process = BackgroundProcess(
@@ -57,6 +59,7 @@ class TwoSphereModelAsync(TwoSphereModelAbstract):
                 synced_corrected_sphere_center,
                 synced_projected_sphere_center,
                 synced_observation_count,
+                is_estimation_ongoing_flag,
             ),
             setup_kwargs=dict(
                 camera=camera,
@@ -114,7 +117,11 @@ class TwoSphereModelAsync(TwoSphereModelAbstract):
         prior_3d: T.Optional[np.ndarray] = None,
         prior_strength: float = 0.0,
     ) -> SphereCenterEstimates:
-        self.relay_command("estimate_sphere_center", from_2d, prior_3d, prior_strength)
+        if not self._frontend._is_estimation_ongoing_flag.is_set():
+            self.relay_command(
+                "estimate_sphere_center", from_2d, prior_3d, prior_strength
+            )
+            self._frontend._is_estimation_ongoing_flag.set()
         projected_sphere_center = self._frontend.projected_sphere_center
         sphere_center = self._frontend.sphere_center
         return SphereCenterEstimates(projected_sphere_center, sphere_center)
@@ -163,12 +170,14 @@ class _TwoSphereModelSyncedAbstract(TwoSphereModel):
         synced_corrected_sphere_center: mp.Array,  # c_double_Array_3
         synced_projected_sphere_center: mp.Array,  # c_double_Array_2
         synced_observation_count: mp.Value,  # c_long
+        flag_is_estimation_ongoing: mp.Event,
         **kwargs,
     ):
         self._synced_sphere_center = synced_sphere_center
         self._synced_corrected_sphere_center = synced_corrected_sphere_center
         self._synced_projected_sphere_center = synced_projected_sphere_center
         self._synced_observation_count = synced_observation_count
+        self._is_estimation_ongoing_flag = flag_is_estimation_ongoing
         super().__init__(**kwargs)
 
     @property
@@ -259,6 +268,11 @@ class _TwoSphereModelSyncedBackend(_TwoSphereModelSyncedAbstract):
     @property
     def n_observations(self) -> int:
         return self._synced_observation_count.value
+
+    def estimate_sphere_center(self, *args, **kwargs):
+        result = super().estimate_sphere_center(*args, **kwargs)
+        self._is_estimation_ongoing_flag.clear()
+        return result
 
     def estimate_sphere_center_2d(self) -> np.ndarray:
         estimated: np.ndarray = super().estimate_sphere_center_2d()
