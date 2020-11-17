@@ -8,9 +8,10 @@ Lesser General Public License (LGPL v3.0).
 See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
+import enum
 import logging
 import traceback
-from typing import Dict, NamedTuple
+from typing import Dict, NamedTuple, Type
 
 import numpy as np
 import cv2  # Todo: DELETE
@@ -35,9 +36,22 @@ from .observation import (
     BufferedObservationStorage,
     Observation,
 )
-from .two_sphere_model import TwoSphereModel
+from .eye_model import (
+    TwoSphereModelAbstract,
+    TwoSphereModel,
+    TwoSphereModelAsync,
+)
 
 logger = logging.getLogger(__name__)
+
+
+class DetectorMode(enum.Enum):
+    blocking = TwoSphereModel
+    asynchronous = TwoSphereModelAsync
+
+    @classmethod
+    def from_name(cls, mode_name: str):
+        return {mode.name: mode for mode in cls}[mode_name]
 
 
 def ellipse2dict(ellipse: Ellipse) -> Dict:
@@ -95,8 +109,10 @@ class Detector3D(object):
         long_term_buffer_size=30,
         long_term_forget_time=5,
         long_term_forget_observations=300,
+        long_term_mode: DetectorMode = DetectorMode.blocking,
     ):
         self._camera = camera
+        self._long_term_mode = long_term_mode
         # NOTE: changing settings after intialization can lead to inconsistent behavior
         # if .reset() is not called.
         self._settings = {
@@ -114,28 +130,50 @@ class Detector3D(object):
     def camera(self) -> CameraModel:
         return self._camera
 
+    @property
+    def long_term_mode(self) -> DetectorMode:
+        return self._long_term_mode
+
+    @long_term_mode.setter
+    def long_term_mode(self, mode: DetectorMode):
+        needs_reset = mode != self._long_term_mode
+        self._long_term_mode = mode
+        if needs_reset:
+            self.reset()
+
     def reset_camera(self, camera: CameraModel):
         """Change camera model and reset detector state."""
         self._camera = camera
         self.reset()
 
     def reset(self):
-        self._initialize_models()
+        self._cleanup_models()
+        self._initialize_models(
+            long_term_model_cls=self._long_term_mode.value,
+            ultra_long_term_model_cls=self._long_term_mode.value,
+        )
         self.kalman_filter = KalmanFilter()
 
-    def _initialize_models(self):
+    def _initialize_models(
+        self,
+        short_term_model_cls: Type[TwoSphereModelAbstract] = TwoSphereModel,
+        long_term_model_cls: Type[TwoSphereModelAbstract] = TwoSphereModel,
+        ultra_long_term_model_cls: Type[TwoSphereModelAbstract] = TwoSphereModel,
+    ):
         # Recreate all models. This is required in case any of the settings (incl
         # camera) changed in the meantime.
-        self.short_term_model = TwoSphereModel(
+        self.short_term_model = short_term_model_cls(
             camera=self.camera,
-            storage=BufferedObservationStorage(
+            storage_cls=BufferedObservationStorage,
+            storage_kwargs=dict(
                 confidence_threshold=self._settings["threshold_short_term"],
                 buffer_length=10,
             ),
         )
-        self.long_term_model = TwoSphereModel(
+        self.long_term_model = long_term_model_cls(
             camera=self.camera,
-            storage=BinBufferedObservationStorage(
+            storage_cls=BinBufferedObservationStorage,
+            storage_kwargs=dict(
                 camera=self.camera,
                 confidence_threshold=self._settings["threshold_long_term"],
                 n_bins_horizontal=10,
@@ -144,9 +182,10 @@ class Detector3D(object):
                 forget_min_time=self._settings["long_term_forget_time"],
             ),
         )
-        self.ultra_long_term_model = TwoSphereModel(
+        self.ultra_long_term_model = ultra_long_term_model_cls(
             camera=self.camera,
-            storage=BinBufferedObservationStorage(
+            storage_cls=BinBufferedObservationStorage,
+            storage_kwargs=dict(
                 camera=self.camera,
                 confidence_threshold=self._settings["threshold_long_term"],
                 n_bins_horizontal=10,
@@ -157,8 +196,17 @@ class Detector3D(object):
                 forget_min_time=60,
             ),
         )
-        # TODO: used for not updating ult-model every frame, will be replaced by background process?
+        # TODO: used for not updating ult-model every frame,
+        # will be replaced by background process?
         self.ult_counter = 0
+
+    def _cleanup_models(self):
+        try:
+            self.short_term_model.cleanup()
+            self.long_term_model.cleanup()
+            self.ultra_long_term_model.cleanup()
+        except AttributeError:
+            pass  # models have not been initialized yet
 
     def update_and_detect(
         self,
@@ -219,7 +267,7 @@ class Detector3D(object):
             ultra_long_term_3d = self.ultra_long_term_model.sphere_center
 
             # update long term model with ultra long term bias
-            long_term_2d, long_term_3d = self.long_term_model.estimate_sphere_center(
+            long_term_estimate = self.long_term_model.estimate_sphere_center(
                 prior_3d=ultra_long_term_3d,
                 prior_strength=0.1,
             )
@@ -230,11 +278,11 @@ class Detector3D(object):
 
             circularity_mean = self.short_term_model.mean_observation_circularity()
             self.short_term_model.estimate_sphere_center(
-                from_2d=long_term_2d,
-                prior_3d=long_term_3d,
+                from_2d=long_term_estimate.projected,
+                prior_3d=long_term_estimate.three_dim,
                 prior_strength=sigmoid(circularity_mean),
             )
-        except Exception as e:
+        except Exception:
             # Known issues:
             # - Can raise numpy.linalg.LinAlgError: SVD did not converge
             logger.error("Error updating models:")
@@ -515,12 +563,15 @@ class Detector3D(object):
             projected_ultra_long_term
         )
 
-        bin_data = self.long_term_model.storage.get_bin_counts()
-        max_bin_level = np.max(bin_data)
-        if max_bin_level >= 0:
-            bin_data = bin_data / max_bin_level
-        bin_data = np.flip(bin_data, axis=0)
-        debug_info["bin_data"] = bin_data.tolist()
+        try:
+            bin_data = self.long_term_model.storage.get_bin_counts()
+            max_bin_level = np.max(bin_data)
+            if max_bin_level >= 0:
+                bin_data = bin_data / max_bin_level
+            bin_data = np.flip(bin_data, axis=0)
+            debug_info["bin_data"] = bin_data.tolist()
+        except AttributeError:
+            debug_info["bin_data"] = []
 
         # TODO: Pupil visualizer_pye3d.py attempts to draw Dierkes lines. Currently we
         # don't calculate them here, we could probably do that again. Based on which

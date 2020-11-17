@@ -11,15 +11,18 @@ See COPYING and COPYING.LESSER for license details.
 
 import logging
 import multiprocessing as mp
-import multiprocessing.connection
+import queue
 import signal
 import time
 from ctypes import c_bool
-from logging import Handler, StreamHandler
+from logging import Handler
 from logging.handlers import QueueHandler, QueueListener
-from typing import Any, Callable, Dict, Optional, Tuple
+import traceback
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple, TypeVar
 
 logger = logging.getLogger(__name__)
+WorkerSetupResult = TypeVar("WorkerSetupResult")
+WorkerFunctionResult = TypeVar("WorkerFunctionResult")
 
 
 class BackgroundProcess:
@@ -32,15 +35,21 @@ class BackgroundProcess:
     class MultipleSendError(Exception):
         """Trying to send data without first receiving previous output."""
 
-    def __init__(self, function: Callable, log_handler: Optional[Handler]):
+    def __init__(
+        self,
+        setup: Callable[..., WorkerSetupResult],
+        function: Callable[[WorkerSetupResult], WorkerFunctionResult],
+        cleanup: Callable[[WorkerSetupResult], None],
+        setup_args: Optional[Tuple] = None,
+        setup_kwargs: Optional[Dict] = None,
+        log_handlers: Iterable[Handler] = (),
+    ):
         self._running = True
-        self._busy = False
 
-        self._pipe, remote_pipe = mp.Pipe(duplex=True)
+        self._task_queue = mp.Queue(maxsize=500)  # TODO: figure out good value
 
         logging_queue = mp.Queue()
-        handlers = [] if log_handler is None else [log_handler]
-        self._log_listener = QueueListener(logging_queue, *handlers)
+        self._log_listener = QueueListener(logging_queue, *log_handlers)
         self._log_listener.start()
 
         self._should_terminate_flag = mp.Value(c_bool, 0)
@@ -50,10 +59,14 @@ class BackgroundProcess:
             daemon=True,
             target=BackgroundProcess._worker,
             kwargs=dict(
+                setup=setup,
                 function=function,
-                pipe=remote_pipe,
+                cleanup=cleanup,
+                task_queue=self._task_queue,
                 should_terminate_flag=self._should_terminate_flag,
                 logging_queue=logging_queue,
+                setup_args=setup_args if setup_args else (),
+                setup_kwargs=setup_kwargs if setup_kwargs else {},
             ),
         )
         self._process.start()
@@ -61,74 +74,30 @@ class BackgroundProcess:
     @property
     def running(self) -> bool:
         """Whether background task is running (not necessarily doing work)."""
-        return self._running
-
-    @property
-    def busy(self) -> bool:
-        """Whether background task is doing work or ready to collect results."""
-        return self._busy
+        return self._running and self._process.is_alive()
 
     def send(self, *args: Tuple[Any], **kwargs: Dict[Any, Any]):
         """Send data to background process for processing.
-
-        Raises MultipleSendError when called again without a call to recv() first.
         Raises StoppedError when called on a stopped process.
         """
 
         if not self.running:
             logger.error("Background process was closed previously!")
             raise BackgroundProcess.StoppedError()
-
-        if self._busy:
-            logger.error("Sending data without receiving previous output!")
-            raise BackgroundProcess.MultipleSendError()
-
-        self._pipe.send({"args": args, "kwargs": kwargs})
-        self._busy = True
-
-    def poll(self) -> bool:
-        """Check if data is available for recv() from background task."""
-        if not self.running:
-            logger.error("Background process was closed previously!")
-            raise BackgroundProcess.StoppedError()
-        return self._pipe.poll()
-
-    def recv(self) -> Any:
-        """Returns results from background process.
-
-        Blocks until results are available.
-
-        Raises any Exception that occurred in backgrund process.
-        Raises NothingToReceiveError when called without previous call to send().
-        Raises StoppedError when called on a stopped process.
-        """
-
-        if not self.running:
-            logger.error("Background process was closed previously!")
-            raise BackgroundProcess.StoppedError()
-
-        if not self._busy:
-            logger.error("Querying background process without submitted data!")
-            raise BackgroundProcess.NothingToReceiveError()
 
         try:
-            results = self._pipe.recv()
-        except EOFError:
-            logger.error("Pipe was closed from background process!")
-            raise BackgroundProcess.StoppedError()
-
-        if isinstance(results, Exception):
-            logger.error(f"Error in background process:\n{results}")
-            raise results
-
-        self._busy = False
-        return results
+            self._task_queue.put_nowait({"args": args, "kwargs": kwargs})
+        except queue.Full:
+            logger.debug(f"Dropping task! args: {args}, kwargs: {kwargs}")
 
     def cancel(self, timeout=-1):
         """Stop process as soon as current task is finished."""
 
         self._should_terminate_flag.value = 1
         if self.running:
+            self._task_queue.close()
+            self._task_queue.cancel_join_thread()
+            self._task_queue.join_thread()
             self._process.join(timeout)
         self._running = False
         self._log_listener.stop()
@@ -145,43 +114,51 @@ class BackgroundProcess:
 
     @staticmethod
     def _worker(
-        function: Callable,
-        pipe: mp.connection.Connection,
+        setup: Callable[..., WorkerSetupResult],
+        function: Callable[[WorkerSetupResult], Any],
+        cleanup: Callable[[WorkerSetupResult], None],
+        task_queue: mp.Queue,
         should_terminate_flag: mp.Value,
         logging_queue: mp.Queue,
+        setup_args: Tuple,
+        setup_kwargs: Dict,
     ):
         log_queue_handler = QueueHandler(logging_queue)
+        logger = logging.getLogger()
+        logger.setLevel(logging.NOTSET)
         logger.addHandler(log_queue_handler)
 
         # Intercept SIGINT (ctrl-c), do required cleanup in foreground process!
         BackgroundProcess._install_sigint_interception()
 
+        setup_result: WorkerSetupResult = setup(*setup_args, **setup_kwargs)
+
         while not should_terminate_flag.value:
             try:
-                params = pipe.recv()
+                params = task_queue.get(block=True, timeout=0.1)
                 args = params["args"]
                 kwargs = params["kwargs"]
-            except EOFError:
-                logger.info("Pipe was closed from foreground process .")
-                break
+            except queue.Empty:
+                continue
+            # except EOFError:
+            #     logger.info("Pipe was closed from foreground process .")
+            #     break
 
             try:
                 t0 = time.perf_counter()
-                results = function(*args, **kwargs)
+                function(setup_result, *args, **kwargs)
                 t1 = time.perf_counter()
-                logger.debug(f"Finished background calculation in {(t1 - t0):.2}s")
+                # logger.debug(f"Finished background calculation in {(t1 - t0):.2}s")
             except Exception as e:
-                pipe.send(e)
                 logger.error(
                     f"Error executing background process with parameters {params}:\n{e}"
                 )
+                logger.debug(traceback.format_exc())
                 break
-
-            pipe.send(results)
         else:
             logger.info("Background process received termination signal.")
 
-        logger.info("Stopping background process.")
-        pipe.close()
+        cleanup(setup_result)
 
+        logger.info("Stopping background process.")
         logger.removeHandler(log_queue_handler)

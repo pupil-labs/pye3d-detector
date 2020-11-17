@@ -9,40 +9,64 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 import logging
-from typing import Any, Dict, Sequence, Tuple
+import typing as T
 
 import numpy as np
-import numpy.linalg
 
-from .camera import CameraModel
-from .constants import _EYE_RADIUS_DEFAULT
-from .geometry.intersections import nearest_point_on_sphere_to_line
-from .geometry.primitives import Circle, Line
-from .geometry.projections import (
+from .abstract import TwoSphereModelAbstract, SphereCenterEstimates
+from ..camera import CameraModel
+from ..constants import _EYE_RADIUS_DEFAULT, DEFAULT_SPHERE_CENTER
+from ..geometry.intersections import nearest_point_on_sphere_to_line
+from ..geometry.primitives import Circle, Line
+from ..geometry.projections import (
     project_line_into_image_plane,
     project_point_into_image_plane,
     unproject_ellipse,
 )
-from .geometry.utilities import normalize
-from .observation import Observation, ObservationStorage, BasicStorage
-from .refraction import Refractionizer
+from ..geometry.utilities import normalize
+from ..observation import BasicStorage, Observation, ObservationStorage
+from ..refraction import Refractionizer
 
 logger = logging.getLogger(__name__)
 
 
-class TwoSphereModel(object):
+class TwoSphereModel(TwoSphereModelAbstract):
     def __init__(
         self,
         camera: CameraModel,
-        storage: ObservationStorage = None,
+        storage_cls: T.Type[ObservationStorage] = None,
+        storage_kwargs: T.Dict = None,
     ):
-        self.storage = storage or BasicStorage()
+        if storage_cls:
+            kwargs = storage_kwargs if storage_kwargs is not None else {}
+            self.storage = storage_cls(**kwargs)
+        else:
+            self.storage = BasicStorage()
         self.camera = camera
 
         self.refractionizer = Refractionizer()
+        self._set_default_model_params()
 
-        self.sphere_center = np.asarray([0.0, 0.0, 35.0])
-        self.corrected_sphere_center = self.refractionizer.correct_sphere_center(
+    @property
+    def sphere_center(self) -> np.ndarray:
+        return self._sphere_center
+
+    @sphere_center.setter
+    def sphere_center(self, coordinates: np.ndarray):
+        self._sphere_center = coordinates
+
+    @property
+    def corrected_sphere_center(self) -> np.ndarray:
+        return self._corrected_sphere_center
+
+    @corrected_sphere_center.setter
+    def corrected_sphere_center(self, coordinates: np.ndarray):
+        self._corrected_sphere_center = coordinates
+
+    def _set_default_model_params(self):
+        # Overwrite in subclasses that do not allow setting these attributes
+        self._sphere_center = np.asarray(DEFAULT_SPHERE_CENTER)
+        self._corrected_sphere_center = self.refractionizer.correct_sphere_center(
             np.asarray([[*self.sphere_center]])
         )[0]
         self.rms_residual = None
@@ -69,7 +93,7 @@ class TwoSphereModel(object):
         )
         self.set_sphere_center(sphere_center)
         self.rms_residual = rms_residual
-        return projected_sphere_center, sphere_center
+        return SphereCenterEstimates(projected_sphere_center, sphere_center)
 
     def estimate_sphere_center_2d(self):
         observations = self.storage.observations
@@ -213,14 +237,12 @@ class TwoSphereModel(object):
 
         return refraction_corrected_pupil_circle
 
-    # UTILITY FUNCTIONS
-    def reset(self):
-        self.sphere_center = np.array([0.0, 0.0, 35.0])
-        self.storage.clear()
-
     def mean_observation_circularity(self):
         observation_circularities = [
             observation.ellipse.circularity()
             for observation in self.storage.observations
         ]
         return np.mean(observation_circularities)
+
+    def cleanup(self):
+        pass
