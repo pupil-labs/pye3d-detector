@@ -158,7 +158,8 @@ class TwoSphereModel(TwoSphereModelAbstract):
             squared_residuals = np.einsum(
                 "ikj,ijk->i", np.transpose(deltas, (0, 2, 1)), tmp
             )
-            rms_residual = np.mean(np.sqrt(np.abs(squared_residuals)))
+            rms_residual = np.clip(squared_residuals, 0.0, None)
+            rms_residual = np.mean(np.sqrt(rms_residual))
 
         return sphere_center, rms_residual
 
