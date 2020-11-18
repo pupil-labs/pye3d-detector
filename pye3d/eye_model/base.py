@@ -69,7 +69,7 @@ class TwoSphereModel(TwoSphereModelAbstract):
         self._corrected_sphere_center = self.refractionizer.correct_sphere_center(
             np.asarray([[*self.sphere_center]])
         )[0]
-        self.rms_residual = None
+        self.rms_residual = np.nan
 
     def add_observation(self, observation: Observation):
         self.storage.add(observation)
