@@ -69,7 +69,7 @@ class TwoSphereModel(TwoSphereModelAbstract):
         self._corrected_sphere_center = self.refractionizer.correct_sphere_center(
             np.asarray([[*self.sphere_center]])
         )[0]
-        self.rms_residual = None
+        self.rms_residual = np.nan
 
     def add_observation(self, observation: Observation):
         self.storage.add(observation)
@@ -158,7 +158,8 @@ class TwoSphereModel(TwoSphereModelAbstract):
             squared_residuals = np.einsum(
                 "ikj,ijk->i", np.transpose(deltas, (0, 2, 1)), tmp
             )
-            rms_residual = np.mean(np.sqrt(squared_residuals))
+            rms_residual = np.clip(squared_residuals, 0.0, None)
+            rms_residual = np.mean(np.sqrt(rms_residual))
 
         return sphere_center, rms_residual
 

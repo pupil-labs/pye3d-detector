@@ -41,6 +41,7 @@ class TwoSphereModelAsync(TwoSphereModelAbstract):
         synced_corrected_sphere_center = mp.Array(ctypes.c_double, 3)
         synced_projected_sphere_center = mp.Array(ctypes.c_double, 2)
         synced_observation_count = mp.Value(ctypes.c_long)
+        synced_rms_residual = mp.Value(ctypes.c_double)
         is_estimation_ongoing_flag = mp.Event()
 
         self._frontend = _TwoSphereModelSyncedFrontend(
@@ -48,6 +49,7 @@ class TwoSphereModelAsync(TwoSphereModelAbstract):
             synced_corrected_sphere_center,
             synced_projected_sphere_center,
             synced_observation_count,
+            synced_rms_residual,
             is_estimation_ongoing_flag,
             camera=camera,
         )
@@ -59,6 +61,7 @@ class TwoSphereModelAsync(TwoSphereModelAbstract):
                 synced_corrected_sphere_center,
                 synced_projected_sphere_center,
                 synced_observation_count,
+                synced_rms_residual,
                 is_estimation_ongoing_flag,
             ),
             setup_kwargs=dict(
@@ -170,6 +173,7 @@ class _TwoSphereModelSyncedAbstract(TwoSphereModel):
         synced_corrected_sphere_center: mp.Array,  # c_double_Array_3
         synced_projected_sphere_center: mp.Array,  # c_double_Array_2
         synced_observation_count: mp.Value,  # c_long
+        synced_rms_residual: mp.Value,  # c_double
         flag_is_estimation_ongoing: mp.Event,
         **kwargs,
     ):
@@ -177,6 +181,7 @@ class _TwoSphereModelSyncedAbstract(TwoSphereModel):
         self._synced_corrected_sphere_center = synced_corrected_sphere_center
         self._synced_projected_sphere_center = synced_projected_sphere_center
         self._synced_observation_count = synced_observation_count
+        self._synced_rms_residual = synced_rms_residual
         self._is_estimation_ongoing_flag = flag_is_estimation_ongoing
         super().__init__(**kwargs)
 
@@ -208,6 +213,15 @@ class _TwoSphereModelSyncedAbstract(TwoSphereModel):
         raise NotImplementedError
 
     def mean_observation_circularity(self) -> float:
+        raise NotImplementedError
+
+    @property
+    def rms_residual(self) -> float:
+        with self._synced_rms_residual:
+            return self._synced_rms_residual.value
+
+    @rms_residual.setter
+    def rms_residual(self, residual: float):
         raise NotImplementedError
 
 
@@ -278,3 +292,13 @@ class _TwoSphereModelSyncedBackend(_TwoSphereModelSyncedAbstract):
         estimated: np.ndarray = super().estimate_sphere_center_2d()
         self.projected_sphere_center = estimated
         return estimated
+
+    @property
+    def rms_residual(self) -> float:
+        with self._synced_rms_residual:
+            return self._synced_rms_residual.value
+
+    @rms_residual.setter
+    def rms_residual(self, residual: float):
+        with self._synced_rms_residual:
+            self._synced_rms_residual.value = residual
