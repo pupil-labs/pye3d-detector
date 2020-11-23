@@ -81,6 +81,10 @@ class TwoSphereModelAsync(TwoSphereModelAbstract):
     def corrected_sphere_center(self) -> np.ndarray:
         return self._frontend.corrected_sphere_center
 
+    @property
+    def projected_sphere_center(self) -> np.ndarray:
+        return self._frontend.projected_sphere_center
+
     def relay_command(self, function_name: str, *args, **kwargs):
         self._backend_process.send(function_name, *args, **kwargs)
 

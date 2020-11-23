@@ -63,6 +63,14 @@ class TwoSphereModel(TwoSphereModelAbstract):
     def corrected_sphere_center(self, coordinates: np.ndarray):
         self._corrected_sphere_center = coordinates
 
+    @property
+    def projected_sphere_center(self) -> np.ndarray:
+        return self._projected_sphere_center
+
+    @projected_sphere_center.setter
+    def projected_sphere_center(self, projected_sphere_center: np.ndarray):
+        self._projected_sphere_center = projected_sphere_center
+
     def _set_default_model_params(self):
         # Overwrite in subclasses that do not allow setting these attributes
         self._sphere_center = np.asarray(DEFAULT_SPHERE_CENTER)

@@ -52,6 +52,11 @@ class TwoSphereModelAbstract(abc.ABC):
     def corrected_sphere_center(self) -> np.ndarray:
         raise NotImplementedError
 
+    @property
+    @abc.abstractmethod
+    def projected_sphere_center(self) -> np.ndarray:
+        raise NotImplementedError
+
     @abc.abstractmethod
     def set_sphere_center(self, new_sphere_center: np.ndarray):
         raise NotImplementedError
