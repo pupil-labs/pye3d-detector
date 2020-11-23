@@ -37,6 +37,7 @@ from .observation import (
     Observation,
 )
 from .eye_model import (
+    SphereCenterEstimates,
     TwoSphereModelAbstract,
     TwoSphereModel,
     TwoSphereModelAsync,
@@ -110,6 +111,9 @@ class Detector3D(object):
         long_term_forget_time=5,
         long_term_forget_observations=300,
         long_term_mode: DetectorMode = DetectorMode.blocking,
+        model_update_interval_long_term=1.0,
+        model_update_interval_ult_long_term=30.0,
+        model_warmup_duration=5.0,
     ):
         self._camera = camera
         self._long_term_mode = long_term_mode
@@ -123,6 +127,9 @@ class Detector3D(object):
             "long_term_buffer_size": long_term_buffer_size,
             "long_term_forget_time": long_term_forget_time,
             "long_term_forget_observations": long_term_forget_observations,
+            "model_update_interval_long_term": model_update_interval_long_term,
+            "model_update_interval_ult_long_term": model_update_interval_ult_long_term,
+            "model_warmup_duration": model_warmup_duration,
         }
         self.reset()
 
@@ -152,6 +159,15 @@ class Detector3D(object):
             long_term_model_cls=self._long_term_mode.value,
             ultra_long_term_model_cls=self._long_term_mode.value,
         )
+        self._long_term_updater = _ModelUpdateSchedule(
+            update_interval=self._settings["model_update_interval_long_term"],
+            warmup_duration=self._settings["model_warmup_duration"],
+        )
+        self._ult_long_term_updater = _ModelUpdateSchedule(
+            update_interval=self._settings["model_update_interval_ult_long_term"],
+            warmup_duration=self._settings["model_warmup_duration"],
+        )
+
         self.kalman_filter = KalmanFilter()
 
     def _initialize_models(
@@ -249,8 +265,6 @@ class Detector3D(object):
         self.long_term_model.add_observation(observation)
         self.ultra_long_term_model.add_observation(observation)
 
-        # TODO: dont trigger every frame? background process maybe?
-
         if (
             self.short_term_model.n_observations <= 0
             or self.long_term_model.n_observations <= 0
@@ -259,18 +273,21 @@ class Detector3D(object):
             return
 
         try:
-            # update ultra long term model without biases
-            # After having seen 1000 frames, only update every 500th frame for
-            # performance sanity. TODO: cleanup if moving to background process
-            if self.ult_counter < 1000 or self.ult_counter % 500 == 0:
+            if self._ult_long_term_updater.is_update_due(observation.timestamp):
                 self.ultra_long_term_model.estimate_sphere_center()
-            ultra_long_term_3d = self.ultra_long_term_model.sphere_center
 
-            # update long term model with ultra long term bias
-            long_term_estimate = self.long_term_model.estimate_sphere_center(
-                prior_3d=ultra_long_term_3d,
-                prior_strength=0.1,
-            )
+            if self._long_term_updater.is_update_due(observation.timestamp):
+                # update long term model with ultra long term bias
+                long_term_estimate = self.long_term_model.estimate_sphere_center(
+                    prior_3d=self.ultra_long_term_model.sphere_center,
+                    prior_strength=0.1,
+                )
+            else:
+                # use existing sphere center estimates
+                long_term_estimate = SphereCenterEstimates(
+                    projected=self.long_term_model.projected_sphere_center,
+                    three_dim=self.long_term_model.sphere_center,
+                )
 
             # update short term model with help of long-term model
             # using 2d center for disambiguation and 3d center as prior bias
