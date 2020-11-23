@@ -93,15 +93,15 @@ class TwoSphereModel(TwoSphereModelAbstract):
         )[0]
 
     def estimate_sphere_center(self, from_2d=None, prior_3d=None, prior_strength=0.0):
-        projected_sphere_center = (
+        self.projected_sphere_center = (
             from_2d if from_2d is not None else self.estimate_sphere_center_2d()
         )
         sphere_center, rms_residual = self.estimate_sphere_center_3d(
-            projected_sphere_center, prior_3d, prior_strength
+            self.projected_sphere_center, prior_3d, prior_strength
         )
         self.set_sphere_center(sphere_center)
         self.rms_residual = rms_residual
-        return SphereCenterEstimates(projected_sphere_center, sphere_center)
+        return SphereCenterEstimates(self.projected_sphere_center, sphere_center)
 
     def estimate_sphere_center_2d(self):
         observations = self.storage.observations
