@@ -580,3 +580,35 @@ class Detector3D(object):
         debug_info["Dierkes_lines"] = []
 
         return debug_info
+
+
+class _ModelUpdateSchedule:
+    def __init__(self, update_interval: float, warmup_duration: float = 5.0) -> None:
+        self._update_interval = update_interval
+        self._warmup_duration = warmup_duration
+        self._warmup_start = None
+        self._paused = False
+        self._last_update = None
+
+    def pause(self) -> None:
+        self._paused = True
+
+    def resume(self) -> None:
+        self._paused = False
+        self._last_update = None
+
+    def is_update_due(self, current_time: float):
+        if self._paused:
+            return False
+        if self._warmup_start is None:
+            self._warmup_start = current_time
+            return True
+        if current_time - self._warmup_start < self._warmup_duration:
+            return True
+        if self._last_update is None:
+            self._last_update = current_time
+            return True
+        if current_time - self._last_update > self._update_interval:
+            self._last_update = current_time
+            return True
+        return False
