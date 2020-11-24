@@ -159,11 +159,11 @@ class Detector3D(object):
             long_term_model_cls=self._long_term_mode.value,
             ultra_long_term_model_cls=self._long_term_mode.value,
         )
-        self._long_term_updater = _ModelUpdateSchedule(
+        self._long_term_schedule = _ModelUpdateSchedule(
             update_interval=self._settings["model_update_interval_long_term"],
             warmup_duration=self._settings["model_warmup_duration"],
         )
-        self._ult_long_term_updater = _ModelUpdateSchedule(
+        self._ult_long_term_schedule = _ModelUpdateSchedule(
             update_interval=self._settings["model_update_interval_ult_long_term"],
             warmup_duration=self._settings["model_warmup_duration"],
         )
@@ -273,10 +273,10 @@ class Detector3D(object):
             return
 
         try:
-            if self._ult_long_term_updater.is_update_due(observation.timestamp):
+            if self._ult_long_term_schedule.is_update_due(observation.timestamp):
                 self.ultra_long_term_model.estimate_sphere_center()
 
-            if self._long_term_updater.is_update_due(observation.timestamp):
+            if self._long_term_schedule.is_update_due(observation.timestamp):
                 # update long term model with ultra long term bias
                 long_term_estimate = self.long_term_model.estimate_sphere_center(
                     prior_3d=self.ultra_long_term_model.sphere_center,
