@@ -112,7 +112,7 @@ class Detector3D(object):
         long_term_forget_observations=300,
         long_term_mode: DetectorMode = DetectorMode.blocking,
         model_update_interval_long_term=1.0,
-        model_update_interval_ult_long_term=30.0,
+        model_update_interval_ult_long_term=10.0,
         model_warmup_duration=5.0,
     ):
         self._camera = camera
