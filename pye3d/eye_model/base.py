@@ -63,6 +63,14 @@ class TwoSphereModel(TwoSphereModelAbstract):
     def corrected_sphere_center(self, coordinates: np.ndarray):
         self._corrected_sphere_center = coordinates
 
+    @property
+    def projected_sphere_center(self) -> np.ndarray:
+        return self._projected_sphere_center
+
+    @projected_sphere_center.setter
+    def projected_sphere_center(self, projected_sphere_center: np.ndarray):
+        self._projected_sphere_center = projected_sphere_center
+
     def _set_default_model_params(self):
         # Overwrite in subclasses that do not allow setting these attributes
         self._sphere_center = np.asarray(DEFAULT_SPHERE_CENTER)
@@ -85,15 +93,15 @@ class TwoSphereModel(TwoSphereModelAbstract):
         )[0]
 
     def estimate_sphere_center(self, from_2d=None, prior_3d=None, prior_strength=0.0):
-        projected_sphere_center = (
+        self.projected_sphere_center = (
             from_2d if from_2d is not None else self.estimate_sphere_center_2d()
         )
         sphere_center, rms_residual = self.estimate_sphere_center_3d(
-            projected_sphere_center, prior_3d, prior_strength
+            self.projected_sphere_center, prior_3d, prior_strength
         )
         self.set_sphere_center(sphere_center)
         self.rms_residual = rms_residual
-        return SphereCenterEstimates(projected_sphere_center, sphere_center)
+        return SphereCenterEstimates(self.projected_sphere_center, sphere_center)
 
     def estimate_sphere_center_2d(self):
         observations = self.storage.observations
