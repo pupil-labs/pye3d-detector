@@ -212,9 +212,6 @@ class Detector3D(object):
                 forget_min_time=60,
             ),
         )
-        # TODO: used for not updating ult-model every frame,
-        # will be replaced by background process?
-        self.ult_counter = 0
 
     def _cleanup_models(self):
         try:
@@ -304,8 +301,6 @@ class Detector3D(object):
             # - Can raise numpy.linalg.LinAlgError: SVD did not converge
             logger.error("Error updating models:")
             logger.debug(traceback.format_exc())
-
-        self.ult_counter += 1
 
     def _extract_observation(self, pupil_datum: Dict) -> Observation:
         width, height = self.camera.resolution
