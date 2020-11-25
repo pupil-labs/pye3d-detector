@@ -148,6 +148,25 @@ class Detector3D(object):
         if needs_reset:
             self.reset()
 
+    @property
+    def is_long_term_model_frozen(self) -> bool:
+        # If _ult_long_term_schedule is paused or not does not actually matter. The
+        # _ult_long_term_model is only used for fitting the _long_term_model. If the
+        # _long_term_schedule is paused, the _long_term_model is not being fitted and
+        # therefore the state of _ult_long_term_model will be ignored.
+        return self._long_term_schedule.is_paused
+
+    @is_long_term_model_frozen.setter
+    def is_long_term_model_frozen(self, should_be_frozen: bool) -> None:
+        # We pause/resume _ult_long_term_schedule here as well to save CPU resources
+        # while the _long_term_model is frozen.
+        if should_be_frozen:
+            self._long_term_schedule.pause()
+            self._ult_long_term_schedule.pause()
+        else:
+            self._long_term_schedule.resume()
+            self._ult_long_term_schedule.resume()
+
     def reset_camera(self, camera: CameraModel):
         """Change camera model and reset detector state."""
         self._camera = camera
@@ -601,6 +620,10 @@ class _ModelUpdateSchedule:
         self._warmup_start = None
         self._paused = False
         self._last_update = None
+
+    @property
+    def is_paused(self) -> bool:
+        return self._paused
 
     def pause(self) -> None:
         self._paused = True
