@@ -53,7 +53,7 @@ jobs:
           cmake .. \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX="${{ env.opencv-install-dir }}" \
-          -DBUILD_LIST=core,highgui,videoio,imgcodecs,imgproc,video \
+          -DBUILD_LIST="core,highgui,videoio,imgcodecs,imgproc,video" \
           -DBUILD_opencv_world=ON \
           -DBUILD_EXAMPLES=OFF \
           -DBUILD_DOCS=OFF \
@@ -75,7 +75,7 @@ jobs:
           cmake .. \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX="${{ env.opencv-install-dir }}" \
-          -DBUILD_LIST=core,highgui,videoio,imgcodecs,imgproc,video \
+          -DBUILD_LIST="core,highgui,videoio,imgcodecs,imgproc,video" \
           -DBUILD_opencv_world=ON \
           -DBUILD_EXAMPLES=OFF \
           -DBUILD_DOCS=OFF \
@@ -96,7 +96,7 @@ jobs:
           cmake .. \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX="${{ env.opencv-install-dir }}" \
-          -DBUILD_LIST=core,highgui,videoio,imgcodecs,imgproc,video \
+          -DBUILD_LIST="core,highgui,videoio,imgcodecs,imgproc,video" \
           -DBUILD_opencv_world=ON \
           -DBUILD_EXAMPLES=OFF \
           -DBUILD_DOCS=OFF \
