@@ -14,7 +14,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    continue-on-error: true
+    continue-on-error: false
     env:
       opencv-download-url: "https://github.com/opencv/opencv/archive/4.2.0.zip"
       opencv-install-dir: ${{ github.workspace }}/opencv-build
@@ -34,6 +34,12 @@ jobs:
       - name: Download on Windows
         if: steps.opencv-source-cache.outputs.cache-hit != 'true' && contains(runner.os, 'windows')
         run: Invoke-WebRequest ${{ env.opencv-download-url }} -OutFile opencv.zip
+      - name: Cache OpenCV build
+        id: opencv-build-cache
+        uses: actions/cache@v2.1.3
+        with:
+          path: ${{ opencv-install-dir }}
+          key: opencv-build-cache-${{ env.opencv-download-url }}
       - name: Prepare build
         shell: bash
         run: |
@@ -41,7 +47,6 @@ jobs:
           mv opencv-* opencv/
           mkdir opencv/build
       - name: Configure Windows build
-        shell: bash
         if: runner.os == 'Windows'
         run: |
           cd opencv/build
