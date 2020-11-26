@@ -41,7 +41,7 @@ jobs:
         mkdir opencv/build
         cd opencv/build
     - name: Configure Windows build
-      if: ${{ runner.os }} == "Windows"
+      if: ${{ runner.os == "Windows" }}
       run: >
         cmake ..\
         -G"Visual Studio 15 2017 Win64"\
@@ -63,7 +63,7 @@ jobs:
         -DWITH_TBB=OFF\
         -DWITH_MSMF=OFF
     - name: Configure Linux build
-      if: ${{ runner.os }} == "Linux"
+      if: ${{ runner.os == "Linux" }}
       run: >
         cmake ..\
         -DCMAKE_BUILD_TYPE=Release\
@@ -83,7 +83,7 @@ jobs:
         -DWITH_TBB=OFF\
         -DWITH_CUDA=OFF
     - name: Configure macOS build
-      if: ${{ runner.os }} == 'macOS'
+      if: ${{ runner.os == 'macOS' }}
       run: >
         cmake ..\
         -DCMAKE_BUILD_TYPE=Release\
