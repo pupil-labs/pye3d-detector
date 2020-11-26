@@ -26,10 +26,10 @@ jobs:
         # An explicit key for restoring and saving the cache
         key: opencv-source-cache-${{ env.opencv-download-url }}
     - name: Download on Unix
-      if: steps.opencv-source-cache.outputs.cache-hit != 'true' && !contains(matrix.os, 'windows')
+      if: steps.opencv-source-cache.outputs.cache-hit != 'true' && !contains(runner.os, 'windows')
       run: wget -q -O opencv.zip ${{ env.opencv-download-url }}
     - name: Download on Windows
-      if: steps.opencv-source-cache.outputs.cache-hit != 'true' && contains(matrix.os, 'windows')
+      if: steps.opencv-source-cache.outputs.cache-hit != 'true' && contains(runner.os, 'windows')
       run: Invoke-WebRequest ${{ env.opencv-download-url }} -OutFile opencv.zip
     - name: Prepare build
       shell: bash
@@ -39,8 +39,8 @@ jobs:
         mkdir opencv/build
         cd opencv/build
     - name: Configure Windows build
-      if: contains(matrix.os, 'windows')
-      run: |
+      if: runner.os == "Windows"
+      run: >
         cmake ..\
         -G"Visual Studio 15 2017 Win64"\
         -DCMAKE_BUILD_TYPE=Release\
@@ -61,8 +61,8 @@ jobs:
         -DWITH_TBB=OFF\
         -DWITH_MSMF=OFF
     - name: Configure Linux build
-      if: contains(matrix.os, 'ubuntu')
-      run: |
+      if: runner.os == "Linux"
+      run: >
         cmake ..\
         -DCMAKE_BUILD_TYPE=Release\
         -DCMAKE_INSTALL_PREFIX=${{ env.opencv-build-dir }}\
@@ -81,8 +81,8 @@ jobs:
         -DWITH_TBB=OFF\
         -DWITH_CUDA=OFF
     - name: Configure macOS build
-      if: contains(matrix.os, 'macos')
-      run: |
+      if: runner.os == 'macOS'
+      run: >
         cmake ..\
         -DCMAKE_BUILD_TYPE=Release\
         -DCMAKE_INSTALL_PREFIX=${{ env.opencv-build-dir }}\
@@ -105,5 +105,5 @@ jobs:
     - name: Upload result
       uses: actions/upload-artifact@v2
       with:
-        name: opencv-build-${{ matrix.os }}
+        name: opencv-build-${{ runner.os }}
         path: ${{ env.opencv-build-dir }}
