@@ -19,25 +19,18 @@ on:
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # This workflow contains a single job called "greet"
-  build:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+  Getting source code:
+    runs-on: ubuntu-latest
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
     # Runs a single command using the runners shell
-    - name: Cache OpenCV source code download
-      id: opencv-source-cache
-      uses: actions/cache@v2.1.3
-      with:
-        # A list of files, directories, and wildcard patterns to cache and restore
-        path: opencv.zip
-        # An explicit key for restoring and saving the cache
-        key: opencv-source-cache-${{ github.event.inputs.opencv-download-url }}
     - name: Download on Unix
-      if: ${{ steps.opencv-source-cache.outputs.cache-hit != 'true' && matrix.os != 'windows-latest'}}
       run: wget -q -O opencv.zip ${{ github.event.inputs.opencv-download-url }}
-    - name: Download on Windows
-      if: ${{ steps.opencv-source-cache.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'}}
-      run: Invoke-WebRequest ${{ github.event.inputs.opencv-download-url }} -OutFile opencv.zip
+    - name: Unzip source code
+      run: unzip -q opencv.zip
+    - name: Rename extracted folder
+      run: mv opencv-* opencv/
+    - uses: actions/upload-artifact@v2
+      with:
+        name: opencv-source-code
+        path: opencv/
