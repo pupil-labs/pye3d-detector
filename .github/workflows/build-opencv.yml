@@ -2,22 +2,8 @@
 
 name: Build OpenCV
 
-env:
-  opencv-download-url-default: 'https://github.com/opencv/opencv/archive/4.2.0.zip'
-# Controls when the action will run. Workflow runs when manually triggered using the UI
-# or API.
 on:
   push:
-  workflow_dispatch:
-    # Inputs the workflow accepts.
-    inputs:
-      opencv-download-url:
-        # Friendly description to be shown in the UI instead of 'name'
-        description: 'OpenCV Download URL'
-        # Default value if no value is explicitly provided
-        default: ${{ opencv-download-url-default }}
-        # Input has to be provided for the workflow to run
-        required: false
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -27,16 +13,10 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      opencv-download-url: 'https://github.com/opencv/opencv/archive/4.2.0.zip'
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-    - name: Define download URL (Manual Trigger)
-      if: github.event.inputs.opencv-download-url
-      env:
-        opencv-download-url: github.event.inputs.opencv-download-url
-    - name: Define download URL (Manual Trigger)
-      if: ${{ !github.event.inputs.opencv-download-url }}
-      env:
-        opencv-download-url: ${{ opencv-download-url-default }}
     - name: Cache OpenCV source code download
       id: opencv-source-cache
       uses: actions/cache@v2.1.3
