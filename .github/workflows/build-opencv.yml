@@ -44,7 +44,7 @@ jobs:
         cmake ..\
         -G"Visual Studio 15 2017 Win64"\
         -DCMAKE_BUILD_TYPE=Release\
-        -DCMAKE_INSTALL_PREFIX=${{ opencv-build-dir }}\
+        -DCMAKE_INSTALL_PREFIX=${{ env.opencv-build-dir }}\
         -DBUILD_LIST=core,highgui,videoio,imgcodecs,imgproc,video\
         -DBUILD_opencv_world=ON\
         -DBUILD_EXAMPLES=OFF\
@@ -65,7 +65,7 @@ jobs:
       run: |
         cmake ..\
         -DCMAKE_BUILD_TYPE=Release\
-        -DCMAKE_INSTALL_PREFIX=${{ opencv-build-dir }}\
+        -DCMAKE_INSTALL_PREFIX=${{ env.opencv-build-dir }}\
         -DBUILD_LIST=core,highgui,videoio,imgcodecs,imgproc,video\
         -DBUILD_opencv_world=ON\
         -DBUILD_EXAMPLES=OFF\
