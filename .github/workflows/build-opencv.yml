@@ -85,7 +85,7 @@ jobs:
       run: |
         cmake ..\
         -DCMAKE_BUILD_TYPE=Release\
-        -DCMAKE_INSTALL_PREFIX=${{ opencv-build-dir }}\
+        -DCMAKE_INSTALL_PREFIX=${{ env.opencv-build-dir }}\
         -DBUILD_LIST=core,highgui,videoio,imgcodecs,imgproc,video\
         -DBUILD_opencv_world=ON\
         -DBUILD_EXAMPLES=OFF\
@@ -106,4 +106,4 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: opencv-build-${{ matrix.os }}
-        path: ${{ opencv-build-dir }}
+        path: ${{ env.opencv-build-dir }}
