@@ -107,10 +107,12 @@ jobs:
           -DWITH_TBB=OFF \
           -DWITH_CUDA=OFF
       - name: Compile on Windows
+        if: runner.os == 'Windows'
         run: |
           cd opencv/build
           cmake --build . --target INSTALL --config Release --parallel
       - name: Compile on Unix
+        if: runner.os != 'Windows'
         run: |
           cd opencv/build
           cmake --build . --target INSTALL --config Release --parallel
