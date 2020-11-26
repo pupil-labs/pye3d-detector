@@ -46,7 +46,6 @@ jobs:
         run: |
           cd opencv/build
           cmake .. \
-          -G"Visual Studio 15 2017 Win64" \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX=${{ env.opencv-install-dir }} \
           -DBUILD_LIST=core,highgui,videoio,imgcodecs,imgproc,video \
@@ -115,7 +114,8 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           cd opencv/build
-          cmake --build . --target INSTALL --config Release --parallel
+          make
+          make install
       - name: Upload result
         uses: actions/upload-artifact@v2
         with:
