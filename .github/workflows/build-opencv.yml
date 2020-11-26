@@ -16,14 +16,10 @@ on:
         # Input has to be provided for the workflow to run
         required: false
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "greet"
-  Getting source code:
+  getting_source_code:
     runs-on: ubuntu-latest
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-    # Runs a single command using the runners shell
     - name: Download on Unix
       run: wget -q -O opencv.zip ${{ github.event.inputs.opencv-download-url }}
     - name: Unzip source code
