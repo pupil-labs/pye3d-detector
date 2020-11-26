@@ -47,7 +47,7 @@ jobs:
           mv opencv-* opencv/
           mkdir opencv/build
       - name: Configure Windows build
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && steps.opencv-build-cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           cd opencv/build
@@ -70,7 +70,7 @@ jobs:
           -DWITH_TBB=OFF \
           -DWITH_MSMF=OFF
       - name: Configure Linux build
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && steps.opencv-build-cache.outputs.cache-hit != 'true'
         run: |
           cd opencv/build
           cmake .. \
@@ -91,7 +91,7 @@ jobs:
           -DWITH_TBB=OFF \
           -DWITH_CUDA=OFF
       - name: Configure macOS build
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && steps.opencv-build-cache.outputs.cache-hit != 'true'
         run: |
           cd opencv/build
           cmake .. \
@@ -112,18 +112,13 @@ jobs:
           -DWITH_TBB=OFF \
           -DWITH_CUDA=OFF
       - name: Compile on Windows
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && steps.opencv-build-cache.outputs.cache-hit != 'true'
         run: |
           cd opencv/build
           cmake --build . --target INSTALL --config Release --parallel
       - name: Compile on Unix
-        if: runner.os != 'Windows'
+        if: runner.os != 'Windows' && steps.opencv-build-cache.outputs.cache-hit != 'true'
         run: |
           cd opencv/build
           make
           make install
-      - name: Upload result
-        uses: actions/upload-artifact@v2
-        with:
-          name: opencv-build-${{ runner.os }}
-          path: ${{ env.opencv-install-dir }}
