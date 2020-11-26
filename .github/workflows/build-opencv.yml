@@ -37,4 +37,6 @@ jobs:
         key: opencv-source-cache-${{ github.event.inputs.opencv-download-url }}
     - name: Download
       if: steps.cache-primes.outputs.cache-hit != 'true'
-      run: wget -q -O opencv.zip ${{ github.event.inputs.opencv-download-url }}
+      uses: wei/wget@v1.1.1
+      with:
+        args: -q -O opencv.zip ${{ github.event.inputs.opencv-download-url }}
