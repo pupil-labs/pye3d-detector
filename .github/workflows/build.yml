@@ -1,0 +1,89 @@
+# This is a basic workflow that is manually triggered
+
+name: Build OpenCV
+
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      should_invalidate_cache_download:
+        description: 'Fill to invalidate download cache'
+        default: ''
+      should_invalidate_cache_build:
+        description: 'Fill to invalidate build cache'
+        default: ''
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "greet"
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    continue-on-error: false
+    env:
+      opencv-download-url: "https://github.com/opencv/opencv/archive/4.2.0.zip"
+      opencv-install-dir: ${{ github.workspace }}/opencv-build
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - name: Cache OpenCV source code download
+        id: opencv-source-cache
+        uses: actions/cache@v2.1.3
+        with:
+          # A list of files, directories, and wildcard patterns to cache and restore
+          path: opencv.zip
+          # An explicit key for restoring and saving the cache
+          key: opencv-source-cache-${{ env.opencv-download-url }}
+      - name: Download on Unix
+        if: (github.event.inputs.should_invalidate_cache_download || steps.opencv-source-cache.outputs.cache-hit != 'true') && !contains(runner.os, 'windows')
+        run: wget -q -O opencv.zip ${{ env.opencv-download-url }}
+      - name: Download on Windows
+        if: (github.event.inputs.should_invalidate_cache_download || steps.opencv-source-cache.outputs.cache-hit != 'true') && contains(runner.os, 'windows')
+        run: Invoke-WebRequest ${{ env.opencv-download-url }} -OutFile opencv.zip
+      - name: Cache OpenCV build
+        id: opencv-build-cache
+        uses: actions/cache@v2.1.3
+        with:
+          path: ${{ env.opencv-install-dir }}
+          key: opencv-build-cache-${{ env.opencv-download-url }}
+      - name: Prepare build
+        shell: bash
+        run: |
+          unzip -q opencv.zip
+          mv opencv-4.* opencv/
+          mkdir opencv/build
+      - name: Configure build
+        if: github.event.inputs.should_invalidate_cache_build || steps.opencv-build-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          cd opencv/build
+          cmake .. \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_INSTALL_PREFIX="${{ env.opencv-install-dir }}" \
+          -DBUILD_LIST="core,highgui,videoio,imgcodecs,imgproc,video" \
+          -DBUILD_opencv_world=ON \
+          -DBUILD_EXAMPLES=OFF \
+          -DBUILD_DOCS=OFF \
+          -DBUILD_PERF_TESTS=OFF \
+          -DBUILD_TESTS=OFF \
+          -DBUILD_opencv_java=OFF \
+          -DBUILD_opencv_python=OFF \
+          -DWITH_OPENMP=ON \
+          -DWITH_IPP=ON \
+          -DWITH_CSTRIPES=ON \
+          -DWITH_OPENCL=ON \
+          -DWITH_CUDA=OFF \
+          -DWITH_TBB=OFF \
+          -DWITH_MSMF=OFF
+      - name: Compile on Windows
+        if: runner.os == 'Windows' && (github.event.inputs.should_invalidate_cache_build || steps.opencv-build-cache.outputs.cache-hit != 'true')
+        run: |
+          cd opencv/build
+          cmake --build . --target INSTALL --config Release --parallel
+      - name: Compile on Unix
+        if: runner.os != 'Windows' && (github.event.inputs.should_invalidate_cache_build || steps.opencv-build-cache.outputs.cache-hit != 'true')
+        run: |
+          cd opencv/build
+          make
+          make install
