@@ -48,6 +48,7 @@ jobs:
           mkdir opencv/build
       - name: Configure Windows build
         if: runner.os == 'Windows'
+        shell: bash
         run: |
           cd opencv/build
           cmake .. \
