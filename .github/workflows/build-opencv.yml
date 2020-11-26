@@ -22,7 +22,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Download on Unix
-      run: wget -q -O opencv.zip ${{ github.event.inputs.opencv-download-url }}
+      # TODO: Replace URL with ${{ github.event.inputs.opencv-download-url }}
+      run: wget -q -O opencv.zip https://github.com/opencv/opencv/archive/4.2.0.zip
     - name: Unzip source code
       run: unzip -q opencv.zip
     - name: Rename extracted folder
