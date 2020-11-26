@@ -5,6 +5,13 @@ name: Build OpenCV
 on:
   push:
   workflow_dispatch:
+    inputs:
+      should_invalidate_cache_download:
+        description: 'Fill to invalidate download cache'
+        default: ''
+      should_invalidate_cache_build:
+        description: 'Fill to invalidate build cache'
+        default: ''
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -29,10 +36,10 @@ jobs:
           # An explicit key for restoring and saving the cache
           key: opencv-source-cache-${{ env.opencv-download-url }}
       - name: Download on Unix
-        if: steps.opencv-source-cache.outputs.cache-hit != 'true' && !contains(runner.os, 'windows')
+        if: (github.event.inputs.should_invalidate_cache_download || steps.opencv-source-cache.outputs.cache-hit != 'true') && !contains(runner.os, 'windows')
         run: wget -q -O opencv.zip ${{ env.opencv-download-url }}
       - name: Download on Windows
-        if: steps.opencv-source-cache.outputs.cache-hit != 'true' && contains(runner.os, 'windows')
+        if: (github.event.inputs.should_invalidate_cache_download || steps.opencv-source-cache.outputs.cache-hit != 'true') && contains(runner.os, 'windows')
         run: Invoke-WebRequest ${{ env.opencv-download-url }} -OutFile opencv.zip
       - name: Cache OpenCV build
         id: opencv-build-cache
@@ -47,7 +54,7 @@ jobs:
           mv opencv-4.* opencv/
           mkdir opencv/build
       - name: Configure build
-        if: steps.opencv-build-cache.outputs.cache-hit != 'true'
+        if: github.event.inputs.should_invalidate_cache_build || steps.opencv-build-cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           cd opencv/build
@@ -70,12 +77,12 @@ jobs:
           -DWITH_TBB=OFF \
           -DWITH_MSMF=OFF
       - name: Compile on Windows
-        if: runner.os == 'Windows' && steps.opencv-build-cache.outputs.cache-hit != 'true'
+        if: runner.os == 'Windows' && (github.event.inputs.should_invalidate_cache_build || steps.opencv-build-cache.outputs.cache-hit != 'true')
         run: |
           cd opencv/build
           cmake --build . --target INSTALL --config Release --parallel
       - name: Compile on Unix
-        if: runner.os != 'Windows' && steps.opencv-build-cache.outputs.cache-hit != 'true'
+        if: runner.os != 'Windows' && (github.event.inputs.should_invalidate_cache_build || steps.opencv-build-cache.outputs.cache-hit != 'true')
         run: |
           cd opencv/build
           make
