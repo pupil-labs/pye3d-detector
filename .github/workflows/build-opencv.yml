@@ -63,7 +63,7 @@ jobs:
           -DWITH_OPENCL=ON \
           -DWITH_CUDA=OFF \
           -DWITH_TBB=OFF \
-          -DWITH_MSMF=OFF \
+          -DWITH_MSMF=OFF
       - name: Configure Linux build
         if: runner.os == 'Linux'
         run: |
@@ -84,7 +84,7 @@ jobs:
           -DWITH_CSTRIPES=ON \
           -DWITH_OPENCL=ON \
           -DWITH_TBB=OFF \
-          -DWITH_CUDA=OFF \
+          -DWITH_CUDA=OFF
       - name: Configure macOS build
         if: runner.os == 'macOS'
         run: |
@@ -105,7 +105,7 @@ jobs:
           -DWITH_CSTRIPES=ON \
           -DWITH_OPENCL=ON \
           -DWITH_TBB=OFF \
-          -DWITH_CUDA=OFF \
+          -DWITH_CUDA=OFF
       - name: Compile on Windows
         run: |
           cd opencv/build
