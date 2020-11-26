@@ -15,6 +15,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       opencv-download-url: 'https://github.com/opencv/opencv/archive/4.2.0.zip'
+      opencv-build-dir: ${{ github.workspace }}/opencv-build
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
     - name: Cache OpenCV source code download
@@ -31,3 +32,79 @@ jobs:
     - name: Download on Windows
       if: steps.opencv-source-cache.outputs.cache-hit != 'true' && contains(matrix.os, 'windows')
       run: Invoke-WebRequest ${{ env.opencv-download-url }} -OutFile opencv.zip
+    - name: Prepare build
+      shell: bash
+      run: |
+        unzip -q opencv.zip
+        mv opencv-* opencv/
+        mkdir opencv/build
+        cd opencv/build
+    - name: Configure Windows build
+      if: contains(matrix.os, 'windows')
+      run: |
+        cmake ..\
+        -G"Visual Studio 15 2017 Win64"\
+        -DCMAKE_BUILD_TYPE=Release\
+        -DCMAKE_INSTALL_PREFIX=${{ opencv-build-dir }}\
+        -DBUILD_LIST=core,highgui,videoio,imgcodecs,imgproc,video\
+        -DBUILD_opencv_world=ON\
+        -DBUILD_EXAMPLES=OFF\
+        -DBUILD_DOCS=OFF\
+        -DBUILD_PERF_TESTS=OFF\
+        -DBUILD_TESTS=OFF\
+        -DBUILD_opencv_java=OFF\
+        -DBUILD_opencv_python=OFF\
+        -DWITH_OPENMP=ON\
+        -DWITH_IPP=ON\
+        -DWITH_CSTRIPES=ON\
+        -DWITH_OPENCL=ON\
+        -DWITH_CUDA=OFF\
+        -DWITH_TBB=OFF\
+        -DWITH_MSMF=OFF
+    - name: Configure Linux build
+      if: contains(matrix.os, 'ubuntu')
+      run: |
+        cmake ..\
+        -DCMAKE_BUILD_TYPE=Release\
+        -DCMAKE_INSTALL_PREFIX=${{ opencv-build-dir }}\
+        -DBUILD_LIST=core,highgui,videoio,imgcodecs,imgproc,video\
+        -DBUILD_opencv_world=ON\
+        -DBUILD_EXAMPLES=OFF\
+        -DBUILD_DOCS=OFF\
+        -DBUILD_PERF_TESTS=OFF\
+        -DBUILD_TESTS=OFF\
+        -DBUILD_opencv_java=OFF\
+        -DBUILD_opencv_python=OFF\
+        -DWITH_OPENMP=ON\
+        -DWITH_IPP=ON\
+        -DWITH_CSTRIPES=ON\
+        -DWITH_OPENCL=ON\
+        -DWITH_TBB=OFF\
+        -DWITH_CUDA=OFF
+    - name: Configure macOS build
+      if: contains(matrix.os, 'macos')
+      run: |
+        cmake ..\
+        -DCMAKE_BUILD_TYPE=Release\
+        -DCMAKE_INSTALL_PREFIX=${{ opencv-build-dir }}\
+        -DBUILD_LIST=core,highgui,videoio,imgcodecs,imgproc,video\
+        -DBUILD_opencv_world=ON\
+        -DBUILD_EXAMPLES=OFF\
+        -DBUILD_DOCS=OFF\
+        -DBUILD_PERF_TESTS=OFF\
+        -DBUILD_TESTS=OFF\
+        -DBUILD_opencv_java=OFF\
+        -DBUILD_opencv_python=OFF\
+        -DWITH_OPENMP=ON\
+        -DWITH_IPP=ON\
+        -DWITH_CSTRIPES=ON\
+        -DWITH_OPENCL=ON\
+        -DWITH_TBB=OFF\
+        -DWITH_CUDA=OFF
+    - name: Compile
+      run: cmake --build . --target INSTALL --config Release --parallel
+    - name: Upload result
+      uses: actions/upload-artifact@v2
+      with:
+        name: opencv-build-${{ matrix.os }}
+        path: ${{ opencv-build-dir }}
