@@ -44,10 +44,10 @@ jobs:
         shell: bash
         run: |
           unzip -q opencv.zip
-          mv opencv-* opencv/
+          mv opencv-4.* opencv/
           mkdir opencv/build
-      - name: Configure Windows build
-        if: runner.os == 'Windows' && steps.opencv-build-cache.outputs.cache-hit != 'true'
+      - name: Configure build
+        if: steps.opencv-build-cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           cd opencv/build
@@ -69,48 +69,6 @@ jobs:
           -DWITH_CUDA=OFF \
           -DWITH_TBB=OFF \
           -DWITH_MSMF=OFF
-      - name: Configure Linux build
-        if: runner.os == 'Linux' && steps.opencv-build-cache.outputs.cache-hit != 'true'
-        run: |
-          cd opencv/build
-          cmake .. \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_INSTALL_PREFIX="${{ env.opencv-install-dir }}" \
-          -DBUILD_LIST="core,highgui,videoio,imgcodecs,imgproc,video" \
-          -DBUILD_opencv_world=ON \
-          -DBUILD_EXAMPLES=OFF \
-          -DBUILD_DOCS=OFF \
-          -DBUILD_PERF_TESTS=OFF \
-          -DBUILD_TESTS=OFF \
-          -DBUILD_opencv_java=OFF \
-          -DBUILD_opencv_python=OFF \
-          -DWITH_OPENMP=ON \
-          -DWITH_IPP=ON \
-          -DWITH_CSTRIPES=ON \
-          -DWITH_OPENCL=ON \
-          -DWITH_TBB=OFF \
-          -DWITH_CUDA=OFF
-      - name: Configure macOS build
-        if: runner.os == 'macOS' && steps.opencv-build-cache.outputs.cache-hit != 'true'
-        run: |
-          cd opencv/build
-          cmake .. \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_INSTALL_PREFIX="${{ env.opencv-install-dir }}" \
-          -DBUILD_LIST="core,highgui,videoio,imgcodecs,imgproc,video" \
-          -DBUILD_opencv_world=ON \
-          -DBUILD_EXAMPLES=OFF \
-          -DBUILD_DOCS=OFF \
-          -DBUILD_PERF_TESTS=OFF \
-          -DBUILD_TESTS=OFF \
-          -DBUILD_opencv_java=OFF \
-          -DBUILD_opencv_python=OFF \
-          -DWITH_OPENMP=ON \
-          -DWITH_IPP=ON \
-          -DWITH_CSTRIPES=ON \
-          -DWITH_OPENCL=ON \
-          -DWITH_TBB=OFF \
-          -DWITH_CUDA=OFF
       - name: Compile on Windows
         if: runner.os == 'Windows' && steps.opencv-build-cache.outputs.cache-hit != 'true'
         run: |
