@@ -35,8 +35,9 @@ jobs:
         path: opencv.zip
         # An explicit key for restoring and saving the cache
         key: opencv-source-cache-${{ github.event.inputs.opencv-download-url }}
-    - name: Download
-      if: steps.cache-primes.outputs.cache-hit != 'true'
-      uses: wei/wget@v1.1.1
-      with:
-        args: -q -O opencv.zip ${{ github.event.inputs.opencv-download-url }}
+    - name: Download on Unix
+      if: ${{ steps.cache-primes.outputs.cache-hit != 'true' && matrix.os != 'windows-latest'}}
+      run: wget -q -O opencv.zip ${{ github.event.inputs.opencv-download-url }}
+    - name: Download on Windows
+      if: ${{ steps.cache-primes.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'}}
+      run: Invoke-WebRequest ${{ github.event.inputs.opencv-download-url }} -OutFile opencv.zip
