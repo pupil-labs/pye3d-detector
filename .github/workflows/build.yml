@@ -1,9 +1,10 @@
 # This is a basic workflow that is manually triggered
 
-name: Build OpenCV
+name: pye3d CI
 
 on:
   push:
+    branches: ["master", "ga-build"]
   workflow_dispatch:
     inputs:
       should_invalidate_cache_download:
@@ -13,18 +14,21 @@ on:
         description: 'Fill to invalidate build cache'
         default: ''
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+env:
+    opencv-download-url: "https://github.com/opencv/opencv/archive/4.2.0.zip"
+    opencv-install-dir: ${{ github.workspace }}/opencv-build
+
+    eigen-download-url: "https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7.zip"
+    eigen-install-dir: ${{ github.workspace }}/eigen-build
+
 jobs:
   # This workflow contains a single job called "greet"
-  build:
+  build_opencv:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     continue-on-error: false
-    env:
-      opencv-download-url: "https://github.com/opencv/opencv/archive/4.2.0.zip"
-      opencv-install-dir: ${{ github.workspace }}/opencv-build
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - name: Cache OpenCV source code download
@@ -86,4 +90,93 @@ jobs:
         run: |
           cd opencv/build
           make
+          make install  # This workflow contains a single job called "greet"
+  build_eigen:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    continue-on-error: false
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - name: Cache Eigen source code download
+        id: eigen-source-cache
+        uses: actions/cache@v2.1.3
+        with:
+          # A list of files, directories, and wildcard patterns to cache and restore
+          path: eigen.zip
+          # An explicit key for restoring and saving the cache
+          key: eigen-source-cache-${{ env.eigen-download-url }}
+      - name: Download on Unix
+        if: (github.event.inputs.should_invalidate_cache_download || steps.eigen-source-cache.outputs.cache-hit != 'true') && !contains(runner.os, 'windows')
+        run: wget -q -O eigen.zip ${{ env.eigen-download-url }}
+      - name: Download on Windows
+        if: (github.event.inputs.should_invalidate_cache_download || steps.eigen-source-cache.outputs.cache-hit != 'true') && contains(runner.os, 'windows')
+        run: Invoke-WebRequest ${{ env.eigen-download-url }} -OutFile eigen.zip
+      - name: Cache eigen build
+        id: eigen-build-cache
+        uses: actions/cache@v2.1.3
+        with:
+          path: ${{ env.eigen-install-dir }}
+          key: eigen-build-cache-${{ env.eigen-download-url }}
+      - name: Prepare build
+        shell: bash
+        run: |
+          unzip -q eigen.zip
+          mv eigen-3.* eigen/
+          mkdir eigen/build
+      - name: Configure build
+        if: github.event.inputs.should_invalidate_cache_build || steps.eigen-build-cache.outputs.cache-hit != 'true'
+        working-directory: eigen/build
+        shell: bash
+        run: cmake .. -DCMAKE_INSTALL_PREFIX="${{ env.eigen-install-dir }}"
+      - name: Compile on Windows
+        if: runner.os == 'Windows' && (github.event.inputs.should_invalidate_cache_build || steps.eigen-build-cache.outputs.cache-hit != 'true')
+        working-directory: eigen/build
+        run: cmake --build . --target INSTALL --config Release --parallel
+      - name: Compile on Unix
+        if: runner.os != 'Windows' && (github.event.inputs.should_invalidate_cache_build || steps.eigen-build-cache.outputs.cache-hit != 'true')
+        working-directory: eigen/build
+        run: |
+          make
           make install
+  build_pye3d:
+    name: "pye3d (py${{ matrix.python-version }} on ${{ matrix.os }})"
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.6", "3.7", "3.8"]
+    runs-on: ${{ matrix.os }}
+    needs: [build_opencv, build_eigen]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - id: pip-chache-dir-lookup
+        shell: bash
+        run: |
+          CACHE_DIR=`python -m pip cache dir`
+          echo "Found pip cache location at $CACHE_DIR"
+          echo "::set-output name=pip_cache_dir::${CACHE_DIR}"
+      - name: Cache pip
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.pip-chache-dir-lookup.outputs.pip_cache_dir }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+            ${{ runner.os }}-
+      - name: "Install dependencies"
+        shell: bash
+        run: |
+          set -xe
+          export OpenCV_DIR=${{ env.opencv-install-dir }}
+          export Eigen3_DIR=${{ env.eigen-install-dir }}
+          python -m site
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install --upgrade virtualenv tox tox-gh-actions          
+
+      - name: "Run tox targets for ${{ matrix.python-version }}"
+        run: python -m tox
