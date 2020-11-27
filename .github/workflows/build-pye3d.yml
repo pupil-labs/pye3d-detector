@@ -1,0 +1,101 @@
+# This is a basic workflow that is manually triggered
+
+name: Build pye3d
+
+on:
+  push:
+    branches: ["master", "ga-build"]
+  workflow_dispatch:
+
+env:
+  opencv-install-dir: ${{ github.workspace }}/opencv-build
+  eigen-install-dir: ${{ github.workspace }}/eigen-build
+
+jobs:
+  build_pye3d:
+    name: "pye3d (py${{ matrix.python-version }} on ${{ matrix.os }})"
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.6", "3.7", "3.8"]
+    continue-on-error: true
+    runs-on: ${{ matrix.os }}
+    steps:
+      # DEPENDENCIES
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - id: pip-chache-dir-lookup
+        shell: bash
+        run: |
+          CACHE_DIR=`python -m pip cache dir`
+          echo "Found pip cache location at $CACHE_DIR"
+          echo "::set-output name=pip_cache_dir::${CACHE_DIR}"
+      - name: Cache pip
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.pip-chache-dir-lookup.outputs.pip_cache_dir }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+            ${{ runner.os }}-
+      - name: Load OpenCV build cache
+        id: opencv-build-cache
+        uses: actions/cache@v2.1.3
+        with:
+          path: ${{ env.opencv-install-dir }}
+          key: opencv-build-cache-${{ env.opencv-download-url }}
+      - name: Load eigen build cache
+        id: eigen-build-cache
+        uses: actions/cache@v2.1.3
+        with:
+          path: ${{ env.eigen-install-dir }}
+          key: eigen-build-cache-${{ env.eigen-download-url }}
+      - name: "Install dependencies"
+        shell: bash
+        run: |
+          set -xe
+          python -m site
+          python -m pip install --upgrade pip setuptools wheel build pep517
+          python -m pip install --upgrade virtualenv tox tox-gh-actions
+      # BUILD DIST
+      - name: "Build pye3d wheel"
+        env:
+          OpenCV_DIR: ${{ env.opencv-install-dir }}
+          Eigen3_DIR: ${{ env.eigen-install-dir }}
+        #       run: python -m build -s -w .
+        run: python -m pip wheel . -w dist --no-deps
+      - name: Delocate dynamic libs on macOS
+        if: runner.os == 'macOS'
+        run: |
+          set -xe
+          python -m pip install delocate
+          mv dist/ raw_wheels/
+          delocate-wheel -w dist -v raw_wheels/*.whl
+      - name: "Build pye3d sdist"
+        run: python -m pep517.build --source .
+      # TEST WHEELS
+      - name: "Run tox targets for ${{ matrix.python-version }}"
+        # use bash for wildcard pattern
+        shell: bash
+        run: python -m tox --installpkg ./dist/*.whl
+      - uses: actions/upload-artifact@v2
+        with:
+          name: pye3d-dist-${{ matrix.os }}-${{ matrix.python-version }}
+          path: ./dist/*
+      # ON FAILURE
+      - name: List intermediate files on failure
+        if: ${{ failure() }}
+        shell: bash
+        run: ls -lR
+      - name: Upload logs on failure
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: pye3d-build-log-${{ matrix.os }}-${{ matrix.python-version }}
+          path: |
+            ./_skbuild/
+            ./dist/
+            ./raw_wheels/

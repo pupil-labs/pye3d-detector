@@ -8,7 +8,7 @@ Lesser General Public License (LGPL v3.0).
 See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
-from os import path
+import os
 from pathlib import Path
 import platform
 
@@ -31,10 +31,10 @@ extras_require = {
 }
 
 cmake_args = []
-if platform.system() == "Windows":
+if os.environ.get("CI", "false") == "true" and platform.system() == "Windows":
     # The Ninja cmake generator will use mingw (gcc) on windows travis instances, but we
     # need to use msvc for compatibility.
-    cmake_args.append("-GVisual Studio 15 2017 Win64")
+    cmake_args.append("-GVisual Studio 16 2019")
 
 setup(
     author="Pupil Labs",

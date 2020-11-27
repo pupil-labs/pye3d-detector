@@ -1,25 +1,28 @@
 # This is a basic workflow that is manually triggered
 
-name: pye3d CI
+name: Build dependencies
 
 on:
-  push:
-    branches: ["master", "ga-build"]
+  schedule:
+    # run every 6 days to keep cache alive
+    - cron: "30 7 */6 * *"
   workflow_dispatch:
     inputs:
       should_invalidate_cache_download:
-        description: 'Fill to invalidate download cache'
-        default: ''
+        description: "Fill to invalidate download cache"
+        default: ""
+        required: false
       should_invalidate_cache_build:
-        description: 'Fill to invalidate build cache'
-        default: ''
+        description: "Fill to invalidate build cache"
+        default: ""
+        required: false
 
 env:
-    opencv-download-url: "https://github.com/opencv/opencv/archive/4.2.0.zip"
-    opencv-install-dir: ${{ github.workspace }}/opencv-build
+  opencv-download-url: "https://github.com/opencv/opencv/archive/4.2.0.zip"
+  opencv-install-dir: ${{ github.workspace }}/opencv-build
 
-    eigen-download-url: "https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7.zip"
-    eigen-install-dir: ${{ github.workspace }}/eigen-build
+  eigen-download-url: "https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7.zip"
+  eigen-install-dir: ${{ github.workspace }}/eigen-build
 
 jobs:
   # This workflow contains a single job called "greet"
@@ -60,8 +63,8 @@ jobs:
       - name: Configure build
         if: github.event.inputs.should_invalidate_cache_build || steps.opencv-build-cache.outputs.cache-hit != 'true'
         shell: bash
+        working-directory: opencv/build
         run: |
-          cd opencv/build
           cmake .. \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX="${{ env.opencv-install-dir }}" \
@@ -87,10 +90,15 @@ jobs:
           cmake --build . --target INSTALL --config Release --parallel
       - name: Compile on Unix
         if: runner.os != 'Windows' && (github.event.inputs.should_invalidate_cache_build || steps.opencv-build-cache.outputs.cache-hit != 'true')
+        working-directory: opencv/build
         run: |
-          cd opencv/build
           make
           make install  # This workflow contains a single job called "greet"
+      - name: Upload build as artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: opencv-build-${{ matrix.os }}
+          path: ${{ env.opencv-install-dir }}
   build_eigen:
     strategy:
       matrix:
@@ -122,6 +130,7 @@ jobs:
       - name: Prepare build
         shell: bash
         run: |
+          set -xe
           unzip -q eigen.zip
           mv eigen-3.* eigen/
           mkdir eigen/build
@@ -140,43 +149,8 @@ jobs:
         run: |
           make
           make install
-  build_pye3d:
-    name: "pye3d (py${{ matrix.python-version }} on ${{ matrix.os }})"
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.6", "3.7", "3.8"]
-    runs-on: ${{ matrix.os }}
-    needs: [build_opencv, build_eigen]
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - name: Upload build as artifact
+        uses: actions/upload-artifact@v2
         with:
-          python-version: ${{ matrix.python-version }}
-
-      - id: pip-chache-dir-lookup
-        shell: bash
-        run: |
-          CACHE_DIR=`python -m pip cache dir`
-          echo "Found pip cache location at $CACHE_DIR"
-          echo "::set-output name=pip_cache_dir::${CACHE_DIR}"
-      - name: Cache pip
-        uses: actions/cache@v2
-        with:
-          path: ${{ steps.pip-chache-dir-lookup.outputs.pip_cache_dir }}
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-            ${{ runner.os }}-
-      - name: "Install dependencies"
-        shell: bash
-        run: |
-          set -xe
-          export OpenCV_DIR=${{ env.opencv-install-dir }}
-          export Eigen3_DIR=${{ env.eigen-install-dir }}
-          python -m site
-          python -m pip install --upgrade pip setuptools wheel
-          python -m pip install --upgrade virtualenv tox tox-gh-actions          
-
-      - name: "Run tox targets for ${{ matrix.python-version }}"
-        run: python -m tox
+          name: eigen-build-${{ matrix.os }}
+          path: ${{ env.eigen-install-dir }}
