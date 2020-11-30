@@ -544,6 +544,8 @@ class Detector3D(object):
             projected_pupil_circle = Ellipse(np.asarray([0.0, 0.0]), 0.0, 0.0, 0.0)
 
         result["ellipse"] = ellipse2dict(projected_pupil_circle)
+        result["location"] = result["ellipse"]["center"]  # pupil center in pixels
+
         result["diameter"] = projected_pupil_circle.major_radius
 
         result["confidence"] = observation.confidence
