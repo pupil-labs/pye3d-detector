@@ -546,6 +546,7 @@ class Detector3D(object):
         result["ellipse"] = ellipse2dict(projected_pupil_circle)
         result["location"] = result["ellipse"]["center"]  # pupil center in pixels
 
+        # projected_pupil_circle is an OpenCV ellipse, i.e. major_radius is major diameter
         result["diameter"] = projected_pupil_circle.major_radius
 
         result["confidence"] = observation.confidence
