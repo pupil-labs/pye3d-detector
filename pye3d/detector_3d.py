@@ -327,10 +327,10 @@ class Detector3D(object):
             pupil_datum["ellipse"]["center"][0] - width / 2,
             pupil_datum["ellipse"]["center"][1] - height / 2,
         )
-        minor_axis = pupil_datum["ellipse"]["axes"][0] / 2.0
-        major_axis = pupil_datum["ellipse"]["axes"][1] / 2.0
+        minor_radius = pupil_datum["ellipse"]["axes"][0] / 2.0
+        major_radius = pupil_datum["ellipse"]["axes"][1] / 2.0
         angle = (pupil_datum["ellipse"]["angle"] - 90.0) * np.pi / 180.0
-        ellipse = Ellipse(center, minor_axis, major_axis, angle)
+        ellipse = Ellipse(center, minor_radius, major_radius, angle)
 
         return Observation(
             ellipse,
@@ -544,10 +544,12 @@ class Detector3D(object):
             projected_pupil_circle = Ellipse(np.asarray([0.0, 0.0]), 0.0, 0.0, 0.0)
 
         result["ellipse"] = ellipse2dict(projected_pupil_circle)
+        result["location"] = result["ellipse"]["center"]  # pupil center in pixels
+
+        # projected_pupil_circle is an OpenCV ellipse, i.e. major_radius is major diameter
         result["diameter"] = projected_pupil_circle.major_radius
 
         result["confidence"] = observation.confidence
-        result["confidence_2d"] = observation.confidence_2d
         # TODO: model_confidence is currently require in Pupil for visualization
         # (eyeball outline alpha), but we don't yet have a way of estimating the model
         # confidence. Either remove this and cleanup the visualization in Pupil or come
