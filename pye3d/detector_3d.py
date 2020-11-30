@@ -547,7 +547,6 @@ class Detector3D(object):
         result["diameter"] = projected_pupil_circle.major_radius
 
         result["confidence"] = observation.confidence
-        result["confidence_2d"] = observation.confidence_2d
         # TODO: model_confidence is currently require in Pupil for visualization
         # (eyeball outline alpha), but we don't yet have a way of estimating the model
         # confidence. Either remove this and cleanup the visualization in Pupil or come
