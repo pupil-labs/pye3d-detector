@@ -327,10 +327,10 @@ class Detector3D(object):
             pupil_datum["ellipse"]["center"][0] - width / 2,
             pupil_datum["ellipse"]["center"][1] - height / 2,
         )
-        minor_axis = pupil_datum["ellipse"]["axes"][0] / 2.0
-        major_axis = pupil_datum["ellipse"]["axes"][1] / 2.0
+        minor_radius = pupil_datum["ellipse"]["axes"][0] / 2.0
+        major_radius = pupil_datum["ellipse"]["axes"][1] / 2.0
         angle = (pupil_datum["ellipse"]["angle"] - 90.0) * np.pi / 180.0
-        ellipse = Ellipse(center, minor_axis, major_axis, angle)
+        ellipse = Ellipse(center, minor_radius, major_radius, angle)
 
         return Observation(
             ellipse,
