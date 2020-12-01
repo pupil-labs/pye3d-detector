@@ -64,5 +64,5 @@ setup(
     package_data={package: ["refraction_models/*.save"]},
     packages=find_packages(),
     url="",
-    version="0.0.3",
+    version="0.0.4",
 )
