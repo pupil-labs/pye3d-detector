@@ -614,6 +614,33 @@ class Detector3D(object):
 
         return debug_info
 
+    # pupil-detector interface: See base class implementation as reference:
+    # https://github.com/pupil-labs/pupil-detectors/blob/master/src/pupil_detectors/detector_base.pyx
+
+    PUBLIC_PROPERTY_NAMES = ("is_long_term_model_frozen",)
+
+    def get_properties(self):
+        return {
+            property_name: getattr(self, property_name)
+            for property_name in self.PUBLIC_PROPERTY_NAMES
+            if hasattr(self, property_name)
+        }
+
+    def update_properties(self, properties):
+        keys_to_update = set(self.PUBLIC_PROPERTY_NAMES)
+        keys_to_update.intersection_update(properties.keys())
+        for key in keys_to_update:
+            expected_type = type(getattr(self, key))
+            value = properties[key]
+            try:
+                value = expected_type(value)
+            except ValueError as e:
+                raise ValueError(
+                    f"Value `{repr(value)}` for key `{key}` could not be converted to"
+                    f" expected type: {expected_type}"
+                ) from e
+            setattr(self, key, value)
+
 
 class _ModelUpdateSchedule:
     def __init__(self, update_interval: float, warmup_duration: float = 5.0) -> None:
