@@ -25,24 +25,7 @@ mkdir opencv/build
 cd opencv/build
 
 # Configure build
-cmake .. \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="." \
-    -DBUILD_LIST="core,highgui,videoio,imgcodecs,imgproc,video" \
-    -DBUILD_opencv_world=ON \
-    -DBUILD_EXAMPLES=OFF \
-    -DBUILD_DOCS=OFF \
-    -DBUILD_PERF_TESTS=OFF \
-    -DBUILD_TESTS=OFF \
-    -DBUILD_opencv_java=OFF \
-    -DBUILD_opencv_python=OFF \
-    -DWITH_OPENMP=ON \
-    -DWITH_IPP=ON \
-    -DWITH_CSTRIPES=ON \
-    -DWITH_OPENCL=ON \
-    -DWITH_CUDA=OFF \
-    -DWITH_TBB=OFF \
-    -DWITH_MSMF=OFF
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="." -DBUILD_LIST="core,highgui,videoio,imgcodecs,imgproc,video" -DBUILD_opencv_world=ON -DBUILD_EXAMPLES=OFF -DBUILD_DOCS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_TESTS=OFF -DBUILD_opencv_java=OFF -DBUILD_opencv_python=OFF -DWITH_OPENMP=ON -DWITH_IPP=ON -DWITH_CSTRIPES=ON -DWITH_OPENCL=ON -DWITH_CUDA=OFF -DWITH_TBB=OFF -DWITH_MSMF=OFF
 
 # Compile
 cmake --build . --target INSTALL --config Release --parallel
@@ -66,8 +49,7 @@ mkdir eigen/build
 cd eigen/build
 
 # Configure build
-cmake .. \
-    -DCMAKE_INSTALL_PREFIX="."
+cmake .. -DCMAKE_INSTALL_PREFIX="."
 
 # Compile
 cmake --build . --target INSTALL --config Release --parallel
