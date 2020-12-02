@@ -58,7 +58,6 @@ cd ../..
 Invoke-WebRequest "https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7.zip" -OutFile eigen.zip
 
 # Prepare build
-set -xe
 unzip -q eigen.zip
 mv eigen-3.* eigen/
 mkdir eigen/build
@@ -128,7 +127,6 @@ cd ../..
 wget -q -O eigen.zip "https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7.zip"
 
 # Prepare build
-set -xe
 unzip -q eigen.zip
 mv eigen-3.* eigen/
 mkdir eigen/build
@@ -199,7 +197,6 @@ cd ../..
 wget -q -O eigen.zip "https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7.zip"
 
 # Prepare build
-set -xe
 unzip -q eigen.zip
 mv eigen-3.* eigen/
 mkdir eigen/build
