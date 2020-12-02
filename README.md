@@ -18,7 +18,7 @@ Invoke-WebRequest "https://github.com/opencv/opencv/archive/4.2.0.zip" -OutFile 
 
 # Prepare build
 Expand-Archive opencv.zip
-mv opencv-4.* opencv/
+mv opencv/opencv-4.*/* opencv/
 mkdir opencv/build
 
 # Enter build path
@@ -59,7 +59,7 @@ Invoke-WebRequest "https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7
 
 # Prepare build
 Expand-Archive eigen.zip
-mv eigen-3.* eigen/
+mv eigen/eigen-3.*/* eigen/
 mkdir eigen/build
 
 # Enter build path
