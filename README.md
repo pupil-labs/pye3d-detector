@@ -17,7 +17,7 @@ This is a python implementation of the 3D eye model.
 Invoke-WebRequest "https://github.com/opencv/opencv/archive/4.2.0.zip" -OutFile opencv.zip
 
 # Prepare build
-unzip -q opencv.zip
+Expand-Archive opencv.zip
 mv opencv-4.* opencv/
 mkdir opencv/build
 
@@ -58,7 +58,7 @@ cd ../..
 Invoke-WebRequest "https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7.zip" -OutFile eigen.zip
 
 # Prepare build
-unzip -q eigen.zip
+Expand-Archive eigen.zip
 mv eigen-3.* eigen/
 mkdir eigen/build
 
