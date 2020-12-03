@@ -16,7 +16,7 @@ def cart2sph(x):
     phi = np.arctan2(x[2], x[0])
     theta = np.arccos(x[1] / np.linalg.norm(x))
 
-    return phi, theta  # Todo: This seems to be opposite to the pupil code
+    return phi, theta
 
 
 def sph2cart(phi, theta):
