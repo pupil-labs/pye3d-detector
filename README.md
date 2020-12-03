@@ -10,6 +10,8 @@ This is a python implementation of the 3D eye model.
 
 #### Windows
 
+Building the dependencies on Windows requires running the commands in [PowerShell](https://docs.microsoft.com/en-us/powershell/scripting/overview).
+
 ##### Build and install OpenCV
 
 ```bash
