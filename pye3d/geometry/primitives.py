@@ -16,6 +16,8 @@ from .utilities import cart2sph, normalize
 
 
 class Primitive(abc.ABC):
+    __slots__ = ()
+
     def __repr__(self):
         klass = "{}.{}".format(self.__class__.__module__, self.__class__.__name__)
         attributes = " ".join(
@@ -42,6 +44,8 @@ class Primitive(abc.ABC):
 
 
 class Line(Primitive):
+    __slots__ = ("origin", "direction", "dim")
+
     def __init__(self, origin, direction):
         self.origin = np.asarray(origin)
         self.direction = normalize(np.asarray(direction))
@@ -49,6 +53,8 @@ class Line(Primitive):
 
 
 class Circle(Primitive):
+    __slots__ = ("center", "normal", "radius")
+
     def __init__(self, center=[0.0, 0.0, 0.0], normal=[0.0, 0.0, -1.0], radius=0.0):
         self.center = np.asarray(center, dtype=np.float)
         self.normal = np.asarray(normal, dtype=np.float)
@@ -67,6 +73,8 @@ class Circle(Primitive):
 
 
 class Ellipse(Primitive):
+    __slots__ = ("center", "major_radius", "minor_radius", "angle")
+
     def __init__(self, center, minor_radius, major_radius, angle):
         self.center = center
         self.major_radius = major_radius
@@ -101,6 +109,8 @@ class Ellipse(Primitive):
 
 
 class Sphere(Primitive):
+    __slots__ = ("center", "radius")
+
     def __init__(self, center, radius):
         self.center = center
         self.radius = radius
@@ -110,6 +120,8 @@ class Sphere(Primitive):
 
 
 class Conicoid(Primitive):
+    __slots__ = tuple("ABCFGHUVWD")
+
     def __init__(self, conic, vertex):
         alpha = vertex[0]
         beta = vertex[1]
@@ -134,6 +146,8 @@ class Conicoid(Primitive):
 
 
 class Conic(Primitive):
+    __slots__ = tuple("ABCDEF")
+
     def __init__(self, *args):
         if len(args) == 1:
             ellipse = args[0]
