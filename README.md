@@ -66,10 +66,10 @@ cd ../..
 
 ```bash
 # Download OpenCV
-wget -q -O opencv.zip "https://github.com/opencv/opencv/archive/4.2.0.zip"
+wget -O opencv.zip "https://github.com/opencv/opencv/archive/4.2.0.zip"
 
 # Prepare build
-unzip -q opencv.zip
+unzip opencv.zip
 mv opencv-4.* opencv/
 mkdir opencv/build
 
@@ -108,10 +108,10 @@ cd ../..
 
 ```bash
 # Download Eigen
-wget -q -O eigen.zip "https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7.zip"
+wget -O eigen.zip "https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7.zip"
 
 # Prepare build
-unzip -q eigen.zip
+unzip eigen.zip
 mv eigen-3.* eigen/
 mkdir eigen/build
 
@@ -141,10 +141,10 @@ brew install wget
 
 ```bash
 # Download OpenCV
-wget -q -O opencv.zip "https://github.com/opencv/opencv/archive/4.2.0.zip"
+wget -O opencv.zip "https://github.com/opencv/opencv/archive/4.2.0.zip"
 
 # Prepare build
-unzip -q opencv.zip
+unzip opencv.zip
 mv opencv-4.* opencv/
 mkdir opencv/build
 
@@ -183,10 +183,10 @@ cd ../..
 
 ```bash
 # Download Eigen
-wget -q -O eigen.zip "https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7.zip"
+wget -O eigen.zip "https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7.zip"
 
 # Prepare build
-unzip -q eigen.zip
+unzip eigen.zip
 mv eigen-3.* eigen/
 mkdir eigen/build
 
