@@ -120,6 +120,7 @@ class Sphere(Primitive):
 
 
 class Conicoid(Primitive):
+    # Variable names refer to Safaee-Rad 1992
     __slots__ = tuple("ABCFGHUVWD")
 
     def __init__(self, conic, vertex):
@@ -146,6 +147,7 @@ class Conicoid(Primitive):
 
 
 class Conic(Primitive):
+    # Variable names refer to Safaee-Rad 1992
     __slots__ = tuple("ABCDEF")
 
     def __init__(self, *args):
