@@ -132,6 +132,11 @@ cd ../..
 
 #### macOS
 
+Downlaoding the dependencies requires `wget`, which can be installed on macOS with [Homebrew](https://brew.sh):
+```bash
+brew install wget
+```
+
 ##### Build and install OpenCV
 
 ```bash
