@@ -49,7 +49,7 @@ setup(
         "Programming Language :: C++",
         "Programming Language :: Cython",
         "Programming Language :: Python :: 3"
-        "Topic :: Scientific/Engineering"
+        "Topic :: Scientific/Engineering",
         "Topic :: Software Development",
     ],
     cmake_args=cmake_args,
