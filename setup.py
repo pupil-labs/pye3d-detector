@@ -48,7 +48,7 @@ setup(
         "Operating System :: POSIX :: Linux",
         "Programming Language :: C++",
         "Programming Language :: Cython",
-        "Programming Language :: Python :: 3"
+        "Programming Language :: Python :: 3",
         "Topic :: Scientific/Engineering",
         "Topic :: Software Development",
     ],
