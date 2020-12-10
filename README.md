@@ -1,8 +1,8 @@
-# `pye3d`
-
 ![pye3d CI](https://github.com/pupil-labs/pye3d-detector/workflows/pye3d%20CI/badge.svg)
 
-This is a python implementation of the 3D eye model. 
+# pye3d
+
+`pye3d` implements a published mathematical 3D eye model capturing ocular kinematics and optics (see Swirski and Dodgson, 2013, as well as Dierkes, Kassner, and Bulling, 2019).
 
 ## Build and install from source
 
