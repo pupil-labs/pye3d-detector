@@ -28,7 +28,7 @@ requirements = [
     "scipy>=1.2.1",
     "numpy",
     "joblib",
-    "scikit-learn==0.22.2.post1",
+    "scikit-learn==0.24.1",
     "sortedcontainers",
 ]
 extras_require = {
