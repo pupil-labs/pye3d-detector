@@ -1,10 +1,16 @@
+import logging
+import traceback
 import warnings
+from functools import wraps
 
 import numpy as np
 from libcpp.pair cimport pair
 
 from .common_types cimport Vector3d
 from ..geometry.primitives import Circle, Conic, Conicoid
+
+
+logger = logging.getLogger(__name__)
 
 cdef extern from "unproject_conicoid.h":
 
@@ -27,11 +33,20 @@ cdef extern from "unproject_conicoid.h":
         const double circle_radius
     )
 
+def raise_np_errors(f):
+    @wraps(f)
+    def wrapper(*args, **kwds):
+        old_settings = np.seterr(all="raise")
+        result = f(*args, **kwds)
+        np.seterr(**old_settings)
+        return result
+    return wrapper
 
+@raise_np_errors
 def unproject_ellipse(ellipse, focal_length, radius=1.0):
     cdef Circle3D c
     with warnings.catch_warnings():
-        warnings.filterwarnings("error")
+        warnings.filterwarnings("error", category=RuntimeWarning)
         try:
             conic = Conic(ellipse)
             pupil_cone = Conicoid(conic, [0, 0, -focal_length])
@@ -66,6 +81,8 @@ def unproject_ellipse(ellipse, focal_length, radius=1.0):
                 return False
             else:
                 return [circle_A, circle_B]
-
-        except Warning as e:
+        except FloatingPointError:
+            return False
+        except Warning:
+            logger.debug(f"Unexpected warning caught in:\n{traceback.format_exc()}")
             return False

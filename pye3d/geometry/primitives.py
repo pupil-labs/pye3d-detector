@@ -56,8 +56,8 @@ class Circle(Primitive):
     __slots__ = ("center", "normal", "radius")
 
     def __init__(self, center=[0.0, 0.0, 0.0], normal=[0.0, 0.0, -1.0], radius=0.0):
-        self.center = np.asarray(center, dtype=np.float)
-        self.normal = np.asarray(normal, dtype=np.float)
+        self.center = np.asarray(center, dtype=float)
+        self.normal = np.asarray(normal, dtype=float)
         self.radius = radius
 
     def spherical_representation(self):
