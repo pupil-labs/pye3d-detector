@@ -24,7 +24,13 @@ cpp_dir = f"{package}/cpp"
 with open(here / "README.md") as f:
     long_description = f.read()
 
-requirements = ["scipy>=1.2.1", "numpy", "joblib", "scikit-learn", "sortedcontainers"]
+requirements = [
+    "scipy>=1.2.1",
+    "numpy",
+    "joblib",
+    "scikit-learn==0.22.2.post1",
+    "sortedcontainers",
+]
 extras_require = {
     "dev": ["pytest", "tox", "bump2version"],
     "with-opencv": ["opencv-python"],
