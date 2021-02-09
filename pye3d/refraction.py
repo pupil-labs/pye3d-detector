@@ -11,7 +11,7 @@ LOAD_DIR = Path(__file__).parent / "refraction_models"
 
 def pipeline_to_list(pipeline):
     return [
-        pipeline[0].powers_.T.astype(np.float),
+        pipeline[0].powers_.T.astype(float),
         pipeline[1].mean_[np.newaxis, :].T,
         pipeline[1].var_[np.newaxis, :].T,
         pipeline[2].coef_.T,
