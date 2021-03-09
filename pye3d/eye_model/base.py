@@ -92,16 +92,27 @@ class TwoSphereModel(TwoSphereModelAbstract):
             np.asarray([[*self.sphere_center]])
         )[0]
 
-    def estimate_sphere_center(self, from_2d=None, prior_3d=None, prior_strength=0.0):
+    def estimate_sphere_center(
+        self,
+        from_2d=None,
+        prior_3d=None,
+        prior_strength=0.0,
+        calculate_rms_residual=False,
+    ):
         self.projected_sphere_center = (
             from_2d if from_2d is not None else self.estimate_sphere_center_2d()
         )
         sphere_center, rms_residual = self.estimate_sphere_center_3d(
-            self.projected_sphere_center, prior_3d, prior_strength
+            self.projected_sphere_center,
+            prior_3d,
+            prior_strength,
+            calculate_rms_residual=calculate_rms_residual,
         )
         self.set_sphere_center(sphere_center)
-        self.rms_residual = rms_residual
-        return SphereCenterEstimates(self.projected_sphere_center, sphere_center)
+        self.rms_residual = rms_residual if rms_residual is not None else float("nan")
+        return SphereCenterEstimates(
+            self.projected_sphere_center, sphere_center, rms_residual
+        )
 
     def estimate_sphere_center_2d(self):
         observations = self.storage.observations
@@ -118,8 +129,8 @@ class TwoSphereModel(TwoSphereModelAbstract):
         sphere_center_2d,
         prior_3d=None,
         prior_strength=0.0,
-        calculate_rms_residual=True,
-    ):
+        calculate_rms_residual=False,
+    ) -> T.Tuple[np.array, T.Optional[float]]:
         observations = self.storage.observations
         aux_3d = np.array([obs.aux_3d for obs in observations])
         gaze_2d = np.array(

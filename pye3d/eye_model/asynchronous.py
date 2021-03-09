@@ -123,15 +123,23 @@ class TwoSphereModelAsync(TwoSphereModelAbstract):
         from_2d: T.Optional[np.ndarray] = None,
         prior_3d: T.Optional[np.ndarray] = None,
         prior_strength: float = 0.0,
+        calculate_rms_residual=False,
     ) -> SphereCenterEstimates:
         if not self._frontend._is_estimation_ongoing_flag.is_set():
             self.relay_command(
-                "estimate_sphere_center", from_2d, prior_3d, prior_strength
+                "estimate_sphere_center",
+                from_2d,
+                prior_3d,
+                prior_strength,
+                calculate_rms_residual,
             )
             self._frontend._is_estimation_ongoing_flag.set()
         projected_sphere_center = self._frontend.projected_sphere_center
         sphere_center = self._frontend.sphere_center
-        return SphereCenterEstimates(projected_sphere_center, sphere_center)
+        rms_residual = self._frontend.rms_residual
+        return SphereCenterEstimates(
+            projected_sphere_center, sphere_center, rms_residual
+        )
 
     def estimate_sphere_center_2d(self) -> np.ndarray:
         raise NotImplementedError
@@ -140,8 +148,9 @@ class TwoSphereModelAsync(TwoSphereModelAbstract):
         self,
         sphere_center_2d: np.ndarray,
         prior_3d: T.Optional[np.ndarray] = None,
-        prior_strength=0.0,
-    ) -> np.ndarray:
+        prior_strength: float = 0.0,
+        calculate_rms_residual: bool = False,
+    ) -> T.Tuple[np.array, T.Optional[float]]:
         raise NotImplementedError
 
     # GAZE PREDICTION

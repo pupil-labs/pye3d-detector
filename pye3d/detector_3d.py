@@ -114,9 +114,11 @@ class Detector3D(object):
         model_update_interval_long_term=1.0,
         model_update_interval_ult_long_term=10.0,
         model_warmup_duration=5.0,
+        calculate_rms_residual=False,
     ):
         self._camera = camera
         self._long_term_mode = long_term_mode
+        self._calculate_rms_residual = calculate_rms_residual
         # NOTE: changing settings after intialization can lead to inconsistent behavior
         # if .reset() is not called.
         self._settings = {
@@ -290,19 +292,23 @@ class Detector3D(object):
 
         try:
             if self._ult_long_term_schedule.is_update_due(observation.timestamp):
-                self.ultra_long_term_model.estimate_sphere_center()
+                self.ultra_long_term_model.estimate_sphere_center(
+                    calculate_rms_residual=self._calculate_rms_residual
+                )
 
             if self._long_term_schedule.is_update_due(observation.timestamp):
                 # update long term model with ultra long term bias
                 long_term_estimate = self.long_term_model.estimate_sphere_center(
                     prior_3d=self.ultra_long_term_model.sphere_center,
                     prior_strength=0.1,
+                    calculate_rms_residual=self._calculate_rms_residual,
                 )
             else:
                 # use existing sphere center estimates
                 long_term_estimate = SphereCenterEstimates(
                     projected=self.long_term_model.projected_sphere_center,
                     three_dim=self.long_term_model.sphere_center,
+                    rms_residual=self.long_term_model.rms_residual,
                 )
 
             # update short term model with help of long-term model
@@ -314,6 +320,7 @@ class Detector3D(object):
                 from_2d=long_term_estimate.projected,
                 prior_3d=long_term_estimate.three_dim,
                 prior_strength=sigmoid(circularity_mean),
+                calculate_rms_residual=self._calculate_rms_residual,
             )
         except Exception:
             # Known issues:
