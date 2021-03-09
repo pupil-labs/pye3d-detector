@@ -21,6 +21,7 @@ from ..camera import CameraModel
 class SphereCenterEstimates(T.NamedTuple):
     projected: np.ndarray
     three_dim: np.ndarray
+    rms_residual: T.Optional[float] = None
 
 
 class TwoSphereModelAbstract(abc.ABC):
@@ -67,6 +68,7 @@ class TwoSphereModelAbstract(abc.ABC):
         from_2d: T.Optional[np.ndarray] = None,
         prior_3d: T.Optional[np.ndarray] = None,
         prior_strength: float = 0.0,
+        calculate_rms_residual: bool = False,
     ) -> SphereCenterEstimates:
         raise NotImplementedError
 
@@ -79,8 +81,9 @@ class TwoSphereModelAbstract(abc.ABC):
         self,
         sphere_center_2d: np.ndarray,
         prior_3d: T.Optional[np.ndarray] = None,
-        prior_strength=0.0,
-    ) -> np.ndarray:
+        prior_strength: float = 0.0,
+        calculate_rms_residual: bool = False,
+    ) -> T.Tuple[np.array, T.Optional[float]]:
         raise NotImplementedError
 
     # GAZE PREDICTION
