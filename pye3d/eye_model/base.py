@@ -131,12 +131,31 @@ class TwoSphereModel(TwoSphereModelAbstract):
         prior_strength=0.0,
         calculate_rms_residual=False,
     ) -> T.Tuple[np.array, T.Optional[float]]:
+        observations, aux_3d, gaze_2d = self._prep_data()
+        sum_aux_3d, disamb_indices, aux_3d_disamb = self._disambiguate_dierkes_lines(
+            aux_3d, gaze_2d, sphere_center_2d
+        )
+        sphere_center = self._calc_sphere_center(sum_aux_3d, prior_3d, prior_strength)
+
+        rms_residual = (
+            self._calc_rms_residual(
+                observations, disamb_indices, sphere_center, aux_3d_disamb
+            )
+            if calculate_rms_residual
+            else None
+        )
+
+        return sphere_center, rms_residual
+
+    def _prep_data(self):
         observations = self.storage.observations
         aux_3d = np.array([obs.aux_3d for obs in observations])
         gaze_2d = np.array(
             [[*obs.gaze_2d.origin, *obs.gaze_2d.direction] for obs in observations]
         )
+        return observations, aux_3d, gaze_2d
 
+    def _disambiguate_dierkes_lines(self, aux_3d, gaze_2d, sphere_center_2d):
         # Disambiguate Dierkes lines
         # We want gaze_2d to points towards the sphere center. gaze_2d was collected
         # from Dierkes[0]. If it points into the correct direction, we know that
@@ -149,38 +168,40 @@ class TwoSphereModel(TwoSphereModelAbstract):
         dot_products = np.sum(gaze_2d_towards_center * gaze_2d_directions, axis=1)
         disambiguation_indices = np.where(dot_products < 0, 1, 0)
 
-        observation_indices = np.arange(len(disambiguation_indices))
-        aux_3d_disambiguated = aux_3d[observation_indices, disambiguation_indices, :, :]
+        obs_idc = np.arange(disambiguation_indices.shape[0])
+        aux_3d_disambiguated = aux_3d[obs_idc, disambiguation_indices, :, :]
 
         # Estimate sphere center by nearest intersection of Dierkes lines
         sum_aux_3d = aux_3d_disambiguated.sum(axis=0)
+        return sum_aux_3d, disambiguation_indices, aux_3d_disambiguated
 
+    def _calc_sphere_center(self, sum_aux_3d, prior_3d=None, prior_strength=0.0):
         if prior_3d is None:
-            sphere_center = np.linalg.pinv(sum_aux_3d[:3, :3]) @ sum_aux_3d[:3, 3]
+            return np.linalg.pinv(sum_aux_3d[:3, :3]) @ sum_aux_3d[:3, 3]
         else:
-            sphere_center = np.linalg.pinv(
-                sum_aux_3d[:3, :3] + prior_strength * np.eye(3)
-            ) @ (sum_aux_3d[:3, 3] + prior_strength * prior_3d)
-
-        rms_residual = None
-        if calculate_rms_residual:
-            # Here we use eq. (10) in https://docplayer.net/21072949-Least-squares-intersection-of-lines.html.
-            origins_dierkes_lines = np.array(
-                [
-                    observations[i].get_Dierkes_line(disambiguation_indices[i]).origin
-                    for i in observation_indices
-                ]
+            return np.linalg.pinv(sum_aux_3d[:3, :3] + prior_strength * np.eye(3)) @ (
+                sum_aux_3d[:3, 3] + prior_strength * prior_3d
             )
-            origins_dierkes_lines.shape = -1, 3, 1
-            deltas = origins_dierkes_lines - sphere_center[:, np.newaxis]
-            tmp = np.einsum("ijk,ikl->ijl", aux_3d_disambiguated[:, :3, :3], deltas)
-            squared_residuals = np.einsum(
-                "ikj,ijk->i", np.transpose(deltas, (0, 2, 1)), tmp
-            )
-            rms_residual = np.clip(squared_residuals, 0.0, None)
-            rms_residual = np.mean(np.sqrt(rms_residual))
 
-        return sphere_center, rms_residual
+    def _calc_rms_residual(
+        self, observations, disamb_indices, sphere_center, aux_3d_disamb
+    ):
+        # Here we use eq. (10) in https://docplayer.net/21072949-Least-squares-intersection-of-lines.html.
+        origins_dierkes_lines = np.array(
+            [
+                obs.get_Dierkes_line(idx).origin
+                for obs, idx in zip(observations, disamb_indices)
+            ]
+        )
+        origins_dierkes_lines.shape = -1, 3, 1
+        deltas = origins_dierkes_lines - sphere_center[:, np.newaxis]
+        tmp = np.einsum("ijk,ikl->ijl", aux_3d_disamb[:, :3, :3], deltas)
+        squared_residuals = np.einsum(
+            "ikj,ijk->i", np.transpose(deltas, (0, 2, 1)), tmp
+        )
+        rms_residual = np.clip(squared_residuals, 0.0, None)
+        rms_residual = np.mean(np.sqrt(rms_residual))
+        return rms_residual
 
     # GAZE PREDICTION
     def _extract_unproject_disambiguate(self, pupil_datum):
