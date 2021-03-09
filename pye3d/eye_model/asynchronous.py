@@ -85,6 +85,10 @@ class TwoSphereModelAsync(TwoSphereModelAbstract):
     def projected_sphere_center(self) -> np.ndarray:
         return self._frontend.projected_sphere_center
 
+    @property
+    def rms_residual(self) -> float:
+        return self._frontend.rms_residual
+
     def relay_command(self, function_name: str, *args, **kwargs):
         self._backend_process.send(function_name, *args, **kwargs)
 
@@ -93,8 +97,7 @@ class TwoSphereModelAsync(TwoSphereModelAbstract):
         backend: "_TwoSphereModelSyncedBackend", function_name: str, *args, **kwargs
     ):
         function = getattr(backend, function_name)
-        result = function(*args, **kwargs)
-        return result
+        return function(*args, **kwargs)
 
     @staticmethod
     def _setup_backend(*args, **kwargs) -> "_TwoSphereModelSyncedBackend":
