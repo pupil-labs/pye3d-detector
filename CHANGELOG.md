@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.6 (2021-03-09)
+
+- Expose 3d eye model RMS fitting residuals; disable them by default - [#24](https://github.com/pupil-labs/pye3d-detector/pull/24)
+
 ## 0.0.5 (2021-02-09)
 
 - Pin `scikit-learn==0.24.1` version and update refraction models to that version -
