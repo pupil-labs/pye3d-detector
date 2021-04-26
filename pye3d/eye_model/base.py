@@ -176,12 +176,17 @@ class TwoSphereModel(TwoSphereModelAbstract):
         return sum_aux_3d, disambiguation_indices, aux_3d_disambiguated
 
     def _calc_sphere_center(self, sum_aux_3d, prior_3d=None, prior_strength=0.0):
-        if prior_3d is None:
-            return np.linalg.pinv(sum_aux_3d[:3, :3]) @ sum_aux_3d[:3, 3]
-        else:
-            return np.linalg.pinv(sum_aux_3d[:3, :3] + prior_strength * np.eye(3)) @ (
-                sum_aux_3d[:3, 3] + prior_strength * prior_3d
-            )
+        matrix = sum_aux_3d[:3, :3]
+        try:
+            if prior_3d is None:
+                return np.linalg.inv(matrix) @ sum_aux_3d[:3, 3]
+            else:
+                return np.linalg.inv(matrix + prior_strength * np.eye(3)) @ (
+                    sum_aux_3d[:3, 3] + prior_strength * prior_3d
+                )
+        except np.linalg.LinAlgError:
+            # happens if lines are parallel, very rare
+            return DEFAULT_SPHERE_CENTER
 
     def _calc_rms_residual(
         self, observations, disamb_indices, sphere_center, aux_3d_disamb
