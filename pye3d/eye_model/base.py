@@ -179,9 +179,9 @@ class TwoSphereModel(TwoSphereModelAbstract):
         matrix = sum_aux_3d[:3, :3]
         try:
             if prior_3d is None:
-                return np.linalg.inv(matrix) @ sum_aux_3d[:3, 3]
+                return np.linalg.pinv(matrix) @ sum_aux_3d[:3, 3]
             else:
-                return np.linalg.inv(matrix + prior_strength * np.eye(3)) @ (
+                return np.linalg.pinv(matrix + prior_strength * np.eye(3)) @ (
                     sum_aux_3d[:3, 3] + prior_strength * prior_3d
                 )
         except np.linalg.LinAlgError:
