@@ -150,9 +150,7 @@ class TwoSphereModel(TwoSphereModelAbstract):
     def _prep_data(self):
         observations = self.storage.observations
         aux_3d = np.array([obs.aux_3d for obs in observations])
-        gaze_2d = np.array(
-            [[*obs.gaze_2d.origin, *obs.gaze_2d.direction] for obs in observations]
-        )
+        gaze_2d = np.array([obs.gaze_2d_line for obs in observations])
         return observations, aux_3d, gaze_2d
 
     def _disambiguate_dierkes_lines(self, aux_3d, gaze_2d, sphere_center_2d):

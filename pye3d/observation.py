@@ -55,6 +55,7 @@ class Observation(object):
             for i in [0, 1]
         ]
         self.gaze_2d = project_line_into_image_plane(self.gaze_3d_pair[0], focal_length)
+        self.gaze_2d_line = np.array([*self.gaze_2d.origin, *self.gaze_2d.direction])
 
         self.aux_2d = np.empty((2, 3))
         v = np.reshape(self.gaze_2d.direction, (2, 1))
