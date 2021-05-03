@@ -126,6 +126,7 @@ class Conicoid(Primitive):
     Safaee-Rad, R. et al.: "Three-Dimensional Location Estimation of Circular Features for Machine Vision",
     IEEE Transactions on Robotics and Automation, Vol.8(5), 1992, pp624-640.
     """
+
     __slots__ = tuple("ABCFGHUVWD")
 
     def __init__(self, conic, vertex):
@@ -157,6 +158,7 @@ class Conic(Primitive):
     Ax² + Bxy + Cy² + Dx + Ey + F = 0
     calculated from 5 ellipse parameters, see https://en.wikipedia.org/wiki/Ellipse#General_ellipse
     """
+
     __slots__ = tuple("ABCDEF")
 
     def __init__(self, *args):
@@ -168,12 +170,16 @@ class Conic(Primitive):
             b2 = ellipse.minor_radius ** 2
 
             self.A = a2 * ay * ay + b2 * ax * ax
-            self.B = 2. * (b2 - a2) * ax * ay
+            self.B = 2.0 * (b2 - a2) * ax * ay
             self.C = a2 * ax * ax + b2 * ay * ay
-            self.D = -2. * self.A * ellipse.center[0] - self.B * ellipse.center[1]
-            self.E = -self.B * ellipse.center[0] - 2. * self.C * ellipse.center[1]
-            self.F = self.A * ellipse.center[0] * ellipse.center[0] + self.B * ellipse.center[0] * ellipse.center[1] + self.C * \
-                ellipse.center[1] * ellipse.center[1] - a2 * b2
+            self.D = -2.0 * self.A * ellipse.center[0] - self.B * ellipse.center[1]
+            self.E = -self.B * ellipse.center[0] - 2.0 * self.C * ellipse.center[1]
+            self.F = (
+                self.A * ellipse.center[0] * ellipse.center[0]
+                + self.B * ellipse.center[0] * ellipse.center[1]
+                + self.C * ellipse.center[1] * ellipse.center[1]
+                - a2 * b2
+            )
 
         if len(args) == 6:
             self.A, self.B, self.C, self.D, self.E, self.F = args
