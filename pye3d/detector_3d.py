@@ -543,8 +543,7 @@ class Detector3D(object):
 
         result["circle_3d"] = circle2dict(prediction_corrected.pupil_circle)
 
-        pupil_circle_long_term = self.long_term_model.predict_pupil_circle(observation)
-        result["diameter_3d"] = pupil_circle_long_term.radius * 2
+        result["diameter_3d"] = prediction_corrected.pupil_circle.radius * 2
 
         projected_pupil_circle = project_circle_into_image_plane(
             prediction_uncorrected.pupil_circle,
