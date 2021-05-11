@@ -179,3 +179,4 @@ _skbuild
 
 # benchmarking
 __benchmark_data__
+benchmarks/

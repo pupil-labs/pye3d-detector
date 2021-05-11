@@ -116,7 +116,10 @@ class TwoSphereModel(TwoSphereModelAbstract):
 
     def estimate_sphere_center_2d(self):
         observations = self.storage.observations
-        aux_2d = np.array([obs.aux_2d for obs in observations])
+
+        # slightly faster than np.array
+        aux_2d = np.concatenate([obs.aux_2d for obs in observations])
+        aux_2d.shape = -1, 2, 3
 
         # Estimate projected sphere center by nearest intersection of 2d gaze lines
         sum_aux_2d = aux_2d.sum(axis=0)
@@ -149,10 +152,10 @@ class TwoSphereModel(TwoSphereModelAbstract):
 
     def _prep_data(self):
         observations = self.storage.observations
-        aux_3d = np.array([obs.aux_3d for obs in observations])
-        gaze_2d = np.array(
-            [[*obs.gaze_2d.origin, *obs.gaze_2d.direction] for obs in observations]
-        )
+        aux_3d = np.concatenate([obs.aux_3d for obs in observations])
+        aux_3d.shape = -1, 2, 3, 4
+        gaze_2d = np.concatenate([obs.gaze_2d_line for obs in observations])
+        gaze_2d.shape = -1, 4
         return observations, aux_3d, gaze_2d
 
     def _disambiguate_dierkes_lines(self, aux_3d, gaze_2d, sphere_center_2d):
@@ -176,12 +179,17 @@ class TwoSphereModel(TwoSphereModelAbstract):
         return sum_aux_3d, disambiguation_indices, aux_3d_disambiguated
 
     def _calc_sphere_center(self, sum_aux_3d, prior_3d=None, prior_strength=0.0):
-        if prior_3d is None:
-            return np.linalg.pinv(sum_aux_3d[:3, :3]) @ sum_aux_3d[:3, 3]
-        else:
-            return np.linalg.pinv(sum_aux_3d[:3, :3] + prior_strength * np.eye(3)) @ (
-                sum_aux_3d[:3, 3] + prior_strength * prior_3d
-            )
+        matrix = sum_aux_3d[:3, :3]
+        try:
+            if prior_3d is None:
+                return np.linalg.pinv(matrix) @ sum_aux_3d[:3, 3]
+            else:
+                return np.linalg.pinv(matrix + prior_strength * np.eye(3)) @ (
+                    sum_aux_3d[:3, 3] + prior_strength * prior_3d
+                )
+        except np.linalg.LinAlgError:
+            # happens if lines are parallel, very rare
+            return DEFAULT_SPHERE_CENTER
 
     def _calc_rms_residual(
         self, observations, disamb_indices, sphere_center, aux_3d_disamb
