@@ -116,7 +116,10 @@ class TwoSphereModel(TwoSphereModelAbstract):
 
     def estimate_sphere_center_2d(self):
         observations = self.storage.observations
-        aux_2d = np.array([obs.aux_2d for obs in observations])
+
+        # slightly faster than np.array
+        aux_2d = np.concatenate([obs.aux_2d for obs in observations])
+        aux_2d.shape = -1, 2, 3
 
         # Estimate projected sphere center by nearest intersection of 2d gaze lines
         sum_aux_2d = aux_2d.sum(axis=0)
@@ -149,8 +152,10 @@ class TwoSphereModel(TwoSphereModelAbstract):
 
     def _prep_data(self):
         observations = self.storage.observations
-        aux_3d = np.array([obs.aux_3d for obs in observations])
-        gaze_2d = np.array([obs.gaze_2d_line for obs in observations])
+        aux_3d = np.concatenate([obs.aux_3d for obs in observations])
+        aux_3d.shape = -1, 2, 3, 4
+        gaze_2d = np.concatenate([obs.gaze_2d_line for obs in observations])
+        gaze_2d.shape = -1, 4
         return observations, aux_3d, gaze_2d
 
     def _disambiguate_dierkes_lines(self, aux_3d, gaze_2d, sphere_center_2d):
