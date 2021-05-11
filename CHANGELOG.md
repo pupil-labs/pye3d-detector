@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.7 (2021-05-11)
+- Simplification of `Conic` parameter calculation - [#26](https://github.com/pupil-labs/pye3d-detector/pull/26)
+- Incremental performance improvements - [#27](https://github.com/pupil-labs/pye3d-detector/pull/27)
+- Correctly apply corneal-refraction correction to `diameter_3d` result - [#28](https://github.com/pupil-labs/pye3d-detector/pull/28)
+
 ## 0.0.6 (2021-03-09)
 
 - Expose 3d eye model RMS fitting residuals; disable them by default - [#24](https://github.com/pupil-labs/pye3d-detector/pull/24)
