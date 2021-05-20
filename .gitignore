@@ -155,6 +155,7 @@ PyGL/*
 *.png
 *.npy
 *.npz
+*.csv
  
 .idea/*
  
