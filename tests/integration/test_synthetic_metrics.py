@@ -12,8 +12,7 @@ from .utils import abs_diff, input_dir, output_dir
 
 
 # Define all input files
-INPUT_SYNTHETIC_IMAGES_PATH = input_dir().joinpath("pye3d_test_images.npz")
-INPUT_GROUND_TRUTH_CSV_PATH = input_dir().joinpath("pye3d_test_ground_truth.csv")
+INPUT_PATH = input_dir().joinpath("pye3d_test_input.npz")
 
 # Define all output files
 OUTPUT_GENERATED_RESULTS_CSV_PATH = output_dir().joinpath(
@@ -255,12 +254,7 @@ def test_gaze_angle(dataset):
 def dataset():
 
     # Check all input files exist
-    assert (
-        INPUT_SYNTHETIC_IMAGES_PATH.is_file()
-    ), f"Missing test input file: {INPUT_SYNTHETIC_IMAGES_PATH}"
-    assert (
-        INPUT_GROUND_TRUTH_CSV_PATH.is_file()
-    ), f"Missing test input file: {INPUT_GROUND_TRUTH_CSV_PATH}"
+    assert INPUT_PATH.is_file(), f"Missing test input file: {INPUT_PATH}"
 
     # Cleanup output files from previous runs
     OUTPUT_GENERATED_RESULTS_CSV_PATH.unlink(missing_ok=True)
@@ -270,7 +264,12 @@ def dataset():
     OUTPUT_GAZE_ANGLE_THETA_PLOT_PATH.unlink(missing_ok=True)
     OUTPUT_EYE_CENTER_3D_PLOT_PATH.unlink(missing_ok=True)
 
-    images = np.load(INPUT_SYNTHETIC_IMAGES_PATH)["arr_0"]
+    input_data = np.load(INPUT_PATH)
+
+    image_key = "eye_images"
+    error_msg = f"`{image_key}` not in available keys: {list(input_data.keys())}"
+    assert image_key in input_data, error_msg
+    images = input_data[image_key]
     FPS = 200.0
 
     detector = create_detector()
@@ -314,7 +313,11 @@ def dataset():
         )
 
     # Load data frame for Ground Truth (GT) from input dir
-    gt_df = pd.read_csv(INPUT_GROUND_TRUTH_CSV_PATH)
+    gt_key = "ground_truth"
+    error_msg = f"`{gt_key}` not in available keys: {list(input_data.keys())}"
+    assert gt_key in input_data, error_msg
+    gt_df = input_data[gt_key]
+    gt_df = pd.DataFrame.from_records(gt_df)
 
     # Create data frame for Generated Results (GR) and save to output dir
     gr_df = pd.DataFrame(
