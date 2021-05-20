@@ -212,7 +212,7 @@ def test_eye_center_3d(dataset):
         gr_df["timestamp"] > eye_center_3d_convergence_time
     ]
 
-    assert np.all(eye_center_3d_errors <= GAZE_ANGLE_EPS)  # TODO: Add description
+    assert np.all(eye_center_3d_errors <= EYE_CENTER_3D_EPS)  # TODO: Add description
 
 
 def test_gaze_angle(dataset):
