@@ -223,16 +223,10 @@ def test_gaze_angle(dataset):
         "circle_3d_normal_y",
         "circle_3d_normal_z",
     ]
-    gaze_angle_error = (
-        np.arccos(
-            np.sum(
-                gr_df[gaze_angle_columns].values * gt_df[gaze_angle_columns].values,
-                axis=1,
-            )
-        )
-        * 180.0
-        / np.pi
-    )
+
+    # cosine distance; no need to calculate norms, as input already has length 1
+    dot_product = (gr_df[gaze_angle_columns] * gt_df[gaze_angle_columns]).sum(axis=1)
+    gaze_angle_error = np.rad2deg(np.arccos(dot_product))
 
     save_plot(
         ax=gr_df["timestamp"],
