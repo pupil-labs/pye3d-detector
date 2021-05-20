@@ -16,12 +16,24 @@ INPUT_SYNTHETIC_IMAGES_PATH = input_dir().joinpath("pye3d_test_images.npz")
 INPUT_GROUND_TRUTH_CSV_PATH = input_dir().joinpath("pye3d_test_ground_truth.csv")
 
 # Define all output files
-OUTPUT_GENERATED_RESULTS_CSV_PATH = output_dir().joinpath("pye3d_test_generated_results.csv")
-OUTPUT_PUPIL_RADIUS_PLOT_PATH = output_dir().joinpath("pye3d_test_pupil_radius_plot.png")
-OUTPUT_PUPIL_RADIUS_ERROR_PLOT_PATH = output_dir().joinpath("pye3d_test_pupil_radius_error_plot.png")
-OUTPUT_GAZE_ANGLE_PHI_PLOT_PATH = output_dir().joinpath("pye3d_test_gaze_angle_phi_plot.png")
-OUTPUT_GAZE_ANGLE_THETA_PLOT_PATH = output_dir().joinpath("pye3d_test_gaze_angle_theta_plot.png")
-OUTPUT_EYE_CENTER_3D_PLOT_PATH = output_dir().joinpath("pye3d_test_eye_center_3d_error_plot.png")
+OUTPUT_GENERATED_RESULTS_CSV_PATH = output_dir().joinpath(
+    "pye3d_test_generated_results.csv"
+)
+OUTPUT_PUPIL_RADIUS_PLOT_PATH = output_dir().joinpath(
+    "pye3d_test_pupil_radius_plot.png"
+)
+OUTPUT_PUPIL_RADIUS_ERROR_PLOT_PATH = output_dir().joinpath(
+    "pye3d_test_pupil_radius_error_plot.png"
+)
+OUTPUT_GAZE_ANGLE_PHI_PLOT_PATH = output_dir().joinpath(
+    "pye3d_test_gaze_angle_phi_plot.png"
+)
+OUTPUT_GAZE_ANGLE_THETA_PLOT_PATH = output_dir().joinpath(
+    "pye3d_test_gaze_angle_theta_plot.png"
+)
+OUTPUT_EYE_CENTER_3D_PLOT_PATH = output_dir().joinpath(
+    "pye3d_test_eye_center_3d_error_plot.png"
+)
 
 # Static detector properties
 DETECTOR_CONVERGENCE_TIMESTAMP = 2.14
@@ -35,13 +47,15 @@ GAZE_ANGLE_EPS = 1.022
 def test_datum_component_phi(dataset):
     gt_df, gr_df = dataset
 
-    gaze_angle_phi_gt = gt_df["phi"].values * 180. / np.pi
-    gaze_angle_phi_gr = gr_df["phi"].values * 180. / np.pi
+    gaze_angle_phi_gt = gt_df["phi"].values * 180.0 / np.pi
+    gaze_angle_phi_gr = gr_df["phi"].values * 180.0 / np.pi
 
     gaze_angle_phi_error = abs_diff(gaze_angle_phi_gt, gaze_angle_phi_gr)
-    gaze_angle_phi_error = gaze_angle_phi_error[gr_df["timestamp"] > DETECTOR_CONVERGENCE_TIMESTAMP]
+    gaze_angle_phi_error = gaze_angle_phi_error[
+        gr_df["timestamp"] > DETECTOR_CONVERGENCE_TIMESTAMP
+    ]
 
-    gaze_angle_phi_gr_mean = gr_df["phi"].mean() * 180. / np.pi
+    gaze_angle_phi_gr_mean = gr_df["phi"].mean() * 180.0 / np.pi
 
     save_plot(
         # Generated Results
@@ -53,7 +67,7 @@ def test_datum_component_phi(dataset):
         bx=gt_df["timestamp"],
         by=gaze_angle_phi_gt,
         # Legend
-        figsize=(10,4),
+        figsize=(10, 4),
         title="phi\n",
         xlabel="time [s]",
         ylabel="[°]",
@@ -63,18 +77,23 @@ def test_datum_component_phi(dataset):
         path=OUTPUT_GAZE_ANGLE_PHI_PLOT_PATH,
     )
 
-    assert np.all(gaze_angle_phi_error <= DATUM_COMPONENT_PHI_EPS)  # TODO: Add description
+    assert np.all(
+        gaze_angle_phi_error <= DATUM_COMPONENT_PHI_EPS
+    )  # TODO: Add description
+
 
 def test_datum_component_theta(dataset):
     gt_df, gr_df = dataset
 
-    gaze_angle_theta_gt = gt_df["theta"].values * 180. / np.pi
-    gaze_angle_theta_gr = gr_df["theta"].values * 180. / np.pi
+    gaze_angle_theta_gt = gt_df["theta"].values * 180.0 / np.pi
+    gaze_angle_theta_gr = gr_df["theta"].values * 180.0 / np.pi
 
     gaze_angle_theta_error = abs_diff(gaze_angle_theta_gt, gaze_angle_theta_gr)
-    gaze_angle_theta_error = gaze_angle_theta_error[gr_df["timestamp"] > DETECTOR_CONVERGENCE_TIMESTAMP]
+    gaze_angle_theta_error = gaze_angle_theta_error[
+        gr_df["timestamp"] > DETECTOR_CONVERGENCE_TIMESTAMP
+    ]
 
-    gaze_angle_theta_gr_mean = gr_df["theta"].mean() * 180. / np.pi
+    gaze_angle_theta_gr_mean = gr_df["theta"].mean() * 180.0 / np.pi
 
     save_plot(
         # Generated Results
@@ -86,7 +105,7 @@ def test_datum_component_theta(dataset):
         bx=gt_df["timestamp"],
         by=gaze_angle_theta_gt,
         # Legend
-        figsize=(10,4),
+        figsize=(10, 4),
         title="theta\n",
         xlabel="time [s]",
         ylabel="[°]",
@@ -96,7 +115,10 @@ def test_datum_component_theta(dataset):
         path=OUTPUT_GAZE_ANGLE_THETA_PLOT_PATH,
     )
 
-    assert np.all(gaze_angle_theta_error <= DATUM_COMPONENT_THETA_EPS)  # TODO: Add description
+    assert np.all(
+        gaze_angle_theta_error <= DATUM_COMPONENT_THETA_EPS
+    )  # TODO: Add description
+
 
 def test_pupil_radius(dataset):
     gt_df, gr_df = dataset
@@ -116,7 +138,7 @@ def test_pupil_radius(dataset):
         bx=gt_df["timestamp"],
         by=pupil_radius_gt,
         # Legend
-        figsize=(10,4),
+        figsize=(10, 4),
         title="pupil radius\n",
         xlabel="time [s]",
         ylabel="[mm]",
@@ -129,9 +151,9 @@ def test_pupil_radius(dataset):
     save_plot(
         ax=gr_df["timestamp"],
         ay=pupil_radius_error,
-        a_color='r',
+        a_color="r",
         # Legend
-        figsize=(10,4),
+        figsize=(10, 4),
         title="pupil radius error\n",
         xlabel="time [s]",
         ylabel="[mm]",
@@ -142,26 +164,36 @@ def test_pupil_radius(dataset):
         path=OUTPUT_PUPIL_RADIUS_ERROR_PLOT_PATH,
     )
 
-    pupil_radius_error = pupil_radius_error[gr_df["timestamp"] > DETECTOR_CONVERGENCE_TIMESTAMP]
+    pupil_radius_error = pupil_radius_error[
+        gr_df["timestamp"] > DETECTOR_CONVERGENCE_TIMESTAMP
+    ]
 
     assert np.all(pupil_radius_error <= PUPIL_RADIUS_EPS)  # TODO: Add description
+
 
 def test_eye_center_3d(dataset):
     gt_df, gr_df = dataset
 
     eye_center_3d_columns = ["sphere_center_x", "sphere_center_y", "sphere_center_z"]
-    eye_center_3d_errors = np.linalg.norm(gr_df[eye_center_3d_columns].values - gt_df[eye_center_3d_columns].values, axis=1)
+    eye_center_3d_errors = np.linalg.norm(
+        gr_df[eye_center_3d_columns].values - gt_df[eye_center_3d_columns].values,
+        axis=1,
+    )
 
-    eye_center_3d_convergence = (eye_center_3d_errors > EYE_CENTER_3D_EPS)
-    eye_center_3d_convergence_index = -np.argwhere(eye_center_3d_convergence[::-1])[0][0]-1
-    eye_center_3d_convergence_time = gt_df.timestamp.iloc[eye_center_3d_convergence_index]
+    eye_center_3d_convergence = eye_center_3d_errors > EYE_CENTER_3D_EPS
+    eye_center_3d_convergence_index = (
+        -np.argwhere(eye_center_3d_convergence[::-1])[0][0] - 1
+    )
+    eye_center_3d_convergence_time = gt_df.timestamp.iloc[
+        eye_center_3d_convergence_index
+    ]
 
     save_plot(
         ax=gr_df["timestamp"],
         ay=eye_center_3d_errors,
-        a_color='r',
+        a_color="r",
         # Legend
-        figsize=(10,4),
+        figsize=(10, 4),
         title="eye center 3d error\n",
         xlabel="time [s]",
         ylabel="[mm]",
@@ -172,24 +204,42 @@ def test_eye_center_3d(dataset):
         path=OUTPUT_EYE_CENTER_3D_PLOT_PATH,
     )
 
-    assert eye_center_3d_convergence_time <= DETECTOR_CONVERGENCE_TIMESTAMP  # TODO: Add description
+    assert (
+        eye_center_3d_convergence_time <= DETECTOR_CONVERGENCE_TIMESTAMP
+    )  # TODO: Add description
 
-    eye_center_3d_errors = eye_center_3d_errors[gr_df["timestamp"] > eye_center_3d_convergence_time]
+    eye_center_3d_errors = eye_center_3d_errors[
+        gr_df["timestamp"] > eye_center_3d_convergence_time
+    ]
 
     assert np.all(eye_center_3d_errors <= GAZE_ANGLE_EPS)  # TODO: Add description
+
 
 def test_gaze_angle(dataset):
     gt_df, gr_df = dataset
 
-    gaze_angle_columns = ["circle_3d_normal_x", "circle_3d_normal_y", "circle_3d_normal_z"]
-    gaze_angle_error = np.arccos(np.sum(gr_df[gaze_angle_columns].values * gt_df[gaze_angle_columns].values, axis=1)) * 180. / np.pi
+    gaze_angle_columns = [
+        "circle_3d_normal_x",
+        "circle_3d_normal_y",
+        "circle_3d_normal_z",
+    ]
+    gaze_angle_error = (
+        np.arccos(
+            np.sum(
+                gr_df[gaze_angle_columns].values * gt_df[gaze_angle_columns].values,
+                axis=1,
+            )
+        )
+        * 180.0
+        / np.pi
+    )
 
     save_plot(
         ax=gr_df["timestamp"],
         ay=gaze_angle_error,
-        a_color='r',
+        a_color="r",
         # Legend
-        figsize=(10,4),
+        figsize=(10, 4),
         title="eye center 3d error\n",
         xlabel="time [s]",
         ylabel="[mm]",
@@ -200,7 +250,9 @@ def test_gaze_angle(dataset):
         path=OUTPUT_EYE_CENTER_3D_PLOT_PATH,
     )
 
-    gaze_angle_error = gaze_angle_error[gr_df["timestamp"] > DETECTOR_CONVERGENCE_TIMESTAMP]
+    gaze_angle_error = gaze_angle_error[
+        gr_df["timestamp"] > DETECTOR_CONVERGENCE_TIMESTAMP
+    ]
 
     assert np.all(gaze_angle_error <= GAZE_ANGLE_EPS)  # TODO: Add description
 
@@ -209,8 +261,12 @@ def test_gaze_angle(dataset):
 def dataset():
 
     # Check all input files exist
-    assert INPUT_SYNTHETIC_IMAGES_PATH.is_file(), f"Missing test input file: {INPUT_SYNTHETIC_IMAGES_PATH}"
-    assert INPUT_GROUND_TRUTH_CSV_PATH.is_file(), f"Missing test input file: {INPUT_GROUND_TRUTH_CSV_PATH}"
+    assert (
+        INPUT_SYNTHETIC_IMAGES_PATH.is_file()
+    ), f"Missing test input file: {INPUT_SYNTHETIC_IMAGES_PATH}"
+    assert (
+        INPUT_GROUND_TRUTH_CSV_PATH.is_file()
+    ), f"Missing test input file: {INPUT_GROUND_TRUTH_CSV_PATH}"
 
     # Cleanup output files from previous runs
     OUTPUT_GENERATED_RESULTS_CSV_PATH.unlink(missing_ok=True)
@@ -235,37 +291,42 @@ def dataset():
         result = detector.update_and_detect(pupil_datum, img, debug=True)
 
         measured_data.append(
-            np.hstack([
-                result['timestamp'],
-                np.array(result['sphere']['center']),
-                result['sphere']['radius'],
-                np.array(result['projected_sphere']['center']),
-                np.array(result['projected_sphere']['axes']),
-                result['projected_sphere']['angle'],
-                np.array(result['circle_3d']['center']),
-                np.array(result['circle_3d']['normal']),
-                result['circle_3d']['radius'],
-                result['diameter_3d'],
-                pupil_datum["ellipse"]["center"][0],
-                pupil_datum["ellipse"]["center"][1],
-                pupil_datum["ellipse"]["axes"][0],
-                pupil_datum["ellipse"]["axes"][1],
-                pupil_datum["ellipse"]["angle"],
-                pupil_datum["ellipse"]["center"][0],
-                pupil_datum["ellipse"]["center"][1],
-                pupil_datum["ellipse"]["axes"][1],
-                result['confidence'],
-                result['model_confidence'],
-                result['theta'],
-                result['phi'],
-            ])
+            np.hstack(
+                [
+                    result["timestamp"],
+                    np.array(result["sphere"]["center"]),
+                    result["sphere"]["radius"],
+                    np.array(result["projected_sphere"]["center"]),
+                    np.array(result["projected_sphere"]["axes"]),
+                    result["projected_sphere"]["angle"],
+                    np.array(result["circle_3d"]["center"]),
+                    np.array(result["circle_3d"]["normal"]),
+                    result["circle_3d"]["radius"],
+                    result["diameter_3d"],
+                    pupil_datum["ellipse"]["center"][0],
+                    pupil_datum["ellipse"]["center"][1],
+                    pupil_datum["ellipse"]["axes"][0],
+                    pupil_datum["ellipse"]["axes"][1],
+                    pupil_datum["ellipse"]["angle"],
+                    pupil_datum["ellipse"]["center"][0],
+                    pupil_datum["ellipse"]["center"][1],
+                    pupil_datum["ellipse"]["axes"][1],
+                    result["confidence"],
+                    result["model_confidence"],
+                    result["theta"],
+                    result["phi"],
+                ]
+            )
         )
 
     # Load data frame for Ground Truth (GT) from input dir
     gt_df = pd.read_csv(INPUT_GROUND_TRUTH_CSV_PATH)
 
     # Create data frame for Generated Results (GR) and save to output dir
-    gr_df = pd.DataFrame(np.concatenate(measured_data, axis=0).reshape(-1, len(COLUMNS_MEASURED)), columns=COLUMNS_MEASURED)
+    gr_df = pd.DataFrame(
+        np.concatenate(measured_data, axis=0).reshape(-1, len(COLUMNS_MEASURED)),
+        columns=COLUMNS_MEASURED,
+    )
     gr_df.to_csv(str(OUTPUT_GENERATED_RESULTS_CSV_PATH))
 
     # Sanity check: timestamps must match completely
@@ -286,36 +347,36 @@ def create_detector():
 
 
 COLUMNS_MEASURED = [
-    'timestamp',
-    'sphere_center_x',
-    'sphere_center_y',
-    'sphere_center_z',
-    'sphere_radius',
-    'projected_sphere_center_x',
-    'projected_sphere_center_y',
-    'projected_sphere_minor_axis',
-    'projected_sphere_major_axis',
-    'projected_sphere_angle',
-    'circle_3d_center_x',
-    'circle_3d_center_y',
-    'circle_3d_center_z',
-    'circle_3d_normal_x',
-    'circle_3d_normal_y',
-    'circle_3d_normal_z',
-    'circle_3d_radius',
-    'diameter_3d',
-    'ellipse_center_x',
-    'ellipse_center_y',
-    'ellipse_minor_axis',
-    'ellipse_major_axis',
-    'ellipse_angle',
-    'location_x',
-    'location_y',
-    'diameter',
-    'confidence',
-    'model_confidence',
-    'theta',
-    'phi',
+    "timestamp",
+    "sphere_center_x",
+    "sphere_center_y",
+    "sphere_center_z",
+    "sphere_radius",
+    "projected_sphere_center_x",
+    "projected_sphere_center_y",
+    "projected_sphere_minor_axis",
+    "projected_sphere_major_axis",
+    "projected_sphere_angle",
+    "circle_3d_center_x",
+    "circle_3d_center_y",
+    "circle_3d_center_z",
+    "circle_3d_normal_x",
+    "circle_3d_normal_y",
+    "circle_3d_normal_z",
+    "circle_3d_radius",
+    "diameter_3d",
+    "ellipse_center_x",
+    "ellipse_center_y",
+    "ellipse_minor_axis",
+    "ellipse_major_axis",
+    "ellipse_angle",
+    "location_x",
+    "location_y",
+    "diameter",
+    "confidence",
+    "model_confidence",
+    "theta",
+    "phi",
 ]
 
 
@@ -324,8 +385,8 @@ def pupil_datum_from_raytraced_image(img=None, raytracer=None, device="cuda"):
     if img is None:
         img = raytracer.ray_trace_image(device=device)
 
-    hard_segmentation=img[:,:,0]
-    pupil_label=10
+    hard_segmentation = img[:, :, 0]
+    pupil_label = 10
 
     pupil_datum = {}
     pupil_datum["ellipse"] = {}
@@ -379,7 +440,24 @@ def pupil_datum_from_raytraced_image(img=None, raytracer=None, device="cuda"):
     return pupil_datum, img
 
 
-def save_plot(title, path, ylim, ax, ay, a_label='', bx=None, by=None, b_label='', a_color='b', b_color='g', h_threshold=None, v_threshold=None, figsize=(10,4), xlabel="", ylabel=""):
+def save_plot(
+    title,
+    path,
+    ylim,
+    ax,
+    ay,
+    a_label="",
+    bx=None,
+    by=None,
+    b_label="",
+    a_color="b",
+    b_color="g",
+    h_threshold=None,
+    v_threshold=None,
+    figsize=(10, 4),
+    xlabel="",
+    ylabel="",
+):
     import matplotlib
     import matplotlib.pyplot as plt
 
@@ -390,14 +468,18 @@ def save_plot(title, path, ylim, ax, ay, a_label='', bx=None, by=None, b_label='
     if bx is not None and by is not None:
         axis.plot(bx, by, b_color, alpha=1, label=b_label)
 
-    if h_threshold:        
-        xlim_lo = min(map(lambda x: x.iloc[0],  filter(lambda x: x is not None, [ax, bx])))
-        xlim_hi = max(map(lambda x: x.iloc[-1], filter(lambda x: x is not None, [ax, bx])))
+    if h_threshold:
+        xlim_lo = min(
+            map(lambda x: x.iloc[0], filter(lambda x: x is not None, [ax, bx]))
+        )
+        xlim_hi = max(
+            map(lambda x: x.iloc[-1], filter(lambda x: x is not None, [ax, bx]))
+        )
         xlim = xlim_lo, xlim_hi
-        axis.hlines([h_threshold], *xlim, colors='C2', linestyles='dashed')
+        axis.hlines([h_threshold], *xlim, colors="C2", linestyles="dashed")
 
     if v_threshold:
-        axis.vlines([v_threshold], *ylim, colors='C4', linestyles='dashed')
+        axis.vlines([v_threshold], *ylim, colors="C4", linestyles="dashed")
 
     axis.set_ylim(*ylim)
 
