@@ -35,7 +35,7 @@ OUTPUT_EYE_CENTER_3D_PLOT_PATH = output_dir().joinpath(
 )
 
 # Static detector properties
-DETECTOR_CONVERGENCE_TIMESTAMP = 2.14
+DETECTOR_EXPECTED_CONVERGENCE_MAX_TIME = 2.14
 PUPIL_RADIUS_EPS = 0.057
 DATUM_COMPONENT_PHI_EPS = 1.010
 DATUM_COMPONENT_THETA_EPS = 0.456
@@ -43,16 +43,19 @@ EYE_CENTER_3D_EPS = 0.5
 GAZE_ANGLE_EPS = 1.022
 
 
-def test_datum_component_phi(dataset):
+def test_convergence_time(convergence_time):
+    assert (
+        convergence_time <= DETECTOR_EXPECTED_CONVERGENCE_MAX_TIME
+    )  # TODO: Add description
+
+
+def test_datum_component_phi(dataset, convergence_time):
     gt_df, gr_df = dataset
 
     gaze_angle_phi_gt = gt_df["phi"].values * 180.0 / np.pi
     gaze_angle_phi_gr = gr_df["phi"].values * 180.0 / np.pi
 
     gaze_angle_phi_error = abs_diff(gaze_angle_phi_gt, gaze_angle_phi_gr)
-    gaze_angle_phi_error = gaze_angle_phi_error[
-        gr_df["timestamp"] > DETECTOR_CONVERGENCE_TIMESTAMP
-    ]
 
     gaze_angle_phi_gr_mean = gr_df["phi"].mean() * 180.0 / np.pi
 
@@ -71,26 +74,25 @@ def test_datum_component_phi(dataset):
         xlabel="time [s]",
         ylabel="[°]",
         ylim=(gaze_angle_phi_gr_mean - 55, gaze_angle_phi_gr_mean + 55),
-        v_threshold=DETECTOR_CONVERGENCE_TIMESTAMP,
+        v_threshold=convergence_time,
         # Image Path
         path=OUTPUT_GAZE_ANGLE_PHI_PLOT_PATH,
     )
+
+    gaze_angle_phi_error = gaze_angle_phi_error[gr_df["timestamp"] > convergence_time]
 
     assert np.all(
         gaze_angle_phi_error <= DATUM_COMPONENT_PHI_EPS
     )  # TODO: Add description
 
 
-def test_datum_component_theta(dataset):
+def test_datum_component_theta(dataset, convergence_time):
     gt_df, gr_df = dataset
 
     gaze_angle_theta_gt = gt_df["theta"].values * 180.0 / np.pi
     gaze_angle_theta_gr = gr_df["theta"].values * 180.0 / np.pi
 
     gaze_angle_theta_error = abs_diff(gaze_angle_theta_gt, gaze_angle_theta_gr)
-    gaze_angle_theta_error = gaze_angle_theta_error[
-        gr_df["timestamp"] > DETECTOR_CONVERGENCE_TIMESTAMP
-    ]
 
     gaze_angle_theta_gr_mean = gr_df["theta"].mean() * 180.0 / np.pi
 
@@ -109,17 +111,21 @@ def test_datum_component_theta(dataset):
         xlabel="time [s]",
         ylabel="[°]",
         ylim=(gaze_angle_theta_gr_mean - 55, gaze_angle_theta_gr_mean + 55),
-        v_threshold=DETECTOR_CONVERGENCE_TIMESTAMP,
+        v_threshold=convergence_time,
         # Image Path
         path=OUTPUT_GAZE_ANGLE_THETA_PLOT_PATH,
     )
+
+    gaze_angle_theta_error = gaze_angle_theta_error[
+        gr_df["timestamp"] > convergence_time
+    ]
 
     assert np.all(
         gaze_angle_theta_error <= DATUM_COMPONENT_THETA_EPS
     )  # TODO: Add description
 
 
-def test_pupil_radius(dataset):
+def test_pupil_radius(dataset, convergence_time):
     gt_df, gr_df = dataset
 
     pupil_radius_gt = gt_df["circle_3d_radius"]
@@ -142,7 +148,7 @@ def test_pupil_radius(dataset):
         xlabel="time [s]",
         ylabel="[mm]",
         ylim=(0, 5),
-        v_threshold=DETECTOR_CONVERGENCE_TIMESTAMP,
+        v_threshold=convergence_time,
         # Image Path
         path=OUTPUT_PUPIL_RADIUS_PLOT_PATH,
     )
@@ -158,34 +164,18 @@ def test_pupil_radius(dataset):
         ylabel="[mm]",
         ylim=(0, 1),
         h_threshold=PUPIL_RADIUS_EPS,
-        v_threshold=DETECTOR_CONVERGENCE_TIMESTAMP,
+        v_threshold=convergence_time,
         # Image Path
         path=OUTPUT_PUPIL_RADIUS_ERROR_PLOT_PATH,
     )
 
-    pupil_radius_error = pupil_radius_error[
-        gr_df["timestamp"] > DETECTOR_CONVERGENCE_TIMESTAMP
-    ]
+    pupil_radius_error = pupil_radius_error[gr_df["timestamp"] > convergence_time]
 
     assert np.all(pupil_radius_error <= PUPIL_RADIUS_EPS)  # TODO: Add description
 
 
-def test_eye_center_3d(dataset):
+def test_eye_center_3d(dataset, convergence_time, eye_center_3d_errors):
     gt_df, gr_df = dataset
-
-    eye_center_3d_columns = ["sphere_center_x", "sphere_center_y", "sphere_center_z"]
-    eye_center_3d_errors = np.linalg.norm(
-        gr_df[eye_center_3d_columns].values - gt_df[eye_center_3d_columns].values,
-        axis=1,
-    )
-
-    eye_center_3d_convergence = eye_center_3d_errors > EYE_CENTER_3D_EPS
-    eye_center_3d_convergence_index = (
-        -np.argwhere(eye_center_3d_convergence[::-1])[0][0] - 1
-    )
-    eye_center_3d_convergence_time = gt_df.timestamp.iloc[
-        eye_center_3d_convergence_index
-    ]
 
     save_plot(
         ax=gr_df["timestamp"],
@@ -198,23 +188,17 @@ def test_eye_center_3d(dataset):
         ylabel="[mm]",
         ylim=(0, 5),
         h_threshold=EYE_CENTER_3D_EPS,
-        v_threshold=DETECTOR_CONVERGENCE_TIMESTAMP,
+        v_threshold=convergence_time,
         # Image Path
         path=OUTPUT_EYE_CENTER_3D_PLOT_PATH,
     )
 
-    assert (
-        eye_center_3d_convergence_time <= DETECTOR_CONVERGENCE_TIMESTAMP
-    )  # TODO: Add description
-
-    eye_center_3d_errors = eye_center_3d_errors[
-        gr_df["timestamp"] > eye_center_3d_convergence_time
-    ]
+    eye_center_3d_errors = eye_center_3d_errors[gr_df["timestamp"] > convergence_time]
 
     assert np.all(eye_center_3d_errors <= EYE_CENTER_3D_EPS)  # TODO: Add description
 
 
-def test_gaze_angle(dataset):
+def test_gaze_angle(dataset, convergence_time):
     gt_df, gr_df = dataset
 
     gaze_angle_columns = [
@@ -238,16 +222,35 @@ def test_gaze_angle(dataset):
         ylabel="[mm]",
         ylim=(0, 5),
         h_threshold=GAZE_ANGLE_EPS,
-        v_threshold=DETECTOR_CONVERGENCE_TIMESTAMP,
+        v_threshold=convergence_time,
         # Image Path
         path=OUTPUT_EYE_CENTER_3D_PLOT_PATH,
     )
 
-    gaze_angle_error = gaze_angle_error[
-        gr_df["timestamp"] > DETECTOR_CONVERGENCE_TIMESTAMP
-    ]
+    gaze_angle_error = gaze_angle_error[gr_df["timestamp"] > convergence_time]
 
     assert np.all(gaze_angle_error <= GAZE_ANGLE_EPS)  # TODO: Add description
+
+
+@pytest.fixture(scope="module")
+def convergence_time(dataset, eye_center_3d_errors):
+    gt_df, gr_df = dataset
+
+    eye_center_3d_convergence = eye_center_3d_errors > EYE_CENTER_3D_EPS
+    convergence_index = -np.argwhere(eye_center_3d_convergence[::-1])[0][0] - 1
+    convergence_time = gt_df.timestamp.iloc[convergence_index]
+
+    return convergence_time
+
+
+@pytest.fixture(scope="module")
+def eye_center_3d_errors(dataset):
+    gt_df, gr_df = dataset
+
+    columns = ["sphere_center_x", "sphere_center_y", "sphere_center_z"]
+    errors = np.linalg.norm(gr_df[columns].values - gt_df[columns].values, axis=1)
+
+    return errors
 
 
 @pytest.fixture(scope="module")
