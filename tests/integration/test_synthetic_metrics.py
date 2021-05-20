@@ -379,7 +379,10 @@ def pupil_datum_from_raytraced_image(img=None, raytracer=None, device="cuda"):
     if img is None:
         img = raytracer.ray_trace_image(device=device)
 
-    hard_segmentation = img[:, :, 0]
+    if img.ndim == 3:
+        img = img[:, :, 0]
+
+    hard_segmentation = img
     pupil_label = 10
 
     pupil_datum = {}
