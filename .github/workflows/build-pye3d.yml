@@ -20,8 +20,8 @@ jobs:
     name: "pye3d (py${{ matrix.python-version }} on ${{ matrix.os }})"
     strategy:
       matrix:
-        os: [ubuntu-latest] # [ubuntu-latest, macos-latest, windows-latest] #FIXME: This is temporary change
-        python-version: ["3.6"] # ["3.6", "3.7", "3.8"]  #FIXME: This is temporary change
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.6", "3.7", "3.8", "3.9"]
     continue-on-error: true
     runs-on: ${{ matrix.os }}
     steps:
