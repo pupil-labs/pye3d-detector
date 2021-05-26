@@ -85,7 +85,7 @@ jobs:
         if: !contains(runner.os, 'windows')
         run: wget -q -O ${{ env.pye3d-test-input-local-path }} ${{ env.pye3d-test-input-download-url }}
       - name: "Download pye3d_test_input.npz on Windows"
-        if: && contains(runner.os, 'windows')
+        if: contains(runner.os, 'windows')
         run: Invoke-WebRequest ${{ env.pye3d-test-input-download-url }} -OutFile ${{ env.pye3d-test-input-local-path }}
       # TEST WHEELS
       - name: "Run tox targets for ${{ matrix.python-version }}"
