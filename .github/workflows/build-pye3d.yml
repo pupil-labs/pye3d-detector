@@ -81,10 +81,10 @@ jobs:
       - name: "Build pye3d sdist"
         run: python -m pep517.build --source .
       # DOWNLOAD TESTING INPUT
-      - name: "Download pye3d_test_input.npz on Unix"
+      - name: "Download pye3d_test_input on Unix"
         if: !contains(runner.os, 'windows')
         run: wget -q -O ${{ env.pye3d-test-input-local-path }} ${{ env.pye3d-test-input-download-url }}
-      - name: "Download pye3d_test_input.npz on Windows"
+      - name: "Download pye3d_test_input on Windows"
         if: contains(runner.os, 'windows')
         run: Invoke-WebRequest ${{ env.pye3d-test-input-download-url }} -OutFile ${{ env.pye3d-test-input-local-path }}
       # TEST WHEELS
