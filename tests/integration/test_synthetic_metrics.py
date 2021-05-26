@@ -8,7 +8,7 @@ import pandas as pd
 import skimage.measure as skmeas
 
 import pytest
-from .utils import abs_diff, input_dir, output_dir
+from .utils import abs_diff, input_dir, output_dir, remove_file
 
 
 # Define all input files
@@ -260,12 +260,12 @@ def dataset():
     assert INPUT_PATH.is_file(), f"Missing test input file: {INPUT_PATH}"
 
     # Cleanup output files from previous runs
-    OUTPUT_GENERATED_RESULTS_CSV_PATH.unlink(missing_ok=True)
-    OUTPUT_PUPIL_RADIUS_PLOT_PATH.unlink(missing_ok=True)
-    OUTPUT_PUPIL_RADIUS_ERROR_PLOT_PATH.unlink(missing_ok=True)
-    OUTPUT_GAZE_ANGLE_PHI_PLOT_PATH.unlink(missing_ok=True)
-    OUTPUT_GAZE_ANGLE_THETA_PLOT_PATH.unlink(missing_ok=True)
-    OUTPUT_EYE_CENTER_3D_PLOT_PATH.unlink(missing_ok=True)
+    remove_file(OUTPUT_GENERATED_RESULTS_CSV_PATH)
+    remove_file(OUTPUT_PUPIL_RADIUS_PLOT_PATH)
+    remove_file(OUTPUT_PUPIL_RADIUS_ERROR_PLOT_PATH)
+    remove_file(OUTPUT_GAZE_ANGLE_PHI_PLOT_PATH)
+    remove_file(OUTPUT_GAZE_ANGLE_THETA_PLOT_PATH)
+    remove_file(OUTPUT_EYE_CENTER_3D_PLOT_PATH)
 
     input_data = np.load(INPUT_PATH)
 
