@@ -96,6 +96,16 @@ jobs:
         with:
           name: pye3d-dist-${{ matrix.os }}-${{ matrix.python-version }}
           path: ./dist/*
+      # UPLOAD TESTING OUTPUT
+      - name: "Prepare testing output"
+        shell: bash
+        run: |
+          zip -qj pye3d-test-output-${{ matrix.os }}-${{ matrix.python-version }}.zip ./tests/integration/output/pye3d_test_*
+      - name: "Upload testing output"
+        uses: actions/upload-artifact@v2
+        with:
+          name: pye3d-test-output-${{ matrix.os }}-${{ matrix.python-version }}.zip
+          path: ./pye3d-test-output-${{ matrix.os }}-${{ matrix.python-version }}.zip
       # ON FAILURE
       - name: List intermediate files on failure
         if: ${{ failure() }}
