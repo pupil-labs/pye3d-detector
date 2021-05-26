@@ -3,6 +3,7 @@
 name: Build pye3d
 
 on:
+  pull_request:
   push:
     branches: ["master", "ga-build"]
   workflow_dispatch:
