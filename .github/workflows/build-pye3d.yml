@@ -102,7 +102,7 @@ jobs:
         run: zip -qj pye3d-test-output-${{ matrix.os }}-${{ matrix.python-version }}.zip ./tests/integration/output/pye3d_test_*
       - name: "Prepare testing output on Windows"
         if: ${{ contains(runner.os, 'windows') }}
-        run: Compress-Archive -LiteralPath 'tests\integration\output\pye3d_test_*.*' -DestinationPath pye3d-test-output-${{ matrix.os }}-${{ matrix.python-version }}.zip
+        run: Compress-Archive -Path ./tests/integration/output/pye3d_test_* -DestinationPath pye3d-test-output-${{ matrix.os }}-${{ matrix.python-version }}.zip
       - name: "Upload testing output"
         uses: actions/upload-artifact@v2
         with:
