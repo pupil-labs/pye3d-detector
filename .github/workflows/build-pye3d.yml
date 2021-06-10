@@ -19,7 +19,6 @@ env:
   eigen-install-dir-manylinux: /pye3d-deps/eigen
 
   pye3d-test-input-download-url: "https://github.com/pupil-labs/pye3d-detector/wiki/files/pye3d_test_input.npz"
-  pye3d-test-input-local-path: "{package}/tests/integration/input/pye3d_test_input.npz"
 
 jobs:
   build_pye3d:
@@ -30,7 +29,6 @@ jobs:
     continue-on-error: true
     runs-on: ${{ matrix.os }}
     steps:
-      # DEPENDENCIES
       - uses: actions/checkout@v2
 
       - name: Load OpenCV build cache (macOS / Windows)
@@ -77,8 +75,10 @@ jobs:
           CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}" # --add-path ${{ env.opencv-install-dir }};${{ env.eigen-install-dir }}"
 
           CIBW_TEST_REQUIRES: pytest opencv-python pandas scikit-image
-          CIBW_TEST_COMMAND: pytest {package}/tests
-          CIBW_BEFORE_TEST: curl ${{ env.pye3d-test-input-download-url }} --output ${{ env.pye3d-test-input-local-path }} --silent
+          CIBW_TEST_COMMAND: >
+            curl ${{ env.pye3d-test-input-download-url }}
+            --output {package}/tests/integration/input/pye3d_test_input.npz --silent
+            && pytest {package}/tests
           CIBW_TEST_SKIP: "*-macosx_arm64 *-macosx_universal2:arm64"
 
       - uses: actions/upload-artifact@v2
