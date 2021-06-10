@@ -25,24 +25,86 @@ env:
   eigen-install-dir: ${{ github.workspace }}/eigen-build
 
 jobs:
-  # This workflow contains a single job called "greet"
-  build_opencv:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    continue-on-error: false
-    # Steps represent a sequence of tasks that will be executed as part of the job
+  build_opencv_manylinux:
+    name: "Build OpenCV on manylinux"
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/pypa/manylinux2014_x86_64
+    env:
+      opencv-install-dir-manylinux: /pye3d-deps/opencv
+
     steps:
       - name: Cache OpenCV source code download
         id: opencv-source-cache
         uses: actions/cache@v2.1.3
         with:
-          # A list of files, directories, and wildcard patterns to cache and restore
           path: opencv.zip
-          # An explicit key for restoring and saving the cache
           key: opencv-source-cache-${{ env.opencv-download-url }}
-      - name: Download on Unix
+      - name: Download on manylinux
+        if: (github.event.inputs.should_invalidate_cache_download || steps.opencv-source-cache.outputs.cache-hit != 'true')
+        run: curl ${{ env.opencv-download-url }} --output opencv.zip --silent
+      - name: Cache OpenCV build
+        id: opencv-build-cache
+        uses: actions/cache@v2.1.3
+        with:
+          path: ${{ env.opencv-install-dir-manylinux }}
+          key: opencv-build-cache-manylinux-${{ env.opencv-download-url }}
+      - name: Prepare build
+        shell: bash
+        run: |
+          unzip -q opencv.zip
+          mv opencv-4.* opencv/
+          mkdir opencv/build
+      - name: Configure build
+        if: github.event.inputs.should_invalidate_cache_build || steps.opencv-build-cache.outputs.cache-hit != 'true'
+        shell: bash
+        working-directory: opencv/build
+        run: |
+          cmake .. \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_INSTALL_PREFIX="${{ env.opencv-install-dir-manylinux }}" \
+          -DBUILD_LIST="core,highgui,videoio,imgcodecs,imgproc,video" \
+          -DBUILD_opencv_world=ON \
+          -DBUILD_EXAMPLES=OFF \
+          -DBUILD_DOCS=OFF \
+          -DBUILD_PERF_TESTS=OFF \
+          -DBUILD_TESTS=OFF \
+          -DBUILD_opencv_java=OFF \
+          -DBUILD_opencv_python=OFF \
+          -DWITH_OPENMP=ON \
+          -DWITH_IPP=ON \
+          -DWITH_CSTRIPES=ON \
+          -DWITH_OPENCL=ON \
+          -DWITH_CUDA=OFF \
+          -DWITH_TBB=OFF \
+          -DWITH_MSMF=OFF
+      - name: Compile on Unix
+        if: (github.event.inputs.should_invalidate_cache_build || steps.opencv-build-cache.outputs.cache-hit != 'true')
+        working-directory: opencv/build
+        run: |
+          make
+          make install
+      - name: Upload build as artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: opencv-build-manylinux
+          path: ${{ env.opencv-install-dir-manylinux }}
+
+  build_opencv_macos_windows:
+    name: Build OpenCV on ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    continue-on-error: false
+    steps:
+      - name: Cache OpenCV source code download
+        id: opencv-source-cache
+        uses: actions/cache@v2.1.3
+        with:
+          path: opencv.zip
+          key: opencv-source-cache-${{ env.opencv-download-url }}
+      - name: Download on macOS
         if: (github.event.inputs.should_invalidate_cache_download || steps.opencv-source-cache.outputs.cache-hit != 'true') && !contains(runner.os, 'windows')
         run: wget -q -O opencv.zip ${{ env.opencv-download-url }}
       - name: Download on Windows
@@ -53,7 +115,7 @@ jobs:
         uses: actions/cache@v2.1.3
         with:
           path: ${{ env.opencv-install-dir }}
-          key: opencv-build-cache-${{ env.opencv-download-url }}
+          key: opencv-build-cache-${{ matrix.os }}-${{ env.opencv-download-url }}
       - name: Prepare build
         shell: bash
         run: |
@@ -99,21 +161,68 @@ jobs:
         with:
           name: opencv-build-${{ matrix.os }}
           path: ${{ env.opencv-install-dir }}
-  build_eigen:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    continue-on-error: false
-    # Steps represent a sequence of tasks that will be executed as part of the job
+
+  build_eigen_manylinux:
+    name: Build Eigen on manylinux
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/pypa/manylinux2014_x86_64
+    env:
+      eigen-install-dir-manylinux: /pye3d-deps/eigen
     steps:
       - name: Cache Eigen source code download
         id: eigen-source-cache
         uses: actions/cache@v2.1.3
         with:
-          # A list of files, directories, and wildcard patterns to cache and restore
           path: eigen.zip
-          # An explicit key for restoring and saving the cache
+          key: eigen-source-cache-${{ env.eigen-download-url }}
+      - name: Download on manylinux
+        if: (github.event.inputs.should_invalidate_cache_download || steps.eigen-source-cache.outputs.cache-hit != 'true')
+        run: curl ${{ env.eigen-download-url }} --output eigen.zip --silent
+      - name: Cache eigen build
+        id: eigen-build-cache
+        uses: actions/cache@v2.1.3
+        with:
+          path: ${{ env.eigen-install-dir-manylinux }}
+          key: eigen-build-cache-manylinux-${{ env.eigen-download-url }}
+      - name: Prepare build
+        shell: bash
+        run: |
+          set -xe
+          unzip -q eigen.zip
+          mv eigen-3.* eigen/
+          mkdir eigen/build
+      - name: Configure build
+        if: github.event.inputs.should_invalidate_cache_build || steps.eigen-build-cache.outputs.cache-hit != 'true'
+        working-directory: eigen/build
+        shell: bash
+        run: cmake .. -DCMAKE_INSTALL_PREFIX="${{ env.eigen-install-dir-manylinux }}"
+      - name: Compile on Unix
+        if: (github.event.inputs.should_invalidate_cache_build || steps.eigen-build-cache.outputs.cache-hit != 'true')
+        working-directory: eigen/build
+        run: |
+          make
+          make install
+      - name: Upload build as artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: eigen-build-manylinux
+          path: ${{ env.eigen-install-dir-manylinux }}
+
+
+  build_eigen_macos_windows:
+    name: Build Eigen on ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    continue-on-error: false
+    steps:
+      - name: Cache Eigen source code download
+        id: eigen-source-cache
+        uses: actions/cache@v2.1.3
+        with:
+          path: eigen.zip
           key: eigen-source-cache-${{ env.eigen-download-url }}
       - name: Download on Unix
         if: (github.event.inputs.should_invalidate_cache_download || steps.eigen-source-cache.outputs.cache-hit != 'true') && !contains(runner.os, 'windows')
@@ -126,7 +235,7 @@ jobs:
         uses: actions/cache@v2.1.3
         with:
           path: ${{ env.eigen-install-dir }}
-          key: eigen-build-cache-${{ env.eigen-download-url }}
+          key: eigen-build-cache-${{ matrix.os }}-${{ env.eigen-download-url }}
       - name: Prepare build
         shell: bash
         run: |
