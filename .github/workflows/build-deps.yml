@@ -3,7 +3,6 @@
 name: Build dependencies
 
 on:
-  push:
   schedule:
     # run every 6 days to keep cache alive
     - cron: "30 7 */6 * *"
@@ -46,7 +45,7 @@ jobs:
           key: opencv-source-cache-${{ env.opencv-download-url }}
       - name: Download on manylinux
         if: (github.event.inputs.should_invalidate_cache_download || steps.opencv-source-cache.outputs.cache-hit != 'true')
-        run: curl ${{ env.opencv-download-url }} --output opencv.zip --silent
+        run: curl -L ${{ env.opencv-download-url }} --output opencv.zip --silent
       - name: Cache OpenCV build
         id: opencv-build-cache
         uses: actions/cache@v2.1.3
@@ -185,7 +184,7 @@ jobs:
           key: eigen-source-cache-${{ env.eigen-download-url }}
       - name: Download on manylinux
         if: (github.event.inputs.should_invalidate_cache_download || steps.eigen-source-cache.outputs.cache-hit != 'true')
-        run: curl ${{ env.eigen-download-url }} --output eigen.zip --silent
+        run: curl -L ${{ env.eigen-download-url }} --output eigen.zip --silent
       - name: Cache eigen build
         id: eigen-build-cache
         uses: actions/cache@v2.1.3
