@@ -27,7 +27,10 @@ env:
 jobs:
   build_opencv_manylinux:
     name: "Build OpenCV on manylinux"
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
     container:
       image: quay.io/pypa/manylinux2014_x86_64
     env:
@@ -48,7 +51,7 @@ jobs:
         uses: actions/cache@v2.1.3
         with:
           path: ${{ env.opencv-install-dir-manylinux }}
-          key: opencv-build-cache-manylinux-${{ env.opencv-download-url }}
+          key: opencv-build-cache-${{ matrix.os }}-${{ env.opencv-download-url }}
       - name: Prepare build
         shell: bash
         run: |
@@ -164,7 +167,10 @@ jobs:
 
   build_eigen_manylinux:
     name: Build Eigen on manylinux
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
     container:
       image: quay.io/pypa/manylinux2014_x86_64
     env:
@@ -184,7 +190,7 @@ jobs:
         uses: actions/cache@v2.1.3
         with:
           path: ${{ env.eigen-install-dir-manylinux }}
-          key: eigen-build-cache-manylinux-${{ env.eigen-download-url }}
+          key: eigen-build-cache-${{ matrix.os }}-${{ env.eigen-download-url }}
       - name: Prepare build
         shell: bash
         run: |

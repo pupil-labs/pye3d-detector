@@ -32,7 +32,7 @@ requirements = [
     "sortedcontainers",
 ]
 extras_require = {
-    "dev": ["pytest", "tox", "bump2version"],
+    "dev": ["pytest", "tox", "bump2version", "pandas", "scikit-image"],
     "with-opencv": ["opencv-python"],
 }
 
