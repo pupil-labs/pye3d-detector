@@ -3,6 +3,7 @@
 name: Build dependencies
 
 on:
+  push:
   schedule:
     # run every 6 days to keep cache alive
     - cron: "30 7 */6 * *"
