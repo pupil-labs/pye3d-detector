@@ -27,7 +27,7 @@ env:
   opencv-install-dir: ${{ github.workspace }}/opencv-build
   eigen-install-dir: ${{ github.workspace }}/eigen-build
 
-  opencv-install-dir-manylinux: /pye3d-deps/opencv  
+  opencv-install-dir-manylinux: /pye3d-deps/opencv
   eigen-install-dir-manylinux: /pye3d-deps/eigen
 
   pye3d-test-input-download-url: "https://github.com/pupil-labs/pye3d-detector/wiki/files/pye3d_test_input.npz"
@@ -134,7 +134,7 @@ jobs:
           mv opencv-4.* opencv/
           mkdir opencv/build
       - name: Configure build
-        if: always() #github.event.inputs.should_invalidate_cache_build || steps.opencv-build-cache.outputs.cache-hit != 'true'
+        if: github.event.inputs.should_invalidate_cache_build || steps.opencv-build-cache.outputs.cache-hit != 'true'
         shell: bash
         working-directory: opencv/build
         run: |
@@ -142,7 +142,6 @@ jobs:
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX="${{ env.opencv-install-dir }}" \
           -DBUILD_LIST="core,highgui,videoio,imgcodecs,imgproc,video" \
-          -DCMAKE_BUILD_WITH_INSTALL_NAME_DIR=ON \
           -DBUILD_opencv_world=ON \
           -DBUILD_EXAMPLES=OFF \
           -DBUILD_DOCS=OFF \
@@ -163,10 +162,10 @@ jobs:
           cd opencv/build
           cmake --build . --target INSTALL --config Release --parallel
       - name: Compile on macOS
-        if: runner.os != 'Windows' #&& (github.event.inputs.should_invalidate_cache_build || steps.opencv-build-cache.outputs.cache-hit != 'true')
+        if: runner.os != 'Windows' && (github.event.inputs.should_invalidate_cache_build || steps.opencv-build-cache.outputs.cache-hit != 'true')
         working-directory: opencv/build
         run: |
-          make
+          make -j
           make install
       - name: Upload build as artifact
         uses: actions/upload-artifact@v2
@@ -223,7 +222,6 @@ jobs:
         with:
           name: build-${{ matrix.os }}
           path: ${{ env.eigen-install-dir-manylinux }}
-
 
   build_eigen_macos_windows:
     name: Build Eigen on ${{ matrix.os }}
@@ -302,6 +300,21 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: build-${{ matrix.os }}
+      - name: Patch OpenCV install_name on macOS
+        if: runner.os == 'macOS'
+        working-directory: lib
+        run: | # replace @rpath in install_name with absolute path
+          for dylib in libopencv_world*.dylib
+          do
+            INSTALL_NAME_BEFORE=$(otool -D $dylib | grep --color=never @rpath)
+            INSTALL_NAME_AFTER=${INSTALL_NAME_BEFORE/@rpath/$(pwd)}
+            echo "Changing $dylib install_name from $INSTALL_NAME_BEFORE to $INSTALL_NAME_AFTER"
+            install_name_tool -id "$INSTALL_NAME_AFTER" $dylib
+          done
+      - name: Verify patched OpenCV install_name on macOS
+        if: runner.os == 'macOS'
+        working-directory: lib
+        run: otool -D libopencv_world*.dylib
       - name: Dump file list
         shell: bash
         run: ls -laR
@@ -321,9 +334,10 @@ jobs:
 
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
           CIBW_BEFORE_BUILD_WINDOWS: pip install delvewheel
-          # CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel needed && delvewheel repair -w {dest_dir} {wheel}" # --add-path ${{ env.opencv-install-dir }};${{ env.eigen-install-dir }}"
-          CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: cp {wheel} {dest_dir}
-          CIBW_REPAIR_WHEEL_COMMAND_MACOS: cp {wheel} {dest_dir}
+          CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: >
+            delvewheel needed {wheel} && delvewheel repair -w {dest_dir} {wheel}
+            --add-path ${{ env.opencv-install-dir }};${{ env.eigen-install-dir }}
+          # CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: cp {wheel} {dest_dir}
 
           CIBW_TEST_REQUIRES: pytest opencv-python pandas scikit-image
           CIBW_TEST_COMMAND: >
@@ -334,7 +348,7 @@ jobs:
             curl -L ${{ env.pye3d-test-input-download-url }} --silent
             --output {package}\tests\integration\input\pye3d_test_input.npz
             && pytest {package}\tests
-          CIBW_TEST_SKIP: "*" # "*-macosx_arm64 *-macosx_universal2:arm64"
+          CIBW_TEST_SKIP: "*-macosx_arm64 *-macosx_universal2:arm64"
 
       - uses: actions/upload-artifact@v2
         if: always()
