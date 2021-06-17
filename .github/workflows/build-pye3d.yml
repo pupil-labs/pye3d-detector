@@ -334,8 +334,7 @@ jobs:
 
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
           CIBW_BEFORE_BUILD_WINDOWS: pip install delvewheel
-          CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: >
-            python {package}\scripts\repair_wheels_windows.py {wheel} {dest_dir}
+          CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: python scripts\repair_wheels_windows.py {wheel} {dest_dir}
 
           CIBW_TEST_REQUIRES: pytest opencv-python pandas scikit-image
           CIBW_TEST_COMMAND: >
