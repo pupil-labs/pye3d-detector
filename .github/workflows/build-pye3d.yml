@@ -5,7 +5,8 @@ name: Build pye3d
 on:
   pull_request:
   push:
-    branches: ["master"]
+    tags:
+      - "**"
   schedule:
     # run every 6 days to keep cache alive
     - cron: "30 7 */6 * *"
