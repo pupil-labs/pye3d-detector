@@ -335,11 +335,14 @@ jobs:
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
           CIBW_BEFORE_BUILD_WINDOWS: pip install delvewheel
           # Manually copy wheel to dest_dir if there is nothing to repair (cp38/39-win)
-          CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: >  
-            LAST_LINE=$(delvewheel.exe repair -w {dest_dir} {wheel} | tail -1)
-            && [[ $LAST_LINE = "no external dependencies are needed"* ]]
-            && cp {wheel} {dest_dir}
-            || echo "No manual copy needed"
+          CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: >
+            delvewheel.exe repair -w {dest_dir} {wheel}
+            | tail -1
+            | {
+              read LAST_LINE;
+              [[ $LAST_LINE = "no external dependencies are needed"* ]]
+              && cp {wheel} {dest_dir} || echo "No manual copy needed";
+            }
 
           CIBW_TEST_REQUIRES: pytest opencv-python pandas scikit-image
           CIBW_TEST_COMMAND: >
@@ -380,6 +383,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     needs: [build_wheels, build_sdist]
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v2
       - uses: actions/download-artifact@v2
@@ -387,7 +391,6 @@ jobs:
           name: distribution
           path: dist/
       - name: Publish to PyPI
-        if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/')
         uses: pypa/gh-action-pypi-publish@master
         with:
           user: __token__
