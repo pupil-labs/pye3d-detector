@@ -335,17 +335,18 @@ jobs:
 
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
           CIBW_BEFORE_BUILD_WINDOWS: pip install delvewheel
-          # Manually copy wheel to dest_dir if there is nothing to repair (cp38/39-win)
+          # Manually copy wheel to dest_dir if there is nothing to repair (cp38/39-win);
+          # double brackets needed to cibuildwheels' internal str.format() call
           CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: >
             echo + $(ps -o comm= $PPID) &&
             echo + $SHELL &&
             delvewheel.exe repair -w {dest_dir} {wheel}
             | tail -1
-            | {
+            | {{
               read LAST_LINE;
               [[ $LAST_LINE = "no external dependencies are needed"* ]]
               && cp {wheel} {dest_dir} || echo "No manual copy needed";
-            }
+            }}
 
           CIBW_TEST_REQUIRES: pytest opencv-python pandas scikit-image
           CIBW_TEST_COMMAND: >
