@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.0.8 (2021-06-17)
+- Automated Python wheels for Python 3.6 - 3.9 on Linux, macOS, and Windows
+
 ## 0.0.7 (2021-05-11)
 - Simplification of `Conic` parameter calculation - [#26](https://github.com/pupil-labs/pye3d-detector/pull/26)
 - Incremental performance improvements - [#27](https://github.com/pupil-labs/pye3d-detector/pull/27)
