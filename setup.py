@@ -75,5 +75,5 @@ setup(
     package_data={package: ["refraction_models/*.save"]},
     packages=find_packages(),
     url="https://github.com/pupil-labs/pye3d-detector/",
-    version="0.0.7",
+    version="0.0.8",
 )
