@@ -32,7 +32,7 @@ requirements = [
     "sortedcontainers",
 ]
 extras_require = {
-    "dev": ["pytest", "tox", "bump2version"],
+    "dev": ["pytest", "tox", "bump2version", "pandas", "scikit-image"],
     "with-opencv": ["opencv-python"],
 }
 
@@ -44,7 +44,7 @@ if os.environ.get("CI", "false") == "true" and platform.system() == "Windows":
 
 setup(
     author="Pupil Labs",
-    author_email="pypa@pupil-labs.com",
+    author_email="info@pupil-labs.com",
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
@@ -66,9 +66,14 @@ setup(
     install_requires=requirements,
     long_description=long_description,
     long_description_content_type="text/markdown",
+    project_urls={
+        "Changelog": "https://github.com/pupil-labs/pye3d-detector/blob/master/CHANGELOG.md",
+        "Pupil Core Documentation": "https://docs.pupil-labs.com/core/",
+        "Pupil Labs Homepage": "https://pupil-labs.com/",
+    },
     name=package,
     package_data={package: ["refraction_models/*.save"]},
     packages=find_packages(),
-    url="",
+    url="https://github.com/pupil-labs/pye3d-detector/",
     version="0.0.7",
 )
