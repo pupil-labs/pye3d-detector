@@ -287,7 +287,8 @@ jobs:
       - build_eigen_manylinux
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+#         os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [windows-latest]
     continue-on-error: true
     runs-on: ${{ matrix.os }}
     steps:
@@ -336,6 +337,8 @@ jobs:
           CIBW_BEFORE_BUILD_WINDOWS: pip install delvewheel
           # Manually copy wheel to dest_dir if there is nothing to repair (cp38/39-win)
           CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: >
+            echo + $(ps -o comm= $PPID) &&
+            echo + $SHELL &&
             delvewheel.exe repair -w {dest_dir} {wheel}
             | tail -1
             | {
