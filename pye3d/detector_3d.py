@@ -320,14 +320,15 @@ class Detector3D(object):
             # update short term model with help of long-term model
             # using 2d center for disambiguation and 3d center as prior bias
             # prior strength is set as a funcition of circularity of the 2D pupil
-
-            circularity_mean = self.short_term_model.mean_observation_circularity()
-            self.short_term_model.estimate_sphere_center(
-                from_2d=long_term_estimate.projected,
-                prior_3d=long_term_estimate.three_dim,
-                prior_strength=sigmoid(circularity_mean),
-                calculate_rms_residual=self._calculate_rms_residual,
-            )
+            # when frozen: do not update
+            if not self.is_long_term_model_frozen:
+                circularity_mean = self.short_term_model.mean_observation_circularity()
+                self.short_term_model.estimate_sphere_center(
+                    from_2d=long_term_estimate.projected,
+                    prior_3d=long_term_estimate.three_dim,
+                    prior_strength=sigmoid(circularity_mean),
+                    calculate_rms_residual=self._calculate_rms_residual,
+                )
         except Exception:
             # Known issues:
             # - Can raise numpy.linalg.LinAlgError: SVD did not converge
@@ -364,12 +365,17 @@ class Detector3D(object):
         if observation.confidence > self._settings["threshold_swirski"]:
             # high-confidence observation, use to construct pupil circle from models
 
-            # short-term-model is best for estimating gaze direction (circle normal) and
-            # long-term-model ist more stable for positions (center and radius)
-            short_term = self.short_term_model.predict_pupil_circle(observation)
+            # short-term-model is best for estimating gaze direction (circle normal) if
+            # one needs to assume slippage. long-term-model ist more stable for
+            # positions (center and radius)
             long_term = self.long_term_model.predict_pupil_circle(observation)
+            if self.is_long_term_model_frozen:
+                normal = long_term.normal
+            else:
+                short_term = self.short_term_model.predict_pupil_circle(observation)
+                normal = short_term.normal
             pupil_circle = Circle(
-                normal=short_term.normal,
+                normal=normal,
                 center=long_term.center,
                 radius=long_term.radius,
             )
