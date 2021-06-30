@@ -568,19 +568,48 @@ class Detector3D(object):
         result["diameter"] = projected_pupil_circle.major_radius
 
         result["confidence"] = observation.confidence
-        # TODO: model_confidence is currently require in Pupil for visualization
-        # (eyeball outline alpha), but we don't yet have a way of estimating the model
-        # confidence. Either remove this and cleanup the visualization in Pupil or come
-        # up with a measure for model confidence.
-        result["model_confidence"] = 1.0
+
+        # Model confidence:
+        # - Prior to version 0.1.0, model_confidence was fixed to 1.0 as there was no
+        #   way to estimate it
+        # - Starting with version 0.1.0, model_confidence is 1.0 by default but set to
+        #   0.1 if at least one model output exceeds its physiologically reasonable
+        #   range. These ranges also inform the input range for the refraction
+        #   correction function.
+        #   If the ranges are exceeded, it is likely that the model is either not fit
+        #   well or the 2d input ellipse was a false detection.
+        model_confidence_default = 1.0
+        model_confidence_out_of_range = 0.1
+        model_confidence_phi_theta_nan = 0.0
+
+        result["model_confidence"] = model_confidence_default
 
         phi, theta = cart2sph(prediction_corrected.pupil_circle.normal)
         if not np.any(np.isnan([phi, theta])):
             result["theta"] = theta
             result["phi"] = phi
+
+            is_phi_in_range = -80 <= np.rad2deg(phi) + 90.0 <= 80
+            is_theta_in_range = -80 <= np.rad2deg(theta) - 90.0 <= 80
+            if not is_phi_in_range or not is_theta_in_range:
+                result["model_confidence"] = model_confidence_out_of_range
         else:
             result["theta"] = 0.0
             result["phi"] = 0.0
+            result["model_confidence"] = model_confidence_phi_theta_nan
+
+        is_center_x_in_range = -10 <= prediction_corrected.sphere_center[0] <= 10
+        is_center_y_in_range = -10 <= prediction_corrected.sphere_center[1] <= 10
+        is_center_z_in_range = 20 <= prediction_corrected.sphere_center[2] <= 75
+        is_diameter_in_range = 1.0 <= result["diameter_3d"] <= 9.0
+        parameters_in_range = (
+            is_center_x_in_range,
+            is_center_y_in_range,
+            is_center_z_in_range,
+            is_diameter_in_range,
+        )
+        if not all(parameters_in_range):
+            result["model_confidence"] = model_confidence_out_of_range
 
         return result
 
