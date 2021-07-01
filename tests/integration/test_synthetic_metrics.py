@@ -33,6 +33,9 @@ OUTPUT_GAZE_ANGLE_THETA_PLOT_PATH = output_dir().joinpath(
 OUTPUT_GAZE_ANGLE_VECTOR_PLOT_PATH = output_dir().joinpath(
     "pye3d_test_gaze_angle_vector_plot.png"
 )
+OUTPUT_GAZE_ANGLE_ERROR_BY_INPUT_ORIENTATION_PLOT_PATH = output_dir().joinpath(
+    "pye3d_test_gaze_angle_error_by_input_orientation_plot.png"
+)
 OUTPUT_EYE_CENTER_3D_PLOT_PATH = output_dir().joinpath(
     "pye3d_test_eye_center_3d_error_plot.png"
 )
@@ -229,9 +232,9 @@ def test_gaze_angle(dataset, convergence_time):
         a_color="r",
         # Legend
         figsize=(10, 4),
-        title="gaze angle error\n",
+        title="gaze angle error over time",
         xlabel="time [s]",
-        ylabel="[mm]",
+        ylabel="[°]",
         ylim=(0, 5),
         h_threshold=GAZE_ANGLE_EPS,
         h_threshold_label=f"gaze angle eps = {GAZE_ANGLE_EPS} deg",
@@ -242,6 +245,33 @@ def test_gaze_angle(dataset, convergence_time):
     )
 
     gaze_angle_error = gaze_angle_error[gr_df["timestamp"] > convergence_time]
+
+    input_phi = gt_df.loc[gr_df["timestamp"] > convergence_time, "phi"]
+    input_phi = np.rad2deg(input_phi) + 90.0
+
+    input_theta = gt_df.loc[gr_df["timestamp"] > convergence_time, "theta"]
+    input_theta = np.rad2deg(input_theta) - 90.0
+
+    save_plot(
+        ax=input_phi,
+        ay=gaze_angle_error,
+        a_label="phi",
+        a_color="C0",
+        bx=input_theta,
+        by=gaze_angle_error,
+        b_label="theta",
+        b_color="C1",
+        # Legend
+        figsize=(10, 4),
+        title="gaze angle error by input orientation (after convergence)",
+        xlabel="centered ground truth input orientation [°]",
+        ylabel="gaze angle error [°]",
+        ylim=(0, 3),
+        h_threshold=GAZE_ANGLE_EPS,
+        h_threshold_label=f"gaze angle eps = {GAZE_ANGLE_EPS} deg",
+        # Image Path
+        path=OUTPUT_GAZE_ANGLE_ERROR_BY_INPUT_ORIENTATION_PLOT_PATH,
+    )
 
     assert np.all(gaze_angle_error <= GAZE_ANGLE_EPS)  # TODO: Add description
 
@@ -489,12 +519,8 @@ def save_plot(
         axis.plot(bx, by, b_color, alpha=1, label=b_label)
 
     if h_threshold:
-        xlim_lo = min(
-            map(lambda x: x.iloc[0], filter(lambda x: x is not None, [ax, bx]))
-        )
-        xlim_hi = max(
-            map(lambda x: x.iloc[-1], filter(lambda x: x is not None, [ax, bx]))
-        )
+        xlim_lo = min(map(lambda x: x.min(), filter(lambda x: x is not None, [ax, bx])))
+        xlim_hi = max(map(lambda x: x.max(), filter(lambda x: x is not None, [ax, bx])))
         xlim = xlim_lo, xlim_hi
         axis.hlines(
             [h_threshold],
