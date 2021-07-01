@@ -30,6 +30,9 @@ OUTPUT_GAZE_ANGLE_PHI_PLOT_PATH = output_dir().joinpath(
 OUTPUT_GAZE_ANGLE_THETA_PLOT_PATH = output_dir().joinpath(
     "pye3d_test_gaze_angle_theta_plot.png"
 )
+OUTPUT_GAZE_ANGLE_VECTOR_PLOT_PATH = output_dir().joinpath(
+    "pye3d_test_gaze_angle_vector_plot.png"
+)
 OUTPUT_EYE_CENTER_3D_PLOT_PATH = output_dir().joinpath(
     "pye3d_test_eye_center_3d_error_plot.png"
 )
@@ -226,7 +229,7 @@ def test_gaze_angle(dataset, convergence_time):
         a_color="r",
         # Legend
         figsize=(10, 4),
-        title="eye center 3d error\n",
+        title="gaze angle error\n",
         xlabel="time [s]",
         ylabel="[mm]",
         ylim=(0, 5),
@@ -235,7 +238,7 @@ def test_gaze_angle(dataset, convergence_time):
         v_threshold=convergence_time,
         v_threshold_label=f"convergence time = {convergence_time} seconds",
         # Image Path
-        path=OUTPUT_EYE_CENTER_3D_PLOT_PATH,
+        path=OUTPUT_GAZE_ANGLE_VECTOR_PLOT_PATH,
     )
 
     gaze_angle_error = gaze_angle_error[gr_df["timestamp"] > convergence_time]
