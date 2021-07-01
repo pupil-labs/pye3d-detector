@@ -250,6 +250,7 @@ def convergence_time(dataset, eye_center_3d_errors):
     eye_center_3d_convergence = eye_center_3d_errors > EYE_CENTER_3D_EPS
     convergence_index = -np.argwhere(eye_center_3d_convergence[::-1])[0][0] - 1
     convergence_time = gt_df.timestamp.iloc[convergence_index]
+    logging.getLogger().info(f"Calculated convergence time: {convergence_time} seconds")
 
     return convergence_time
 
