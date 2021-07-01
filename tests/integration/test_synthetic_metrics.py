@@ -255,11 +255,11 @@ def test_gaze_angle(dataset, convergence_time):
     save_plot(
         ax=input_phi,
         ay=gaze_angle_error,
-        a_label="phi",
+        a_label="phi + 90°",
         a_color="C0",
         bx=input_theta,
         by=gaze_angle_error,
-        b_label="theta",
+        b_label="theta - 90°",
         b_color="C1",
         # Legend
         figsize=(10, 4),
