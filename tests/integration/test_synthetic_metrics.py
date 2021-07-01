@@ -1,15 +1,15 @@
+import logging
+import math
+
+import numpy as np
+import pandas as pd
+import pytest
+import skimage.measure as skmeas
 from pye3d.detector_3d import CameraModel
 from pye3d.detector_3d import Detector3D as Pye3D
 from pye3d.detector_3d import DetectorMode
 
-import math
-import numpy as np
-import pandas as pd
-import skimage.measure as skmeas
-
-import pytest
 from .utils import abs_diff, input_dir, output_dir, remove_file
-
 
 # Define all input files
 INPUT_PATH = input_dir().joinpath("pye3d_test_input.npz")
@@ -29,6 +29,9 @@ OUTPUT_GAZE_ANGLE_PHI_PLOT_PATH = output_dir().joinpath(
 )
 OUTPUT_GAZE_ANGLE_THETA_PLOT_PATH = output_dir().joinpath(
     "pye3d_test_gaze_angle_theta_plot.png"
+)
+OUTPUT_GAZE_ANGLE_VECTOR_PLOT_PATH = output_dir().joinpath(
+    "pye3d_test_gaze_angle_vector_plot.png"
 )
 OUTPUT_EYE_CENTER_3D_PLOT_PATH = output_dir().joinpath(
     "pye3d_test_eye_center_3d_error_plot.png"
@@ -75,6 +78,7 @@ def test_datum_component_phi(dataset, convergence_time):
         ylabel="[°]",
         ylim=(gaze_angle_phi_gr_mean - 55, gaze_angle_phi_gr_mean + 55),
         v_threshold=convergence_time,
+        v_threshold_label=f"convergence time = {convergence_time} seconds",
         # Image Path
         path=OUTPUT_GAZE_ANGLE_PHI_PLOT_PATH,
     )
@@ -112,6 +116,7 @@ def test_datum_component_theta(dataset, convergence_time):
         ylabel="[°]",
         ylim=(gaze_angle_theta_gr_mean - 55, gaze_angle_theta_gr_mean + 55),
         v_threshold=convergence_time,
+        v_threshold_label=f"convergence time = {convergence_time} seconds",
         # Image Path
         path=OUTPUT_GAZE_ANGLE_THETA_PLOT_PATH,
     )
@@ -149,6 +154,7 @@ def test_pupil_radius(dataset, convergence_time):
         ylabel="[mm]",
         ylim=(0, 5),
         v_threshold=convergence_time,
+        v_threshold_label=f"convergence time = {convergence_time} seconds",
         # Image Path
         path=OUTPUT_PUPIL_RADIUS_PLOT_PATH,
     )
@@ -157,6 +163,7 @@ def test_pupil_radius(dataset, convergence_time):
         ax=gr_df["timestamp"],
         ay=pupil_radius_error,
         a_color="r",
+        a_label="pupil radius error",
         # Legend
         figsize=(10, 4),
         title="pupil radius error\n",
@@ -164,7 +171,9 @@ def test_pupil_radius(dataset, convergence_time):
         ylabel="[mm]",
         ylim=(0, 1),
         h_threshold=PUPIL_RADIUS_EPS,
+        h_threshold_label=f"pupil radius eps = {PUPIL_RADIUS_EPS} mm",
         v_threshold=convergence_time,
+        v_threshold_label=f"convergence time = {convergence_time} seconds",
         # Image Path
         path=OUTPUT_PUPIL_RADIUS_ERROR_PLOT_PATH,
     )
@@ -181,6 +190,7 @@ def test_eye_center_3d(dataset, convergence_time, eye_center_3d_errors):
         ax=gr_df["timestamp"],
         ay=eye_center_3d_errors,
         a_color="r",
+        a_label="eye center 3d errors",
         # Legend
         figsize=(10, 4),
         title="eye center 3d error\n",
@@ -188,7 +198,9 @@ def test_eye_center_3d(dataset, convergence_time, eye_center_3d_errors):
         ylabel="[mm]",
         ylim=(0, 5),
         h_threshold=EYE_CENTER_3D_EPS,
+        h_threshold_label=f"eye center eps = {EYE_CENTER_3D_EPS} mm",
         v_threshold=convergence_time,
+        v_threshold_label=f"convergence time = {convergence_time} seconds",
         # Image Path
         path=OUTPUT_EYE_CENTER_3D_PLOT_PATH,
     )
@@ -217,14 +229,16 @@ def test_gaze_angle(dataset, convergence_time):
         a_color="r",
         # Legend
         figsize=(10, 4),
-        title="eye center 3d error\n",
+        title="gaze angle error\n",
         xlabel="time [s]",
         ylabel="[mm]",
         ylim=(0, 5),
         h_threshold=GAZE_ANGLE_EPS,
+        h_threshold_label=f"gaze angle eps = {GAZE_ANGLE_EPS} deg",
         v_threshold=convergence_time,
+        v_threshold_label=f"convergence time = {convergence_time} seconds",
         # Image Path
-        path=OUTPUT_EYE_CENTER_3D_PLOT_PATH,
+        path=OUTPUT_GAZE_ANGLE_VECTOR_PLOT_PATH,
     )
 
     gaze_angle_error = gaze_angle_error[gr_df["timestamp"] > convergence_time]
@@ -239,6 +253,7 @@ def convergence_time(dataset, eye_center_3d_errors):
     eye_center_3d_convergence = eye_center_3d_errors > EYE_CENTER_3D_EPS
     convergence_index = -np.argwhere(eye_center_3d_convergence[::-1])[0][0] - 1
     convergence_time = gt_df.timestamp.iloc[convergence_index]
+    logging.getLogger().info(f"Calculated convergence time: {convergence_time} seconds")
 
     return convergence_time
 
@@ -456,7 +471,9 @@ def save_plot(
     a_color="b",
     b_color="g",
     h_threshold=None,
+    h_threshold_label="",
     v_threshold=None,
+    v_threshold_label="",
     figsize=(10, 4),
     xlabel="",
     ylabel="",
@@ -479,10 +496,22 @@ def save_plot(
             map(lambda x: x.iloc[-1], filter(lambda x: x is not None, [ax, bx]))
         )
         xlim = xlim_lo, xlim_hi
-        axis.hlines([h_threshold], *xlim, colors="C2", linestyles="dashed")
+        axis.hlines(
+            [h_threshold],
+            *xlim,
+            colors="C2",
+            linestyles="dashed",
+            label=h_threshold_label,
+        )
 
     if v_threshold:
-        axis.vlines([v_threshold], *ylim, colors="C4", linestyles="dashed")
+        axis.vlines(
+            [v_threshold],
+            *ylim,
+            colors="C4",
+            linestyles="dashed",
+            label=v_threshold_label,
+        )
 
     axis.set_ylim(*ylim)
 
