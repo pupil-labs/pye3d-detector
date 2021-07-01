@@ -1,15 +1,15 @@
+import logging
+import math
+
+import numpy as np
+import pandas as pd
+import pytest
+import skimage.measure as skmeas
 from pye3d.detector_3d import CameraModel
 from pye3d.detector_3d import Detector3D as Pye3D
 from pye3d.detector_3d import DetectorMode
 
-import math
-import numpy as np
-import pandas as pd
-import skimage.measure as skmeas
-
-import pytest
 from .utils import abs_diff, input_dir, output_dir, remove_file
-
 
 # Define all input files
 INPUT_PATH = input_dir().joinpath("pye3d_test_input.npz")
