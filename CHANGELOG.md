@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1 (2021-07-07)
+- Extracted source install instructions into `INSTALL_SOURCE.md`
+- Added `Codestyle: Black` badge to `READEME.md`
+- Fixed Github Action badge in `READEME.md` indicating status of the build pipeline
+
 ## 0.1.0 (2021-07-07)
 - Use long-term-model pupil-circle normal for gaze direction when frozen - [#31](https://github.com/pupil-labs/pye3d-detector/pull/31)
 - Set `model_confidence` to 0.1 if parameter is out of physiological range - [#35](https://github.com/pupil-labs/pye3d-detector/pull/35)

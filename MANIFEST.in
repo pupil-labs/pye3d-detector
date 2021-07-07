@@ -1,5 +1,5 @@
 # include all required files
-include CMakeLists.txt LICENSE MANIFEST.in pyproject.toml README.md setup.py
+include CMakeLists.txt LICENSE MANIFEST.in pyproject.toml README.md setup.py INSTALL_SOURCE.md
 recursive-include pye3d *
 recursive-include tests *
 
