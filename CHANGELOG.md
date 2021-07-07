@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0 (2021-07-07)
+- Use long-term-model pupil-circle normal for gaze direction when frozen - [#31](https://github.com/pupil-labs/pye3d-detector/pull/31)
+- Set `model_confidence` to 0.1 if parameter is out of physiological range - [#35](https://github.com/pupil-labs/pye3d-detector/pull/35)
+- Improve integration tests - [#33](https://github.com/pupil-labs/pye3d-detector/pull/33), [#34](https://github.com/pupil-labs/pye3d-detector/pull/34)
+
 ## 0.0.8 (2021-06-17)
 - Automated Python wheels for Python 3.6 - 3.9 on Linux, macOS, and Windows
 
