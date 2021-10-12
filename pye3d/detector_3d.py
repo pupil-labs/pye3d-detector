@@ -507,7 +507,7 @@ class Detector3D(object):
             else:
                 confidence_3d_search = 0.0
 
-        return Search3DResult(pupil_circle, confidence_3d_search)
+        return Search3DResult(pupil_circle, confidence_3d_search * 0.6)
 
     def _prepare_result(
         self,
