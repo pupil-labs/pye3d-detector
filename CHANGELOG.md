@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.0 (2021-10-12)
+- Lower 3d search confidence results by 40% - [#36](https://github.com/pupil-labs/pye3d-detector/pull/36)
+
 ## 0.1.1 (2021-07-07)
 - Extracted source install instructions into `INSTALL_SOURCE.md`
 - Added `Codestyle: Black` badge to `READEME.md`
