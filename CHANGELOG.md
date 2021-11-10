@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.3.0 (2021-11-10)
+- Change refraction model serialization from pickle to msgpack - [#38](https://github.com/pupil-labs/pye3d-detector/pull/38)
+
 ## 0.2.0 (2021-10-12)
 - Lower 3d search confidence results by 40% - [#36](https://github.com/pupil-labs/pye3d-detector/pull/36)
 
