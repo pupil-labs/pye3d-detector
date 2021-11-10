@@ -25,15 +25,14 @@ with open(here / "README.md") as f:
     long_description = f.read()
 
 requirements = [
-    "scipy>=1.2.1",
     "numpy",
-    "joblib",
-    "scikit-learn==0.24.1",
+    "msgpack",
     "sortedcontainers",
 ]
 extras_require = {
     "dev": ["pytest", "tox", "bump2version", "pandas", "scikit-image"],
     "with-opencv": ["opencv-python"],
+    "legacy-sklearn-models": ["joblib", "scikit-learn"],
 }
 
 cmake_args = []
@@ -72,7 +71,7 @@ setup(
         "Pupil Labs Homepage": "https://pupil-labs.com/",
     },
     name=package,
-    package_data={package: ["refraction_models/*.save"]},
+    package_data={package: ["refraction_models/*.msgpack"]},
     packages=find_packages(),
     url="https://github.com/pupil-labs/pye3d-detector/",
     version="0.2.0",
