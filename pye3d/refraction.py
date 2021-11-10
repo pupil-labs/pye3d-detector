@@ -33,7 +33,7 @@ class Refractionizer:
 
     @staticmethod
     def load_config_from_msgpack(feature, type_, degree, custom_load_dir=None):
-        load_dir = custom_load_dir or LOAD_DIR
+        load_dir = Path(custom_load_dir or LOAD_DIR).resolve()
         name = f"{type_}_refraction_model_{feature}_degree_{degree}.msgpack"
         path = load_dir / name
         with path.open("rb") as file:
@@ -117,7 +117,7 @@ class SklearnRefractionizer(Refractionizer):
     ):
         import joblib
 
-        load_dir = custom_load_dir or LOAD_DIR
+        load_dir = Path(custom_load_dir or LOAD_DIR).resolve()
         name = f"{type_}_refraction_model_{feature}_degree_{degree}.save"
         path = load_dir / name
         try:

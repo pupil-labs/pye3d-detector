@@ -28,7 +28,7 @@ def test_model_update_schedule():
     assert schedule.is_update_due(20.0)
 
 
-def test_legacy_sklearn_model_loading():
+def test_legacy_sklearn_model_loading(custom_load_dir):
     try:
         import joblib
         import sklearn
@@ -38,6 +38,11 @@ def test_legacy_sklearn_model_loading():
     from pye3d.refraction import SklearnRefractionizer
 
     try:
-        SklearnRefractionizer()
+        SklearnRefractionizer(custom_load_dir=custom_load_dir)
     except FileNotFoundError:
-        pytest.skip("No legacy models found")
+        if custom_load_dir is None:
+            pytest.skip(
+                "No legacy models found in default location. Set custom location via "
+                "`pytest --legacy-model-location <location>`"
+            )
+        raise
