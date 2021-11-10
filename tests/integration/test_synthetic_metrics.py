@@ -4,7 +4,6 @@ import math
 import numpy as np
 import pandas as pd
 import pytest
-import skimage.measure as skmeas
 from pye3d.detector_3d import CameraModel
 from pye3d.detector_3d import Detector3D as Pye3D
 from pye3d.detector_3d import DetectorMode
@@ -426,6 +425,13 @@ COLUMNS_MEASURED = [
 
 
 def pupil_datum_from_raytraced_image(img=None, raytracer=None, device="cuda"):
+    try:
+        # At this time, scikit-image==0.18.3 pins numpy==1.19.3 when running Python 3.9
+        # which does not build on M1 macOS. Therefore, we allow to the test to be
+        # skipped if this dependency is not installed.
+        import skimage.measure as skmeas
+    except ImportError:
+        pytest.skip("scikit-image not installed")
 
     if img is None:
         img = raytracer.ray_trace_image(device=device)
