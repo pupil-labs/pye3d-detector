@@ -26,3 +26,18 @@ def test_model_update_schedule():
     assert not schedule.is_update_due(20.0)
     schedule.resume()  # resets timer
     assert schedule.is_update_due(20.0)
+
+
+def test_legacy_sklearn_model_loading():
+    try:
+        import joblib
+        import sklearn
+    except ImportError:
+        pytest.skip("joblib and/or sklearn not installed.")
+
+    from pye3d.refraction import SklearnRefractionizer
+
+    try:
+        SklearnRefractionizer()
+    except FileNotFoundError:
+        pytest.skip("No legacy models found")

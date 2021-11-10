@@ -13,28 +13,29 @@ class ModelDeserializationError(Exception):
     pass
 
 
-class Refractionizer(object):
-    def __init__(self, degree=3, type_="default"):
-        self.pipeline_radius_as_list = Refractionizer.load_config_from_msgpack(
-            "radius", type_, degree
+class Refractionizer:
+    def __init__(self, degree=3, type_="default", custom_load_dir=None):
+        self.pipeline_radius_as_list = self.load_config_from_msgpack(
+            "radius", type_, degree, custom_load_dir
         )
 
-        self.pipeline_gaze_vector_as_list = Refractionizer.load_config_from_msgpack(
-            "gaze_vector", type_, degree
+        self.pipeline_gaze_vector_as_list = self.load_config_from_msgpack(
+            "gaze_vector", type_, degree, custom_load_dir
         )
 
-        self.pipeline_sphere_center_as_list = Refractionizer.load_config_from_msgpack(
-            "sphere_center", type_, degree
+        self.pipeline_sphere_center_as_list = self.load_config_from_msgpack(
+            "sphere_center", type_, degree, custom_load_dir
         )
 
-        self.pipeline_pupil_circle_as_list = Refractionizer.load_config_from_msgpack(
-            "pupil_circle", type_, degree
+        self.pipeline_pupil_circle_as_list = self.load_config_from_msgpack(
+            "pupil_circle", type_, degree, custom_load_dir
         )
 
     @staticmethod
-    def load_config_from_msgpack(feature, type_, degree):
+    def load_config_from_msgpack(feature, type_, degree, custom_load_dir=None):
+        load_dir = custom_load_dir or LOAD_DIR
         name = f"{type_}_refraction_model_{feature}_degree_{degree}.msgpack"
-        path = LOAD_DIR / name
+        path = load_dir / name
         with path.open("rb") as file:
             config_model = msgpack.unpack(file)
             Refractionizer._validate_loaded_model_config(config_model)
@@ -90,6 +91,44 @@ class Refractionizer(object):
 
     def correct_pupil_circle(self, X):
         return self._apply_correction_pipeline(X, self.pipeline_pupil_circle_as_list)
+
+
+class SklearnRefractionizer(Refractionizer):
+    def __init__(self, degree=3, type_="default", custom_load_dir=None):
+        self.correct_radius = self.load_predict_fn_from_joblib_pickle(
+            "radius", type_, degree, custom_load_dir
+        )
+
+        self.correct_gaze_vector = self.load_predict_fn_from_joblib_pickle(
+            "gaze_vector", type_, degree, custom_load_dir
+        )
+
+        self.correct_sphere_center = self.load_predict_fn_from_joblib_pickle(
+            "sphere_center", type_, degree, custom_load_dir
+        )
+
+        self.correct_pupil_circle = self.load_predict_fn_from_joblib_pickle(
+            "pupil_circle", type_, degree, custom_load_dir
+        )
+
+    @staticmethod
+    def load_predict_fn_from_joblib_pickle(
+        feature, type_, degree, custom_load_dir=None
+    ):
+        import joblib
+
+        load_dir = custom_load_dir or LOAD_DIR
+        name = f"{type_}_refraction_model_{feature}_degree_{degree}.save"
+        path = load_dir / name
+        try:
+            pipeline = joblib.load(path)
+        except FileNotFoundError as err:
+            raise
+        except Exception as exc:
+            raise ModelDeserializationError(
+                f"Failed to load pickled model from {path}"
+            ) from exc
+        return pipeline.predict
 
 
 if __name__ == "__main__":
