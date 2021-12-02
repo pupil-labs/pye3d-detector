@@ -26,7 +26,7 @@ with open(here / "README.md") as f:
 
 requirements = [
     "numpy",
-    "msgpack",
+    "msgpack>=1.*",
     "sortedcontainers",
 ]
 extras_require = {
