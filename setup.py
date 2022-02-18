@@ -40,7 +40,7 @@ cmake_args = []
 if os.environ.get("CI", "false") == "true" and platform.system() == "Windows":
     # The Ninja cmake generator will use mingw (gcc) on windows travis instances, but we
     # need to use msvc for compatibility.
-    cmake_args.append("-GVisual Studio 2022")
+    cmake_args.append("-GVisual Studio 17 2022")
 
 setup(
     author="Pupil Labs",
