@@ -30,7 +30,8 @@ requirements = [
     "sortedcontainers",
 ]
 extras_require = {
-    "dev": ["pytest", "tox", "bump2version", "pandas", "scikit-image"],
+    "dev": ["pytest", "tox", "bump2version"],
+    "testing": ["opencv-python-headless", "matplotlib", "pandas", "scikit-image"],
     "with-opencv": ["opencv-python"],
     "legacy-sklearn-models": ["joblib", "scikit-learn"],
 }
