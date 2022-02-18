@@ -22,7 +22,7 @@ on:
         required: false
 
 env:
-  opencv-download-url: "https://github.com/opencv/opencv/archive/4.2.0.zip"
+  opencv-download-url: "https://github.com/opencv/opencv/archive/4.5.5.zip"
   eigen-download-url: "https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7.zip"
 
   opencv-install-dir: ${{ github.workspace }}/opencv-build
