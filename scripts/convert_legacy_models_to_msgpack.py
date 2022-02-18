@@ -1,8 +1,8 @@
 import pathlib
 
-import numpy as np
-import msgpack
 import joblib
+import msgpack
+import numpy as np
 
 
 def update_refraction_models(model_directory: str):

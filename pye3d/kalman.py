@@ -12,7 +12,7 @@ import cv2
 import numpy as np
 
 
-class KalmanFilter(object):
+class KalmanFilter:
     def __init__(self):
         self.filter = cv2.KalmanFilter(7, 3, 0, cv2.CV_32F)
         self.filter.measurementMatrix = np.asarray(

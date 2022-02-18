@@ -9,14 +9,12 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 import logging
-import warnings
 
 import numpy as np
 
-from .intersections import intersect_sphere_multiple_lines
-from .primitives import Circle, Conic, Conicoid, Ellipse, Line
-from .utilities import normalize
 from ..cpp.projections import unproject_ellipse
+from .intersections import intersect_sphere_multiple_lines
+from .primitives import Conic, Ellipse, Line
 
 logger = logging.getLogger(__name__)
 
@@ -121,3 +119,13 @@ def project_sphere_into_image_plane(
         projected_radius *= 2.0
 
     return Ellipse(projected_sphere_center[:2], projected_radius, projected_radius, 0.0)
+
+
+__all__ = [
+    "unproject_ellipse",
+    "project_sphere_into_image_plane",
+    "project_circle_into_image_plane",
+    "project_line_into_image_plane",
+    "unproject_edges_to_sphere",
+    "project_point_into_image_plane",
+]

@@ -4,6 +4,7 @@ import math
 import numpy as np
 import pandas as pd
 import pytest
+
 from pye3d.detector_3d import CameraModel
 from pye3d.detector_3d import Detector3D as Pye3D
 from pye3d.detector_3d import DetectorMode
@@ -476,7 +477,8 @@ def pupil_datum_from_raytraced_image(img=None, raytracer=None, device="cpu"):
 
     if props:
 
-        # adapt output of regionprops to construct pupil datum analoguous to Pupil 2D Detector:
+        # adapt output of regionprops to construct pupil datum analoguous to
+        # Pupil 2D Detector:
         pupil_datum["ellipse"]["axes"] = np.array(
             [props["minor_axis_length"], props["major_axis_length"]]
         )
@@ -514,7 +516,6 @@ def save_plot(
     xlabel="",
     ylabel="",
 ):
-    import matplotlib
     import matplotlib.pyplot as plt
 
     fig, axis = plt.subplots(figsize=figsize)

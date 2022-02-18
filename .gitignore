@@ -156,9 +156,9 @@ PyGL/*
 *.npy
 *.npz
 *.csv
- 
+
 .idea/*
- 
+
 src/libjpeg*
 results/*
 queue_output/*

@@ -13,9 +13,9 @@ import typing as T
 
 import numpy as np
 
+from ..camera import CameraModel
 from ..geometry.primitives import Circle
 from ..observation import Observation, ObservationStorage
-from ..camera import CameraModel
 
 
 class SphereCenterEstimates(T.NamedTuple):

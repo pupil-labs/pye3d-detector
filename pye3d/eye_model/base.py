@@ -13,7 +13,6 @@ import typing as T
 
 import numpy as np
 
-from .abstract import TwoSphereModelAbstract, SphereCenterEstimates
 from ..camera import CameraModel
 from ..constants import _EYE_RADIUS_DEFAULT, DEFAULT_SPHERE_CENTER
 from ..geometry.intersections import nearest_point_on_sphere_to_line
@@ -26,6 +25,7 @@ from ..geometry.projections import (
 from ..geometry.utilities import normalize
 from ..observation import BasicStorage, Observation, ObservationStorage
 from ..refraction import Refractionizer
+from .abstract import SphereCenterEstimates, TwoSphereModelAbstract
 
 logger = logging.getLogger(__name__)
 
@@ -194,7 +194,8 @@ class TwoSphereModel(TwoSphereModelAbstract):
     def _calc_rms_residual(
         self, observations, disamb_indices, sphere_center, aux_3d_disamb
     ):
-        # Here we use eq. (10) in https://docplayer.net/21072949-Least-squares-intersection-of-lines.html.
+        # Here we use eq. (10) in
+        # https://docplayer.net/21072949-Least-squares-intersection-of-lines.html.
         origins_dierkes_lines = np.array(
             [
                 obs.get_Dierkes_line(idx).origin

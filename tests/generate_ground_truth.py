@@ -5,6 +5,7 @@ import typing as T
 import numpy as np
 import pandas as pd
 import skimage.measure as skmeas
+from integration.test_synthetic_metrics import pupil_datum_from_raytraced_image
 from plsd.camera import PinholeCamera
 from plsd.dynamics import Rolling_Eyes
 from plsd.eye import LeGrandEye
@@ -16,11 +17,10 @@ from plsd.geometry import (
 from plsd.primitives import Sphere
 from plsd.raytracer import RayTracer
 from plsd.scene import Scene
-from pye3d.geometry.projections import project_sphere_into_image_plane
-from pye3d.geometry.utilities import cart2sph
 from tqdm import tqdm
 
-from integration.test_synthetic_metrics import pupil_datum_from_raytraced_image
+from pye3d.geometry.projections import project_sphere_into_image_plane
+from pye3d.geometry.utilities import cart2sph
 
 
 def main(
@@ -141,10 +141,9 @@ def _setup_renderer(
     eye0.update_from_gaze_vector([0.0, 0.0, 1.0])
 
     # varying eyeball position
-    # (optional - eyeball shifts can be added before scene.next() in the gaze angle loop)
+    # optional: eyeball shifts can be added before scene.next() in the gaze angle loop
     d_shift = np.array([-1.5, 2.34, 1.2])
     eye0.move_to_point(E_orig0 + d_shift)
-    E_gt = transform_as_homogeneous_point(eye0.tvec, eye_camera0.extrinsics)
 
     # the second eye is a dummy eye for the scene object
     eye1 = LeGrandEye(

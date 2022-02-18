@@ -134,7 +134,7 @@ std::pair<Circle3D, Circle3D> unproject_conicoid(
 {
     using std::sqrt;
     using std::abs;
-    
+
     typedef Eigen::Matrix<double, 3, 3> Matrix3;
     typedef Eigen::Matrix<double, 3, 1> Vector3;
     typedef Eigen::Array<double, 1, 3> RowArray3;

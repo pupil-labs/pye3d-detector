@@ -13,20 +13,23 @@ import logging
 import traceback
 from typing import Dict, NamedTuple, Type
 
-import numpy as np
 import cv2  # Todo: DELETE
-from .geometry.projections import (
-    unproject_edges_to_sphere,
-    project_point_into_image_plane,
-)  # Todo: DELETE
+import numpy as np
 
 from .camera import CameraModel
 from .constants import _EYE_RADIUS_DEFAULT
 from .cpp.pupil_detection_3d import get_edges
 from .cpp.pupil_detection_3d import search_on_sphere as search_on_sphere
+from .eye_model import (
+    SphereCenterEstimates,
+    TwoSphereModel,
+    TwoSphereModelAbstract,
+    TwoSphereModelAsync,
+)
 from .geometry.primitives import Circle, Ellipse, Sphere
-from .geometry.projections import (
+from .geometry.projections import (  # Todo: DELETE
     project_circle_into_image_plane,
+    project_point_into_image_plane,
     project_sphere_into_image_plane,
 )
 from .geometry.utilities import cart2sph, sph2cart
@@ -35,12 +38,6 @@ from .observation import (
     BinBufferedObservationStorage,
     BufferedObservationStorage,
     Observation,
-)
-from .eye_model import (
-    SphereCenterEstimates,
-    TwoSphereModelAbstract,
-    TwoSphereModel,
-    TwoSphereModelAsync,
 )
 
 logger = logging.getLogger(__name__)
@@ -99,7 +96,7 @@ def sigmoid(x, baseline=0.1, amplitude=500.0, center=0.99, width=0.02):
     return baseline + amplitude * 1.0 / (1.0 + np.exp(-(x - center) / width))
 
 
-class Detector3D(object):
+class Detector3D:
     def __init__(
         self,
         camera: CameraModel,
@@ -564,7 +561,8 @@ class Detector3D(object):
         result["ellipse"] = ellipse2dict(projected_pupil_circle)
         result["location"] = result["ellipse"]["center"]  # pupil center in pixels
 
-        # projected_pupil_circle is an OpenCV ellipse, i.e. major_radius is major diameter
+        # projected_pupil_circle is an OpenCV ellipse,
+        # i.e. major_radius is major diameter
         result["diameter"] = projected_pupil_circle.major_radius
 
         result["confidence"] = observation.confidence

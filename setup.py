@@ -9,8 +9,8 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 import os
-from pathlib import Path
 import platform
+from pathlib import Path
 
 from setuptools import find_packages
 from skbuild import setup
@@ -67,7 +67,9 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     project_urls={
-        "Changelog": "https://github.com/pupil-labs/pye3d-detector/blob/master/CHANGELOG.md",
+        "Changelog": (
+            "https://github.com/pupil-labs/pye3d-detector/blob/master/CHANGELOG.md"
+        ),
         "Pupil Core Documentation": "https://docs.pupil-labs.com/core/",
         "Pupil Labs Homepage": "https://pupil-labs.com/",
     },

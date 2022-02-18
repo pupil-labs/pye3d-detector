@@ -13,11 +13,10 @@ import logging
 import multiprocessing as mp
 import queue
 import signal
-import time
+import traceback
 from ctypes import c_bool
 from logging import Handler
 from logging.handlers import QueueHandler, QueueListener
-import traceback
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple, TypeVar
 
 logger = logging.getLogger(__name__)
@@ -140,15 +139,9 @@ class BackgroundProcess:
                 kwargs = params["kwargs"]
             except queue.Empty:
                 continue
-            # except EOFError:
-            #     logger.info("Pipe was closed from foreground process .")
-            #     break
 
             try:
-                t0 = time.perf_counter()
                 function(setup_result, *args, **kwargs)
-                t1 = time.perf_counter()
-                # logger.debug(f"Finished background calculation in {(t1 - t0):.2}s")
             except Exception as e:
                 logger.error(
                     f"Error executing background process with parameters {params}:\n{e}"

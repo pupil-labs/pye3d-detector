@@ -17,12 +17,12 @@ import numpy as np
 
 from ..constants import DEFAULT_SPHERE_CENTER
 from .abstract import (
-    TwoSphereModelAbstract,
     CameraModel,
     Circle,
     Observation,
     ObservationStorage,
     SphereCenterEstimates,
+    TwoSphereModelAbstract,
 )
 from .background_helper import BackgroundProcess, mp
 from .base import TwoSphereModel

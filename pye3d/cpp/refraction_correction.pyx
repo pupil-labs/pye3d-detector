@@ -10,12 +10,10 @@ See COPYING and COPYING.LESSER for license details.
 """
 import cv2
 import numpy as np
+
 cimport numpy as np
 
-from .common_types cimport (
-    MatrixXd,
-    Vector3d,
-)
+from .common_types cimport MatrixXd, Vector3d
 
 
 cdef extern from "refraction_correction_cpp.h":
