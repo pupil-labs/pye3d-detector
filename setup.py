@@ -34,6 +34,7 @@ extras_require = {
     "testing": ["opencv-python-headless", "matplotlib", "pandas", "scikit-image"],
     "with-opencv": ["opencv-python"],
     "legacy-sklearn-models": ["joblib", "scikit-learn"],
+    "examples": ["opencv-python", "pupil-detectors"],
 }
 
 cmake_args = []
