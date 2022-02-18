@@ -424,7 +424,7 @@ COLUMNS_MEASURED = [
 ]
 
 
-def pupil_datum_from_raytraced_image(img=None, raytracer=None, device="cuda"):
+def pupil_datum_from_raytraced_image(img=None, raytracer=None, device="cpu"):
     try:
         # At this time, scikit-image==0.18.3 pins numpy==1.19.3 when running Python 3.9
         # which does not build on M1 macOS. Therefore, we allow to the test to be
