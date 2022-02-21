@@ -62,12 +62,12 @@ def project_circle_into_image_plane(
     f = focal_length
 
     cn = np.dot(c, n)
-    c2r2 = np.dot(c, c) - r ** 2
-    ABC = cn ** 2 - 2.0 * cn * (c * n) + c2r2 * (n ** 2)
+    c2r2 = np.dot(c, c) - r**2
+    ABC = cn**2 - 2.0 * cn * (c * n) + c2r2 * (n**2)
     F = 2.0 * (c2r2 * n[1] * n[2] - cn * (n[1] * c[2] + n[2] * c[1]))
     G = 2.0 * (c2r2 * n[2] * n[0] - cn * (n[2] * c[0] + n[0] * c[2]))
     H = 2.0 * (c2r2 * n[0] * n[1] - cn * (n[0] * c[1] + n[1] * c[0]))
-    conic = Conic(ABC[0], H, ABC[1], G * f, F * f, ABC[2] * f ** 2)
+    conic = Conic(ABC[0], H, ABC[1], G * f, F * f, ABC[2] * f**2)
 
     disc_ = conic.discriminant()
 
@@ -76,12 +76,12 @@ def project_circle_into_image_plane(
         A, B, C, D, E, F = conic.A, conic.B, conic.C, conic.D, conic.E, conic.F
         center_x = (2 * C * D - B * E) / disc_
         center_y = (2 * A * E - B * D) / disc_
-        temp_ = 2 * (A * E ** 2 + C * D ** 2 - B * D * E + disc_ * F)
+        temp_ = 2 * (A * E**2 + C * D**2 - B * D * E + disc_ * F)
         minor_axis = (
-            -np.sqrt(np.abs(temp_ * (A + C - np.sqrt((A - C) ** 2 + B ** 2)))) / disc_
+            -np.sqrt(np.abs(temp_ * (A + C - np.sqrt((A - C) ** 2 + B**2)))) / disc_
         )  # Todo: Absolute value???
         major_axis = (
-            -np.sqrt(np.abs(temp_ * (A + C + np.sqrt((A - C) ** 2 + B ** 2)))) / disc_
+            -np.sqrt(np.abs(temp_ * (A + C + np.sqrt((A - C) ** 2 + B**2)))) / disc_
         )
 
         if B == 0 and A < C:
@@ -89,7 +89,7 @@ def project_circle_into_image_plane(
         elif B == 0 and A >= C:
             angle = np.pi / 2.0
         else:
-            angle = np.arctan((C - A - np.sqrt((A - C) ** 2 + B ** 2)) / B)
+            angle = np.arctan((C - A - np.sqrt((A - C) ** 2 + B**2)) / B)
 
         # TO BE CONSISTENT WITH PUPIL
         if transform:
