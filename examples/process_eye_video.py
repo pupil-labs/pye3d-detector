@@ -2,6 +2,7 @@ import argparse
 
 import cv2
 from pupil_detectors import Detector2D
+
 from pye3d.detector_3d import CameraModel, Detector3D, DetectorMode
 
 
