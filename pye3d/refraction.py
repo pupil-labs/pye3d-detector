@@ -1,9 +1,10 @@
 import itertools
 from pathlib import Path
-from .cpp.refraction_correction import apply_correction_pipeline
 
-import numpy as np
 import msgpack
+import numpy as np
+
+from .cpp.refraction_correction import apply_correction_pipeline
 
 LOAD_DIR = Path(__file__).parent / "refraction_models"
 LOAD_VERSION = 1
@@ -122,7 +123,7 @@ class SklearnRefractionizer(Refractionizer):
         path = load_dir / name
         try:
             pipeline = joblib.load(path)
-        except FileNotFoundError as err:
+        except FileNotFoundError:
             raise
         except Exception as exc:
             raise ModelDeserializationError(

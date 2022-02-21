@@ -22,7 +22,7 @@ on:
         required: false
 
 env:
-  opencv-download-url: "https://github.com/opencv/opencv/archive/4.2.0.zip"
+  opencv-download-url: "https://github.com/opencv/opencv/archive/4.5.5.zip"
   eigen-download-url: "https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7.zip"
 
   opencv-install-dir: ${{ github.workspace }}/opencv-build
@@ -150,6 +150,7 @@ jobs:
           -DBUILD_TESTS=OFF \
           -DBUILD_opencv_java=OFF \
           -DBUILD_opencv_python=OFF \
+          -DBUILD_ZLIB=OFF \
           -DWITH_OPENMP=ON \
           -DWITH_IPP=ON \
           -DWITH_CSTRIPES=ON \
@@ -329,7 +330,7 @@ jobs:
             LD_LIBRARY_PATH=/project/lib64:$LD_LIBRARY_PATH
             OpenCV_DIR=/project Eigen3_DIR=/project
 
-          CIBW_SKIP: "{cp,pp}27-* {cp,pp}35-* pp* *win32 *_aarch64 *_ppc64le *_s390x *_i686"
+          CIBW_SKIP: "cp27-* cp35-* pp* *win32 *_aarch64 *_ppc64le *_s390x *_i686"
           CIBW_ARCHS_MACOS: "x86_64"
           CIBW_ARCHS_LINUX: "x86_64"
 
@@ -337,7 +338,7 @@ jobs:
           CIBW_BEFORE_BUILD_WINDOWS: pip install delvewheel
           CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: python scripts\repair_wheels_windows.py {wheel} {dest_dir}
 
-          CIBW_TEST_REQUIRES: pytest opencv-python pandas scikit-image
+          CIBW_TEST_REQUIRES: pytest opencv-python pandas scikit-image matplotlib
           CIBW_TEST_COMMAND: >
             curl -L ${{ env.pye3d-test-input-download-url }} --silent
             --output {package}/tests/integration/input/pye3d_test_input.npz

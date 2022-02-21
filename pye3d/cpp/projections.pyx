@@ -4,11 +4,12 @@ import warnings
 from functools import wraps
 
 import numpy as np
+
 from libcpp.pair cimport pair
 
 from .common_types cimport Vector3d
-from ..geometry.primitives import Circle, Conic, Conicoid
 
+from ..geometry.primitives import Circle, Conic, Conicoid
 
 logger = logging.getLogger(__name__)
 

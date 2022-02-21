@@ -9,10 +9,9 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-from .abstract import TwoSphereModelAbstract, SphereCenterEstimates
-from .base import TwoSphereModel
+from .abstract import SphereCenterEstimates, TwoSphereModelAbstract
 from .asynchronous import TwoSphereModelAsync
-
+from .base import TwoSphereModel
 
 __all__ = [
     "TwoSphereModelAbstract",

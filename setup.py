@@ -9,8 +9,8 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 import os
-from pathlib import Path
 import platform
+from pathlib import Path
 
 from setuptools import find_packages
 from skbuild import setup
@@ -30,7 +30,8 @@ requirements = [
     "sortedcontainers",
 ]
 extras_require = {
-    "dev": ["pytest", "tox", "bump2version", "pandas", "scikit-image"],
+    "dev": ["pytest", "tox", "bump2version"],
+    "testing": ["opencv-python-headless", "matplotlib", "pandas", "scikit-image"],
     "with-opencv": ["opencv-python"],
     "legacy-sklearn-models": ["joblib", "scikit-learn"],
 }
@@ -39,7 +40,7 @@ cmake_args = []
 if os.environ.get("CI", "false") == "true" and platform.system() == "Windows":
     # The Ninja cmake generator will use mingw (gcc) on windows travis instances, but we
     # need to use msvc for compatibility.
-    cmake_args.append("-GVisual Studio 16 2019")
+    cmake_args.append("-GVisual Studio 17 2022")
 
 setup(
     author="Pupil Labs",
@@ -66,7 +67,9 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     project_urls={
-        "Changelog": "https://github.com/pupil-labs/pye3d-detector/blob/master/CHANGELOG.md",
+        "Changelog": (
+            "https://github.com/pupil-labs/pye3d-detector/blob/master/CHANGELOG.md"
+        ),
         "Pupil Core Documentation": "https://docs.pupil-labs.com/core/",
         "Pupil Labs Homepage": "https://pupil-labs.com/",
     },

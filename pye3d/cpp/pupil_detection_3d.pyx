@@ -10,19 +10,17 @@ See COPYING and COPYING.LESSER for license details.
 """
 import cv2
 import numpy as np
+
 cimport numpy as np
 
-from .common_types cimport (
-    MatrixXd,
-    Vector3d,
-)
+from .common_types cimport MatrixXd, Vector3d
+
 from ..geometry.projections import (
-    unproject_edges_to_sphere,
     project_circle_into_image_plane,
     project_point_into_image_plane,
+    unproject_edges_to_sphere,
 )
 from ..geometry.utilities import normalize
-
 
 _EYE_RADIUS_DEFAULT: float = 10.392304845413264
 
@@ -32,7 +30,7 @@ cdef extern from "search_on_sphere.h":
         double * data
         unsigned int rows
         unsigned int cols
-    
+
     cdef struct numpy_vector3d:
         double x
         double y
@@ -148,7 +146,7 @@ def search_on_sphere(edges,
     sphere_center_struct.x = sphere_center[0]
     sphere_center_struct.y = sphere_center[1]
     sphere_center_struct.z = sphere_center[2]
-    
+
     result = c_search_on_sphere(edges_on_sphere_memstruct,
                       predicted_gaze_vector_struct,
                       predicted_pupil_radius,
@@ -163,4 +161,3 @@ def search_on_sphere(edges,
     inliers = eigen2np(result.inliers).T
 
     return gaze_vector, pupil_radius, inliers, edges_on_sphere
-    

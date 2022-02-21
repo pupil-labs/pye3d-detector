@@ -19,10 +19,8 @@ class Primitive(abc.ABC):
     __slots__ = ()
 
     def __repr__(self):
-        klass = "{}.{}".format(self.__class__.__module__, self.__class__.__name__)
-        attributes = " ".join(
-            "{}={}".format(k, v.__repr__()) for k, v in self.__dict__.items()
-        )
+        klass = f"{self.__class__.__module__}.{self.__class__.__name__}"
+        attributes = " ".join(f"{k}={v.__repr__()}" for k, v in self.__dict__.items())
         return "<{klass} at {id}: {attributes}>".format(
             klass=klass, id=id(self), attributes=attributes
         )
@@ -37,10 +35,8 @@ class Primitive(abc.ABC):
             return str(obj)
 
         klass = self.__class__.__name__
-        attributes = " - ".join(
-            "{}: {}".format(k, to_str(v)) for k, v in self.__dict__.items()
-        )
-        return "{klass} -> {attributes}".format(klass=klass, attributes=attributes)
+        attributes = " - ".join(f"{k}: {to_str(v)}" for k, v in self.__dict__.items())
+        return f"{klass} -> {attributes}"
 
 
 class Line(Primitive):
@@ -121,10 +117,11 @@ class Sphere(Primitive):
 
 class Conicoid(Primitive):
     """
-    Coefficients of the general equation (implicit form) of a cone, given its vertex and base (ellipse/conic).
-    Formulae follow equations (1)-(3) of:
-    Safaee-Rad, R. et al.: "Three-Dimensional Location Estimation of Circular Features for Machine Vision",
-    IEEE Transactions on Robotics and Automation, Vol.8(5), 1992, pp624-640.
+    Coefficients of the general equation (implicit form) of a cone, given its vertex and
+    base (ellipse/conic). Formulae follow equations (1)-(3) of:
+        Safaee-Rad, R. et al.: "Three-Dimensional Location Estimation of Circular
+        Features for Machine Vision", IEEE Transactions on Robotics and Automation,
+        Vol.8(5), 1992, pp624-640.
     """
 
     __slots__ = tuple("ABCFGHUVWD")
@@ -155,8 +152,9 @@ class Conicoid(Primitive):
 class Conic(Primitive):
     """
     Coefficients A-F of the general equation (implicit form) of a conic
-    Ax² + Bxy + Cy² + Dx + Ey + F = 0
-    calculated from 5 ellipse parameters, see https://en.wikipedia.org/wiki/Ellipse#General_ellipse
+        Ax² + Bxy + Cy² + Dx + Ey + F = 0
+    calculated from 5 ellipse parameters, see
+    https://en.wikipedia.org/wiki/Ellipse#General_ellipse
     """
 
     __slots__ = tuple("ABCDEF")

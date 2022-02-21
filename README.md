@@ -18,7 +18,7 @@ the platform-specific dependencies first. For details, see [`INSTALL_SOURCE.md`]
 
 ## Usage
 
-Here's a quick example of how to pass 2D pupil detection results to `pye3d` (requires standalone 
+Here's a quick example of how to pass 2D pupil detection results to `pye3d` (requires standalone
 [2D pupil detector](https://github.com/pupil-labs/pupil-detectors/) installation)
 
 ```python

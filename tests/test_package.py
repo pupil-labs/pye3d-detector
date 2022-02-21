@@ -6,7 +6,7 @@ def test_import():
     from pye3d.detector_3d import Detector3D
 
     camera = CameraModel(1.0, (200, 200))
-    d = Detector3D(camera)
+    Detector3D(camera)
 
 
 def test_model_update_schedule():
@@ -30,8 +30,8 @@ def test_model_update_schedule():
 
 def test_legacy_sklearn_model_loading(custom_load_dir):
     try:
-        import joblib
-        import sklearn
+        import joblib  # noqa: F401
+        import sklearn  # noqa: F401
     except ImportError:
         pytest.skip("joblib and/or sklearn not installed.")
 

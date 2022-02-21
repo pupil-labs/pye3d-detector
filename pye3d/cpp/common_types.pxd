@@ -13,4 +13,3 @@ cdef extern from '<Eigen/Eigen>' namespace 'Eigen':
         int cols()
         double coeff(int,int)
         double * resize(int,int)
-        

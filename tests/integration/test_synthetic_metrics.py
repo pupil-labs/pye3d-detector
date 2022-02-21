@@ -4,6 +4,7 @@ import math
 import numpy as np
 import pandas as pd
 import pytest
+
 from pye3d.detector_3d import CameraModel
 from pye3d.detector_3d import Detector3D as Pye3D
 from pye3d.detector_3d import DetectorMode
@@ -424,7 +425,7 @@ COLUMNS_MEASURED = [
 ]
 
 
-def pupil_datum_from_raytraced_image(img=None, raytracer=None, device="cuda"):
+def pupil_datum_from_raytraced_image(img=None, raytracer=None, device="cpu"):
     try:
         # At this time, scikit-image==0.18.3 pins numpy==1.19.3 when running Python 3.9
         # which does not build on M1 macOS. Therefore, we allow to the test to be
@@ -476,7 +477,8 @@ def pupil_datum_from_raytraced_image(img=None, raytracer=None, device="cuda"):
 
     if props:
 
-        # adapt output of regionprops to construct pupil datum analoguous to Pupil 2D Detector:
+        # adapt output of regionprops to construct pupil datum analoguous to
+        # Pupil 2D Detector:
         pupil_datum["ellipse"]["axes"] = np.array(
             [props["minor_axis_length"], props["major_axis_length"]]
         )
@@ -514,7 +516,6 @@ def save_plot(
     xlabel="",
     ylabel="",
 ):
-    import matplotlib
     import matplotlib.pyplot as plt
 
     fig, axis = plt.subplots(figsize=figsize)

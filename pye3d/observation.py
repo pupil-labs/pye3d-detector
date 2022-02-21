@@ -11,7 +11,7 @@ See COPYING and COPYING.LESSER for license details.
 from abc import abstractmethod, abstractproperty
 from collections import deque
 from math import floor
-from typing import Sequence, Optional
+from typing import Optional, Sequence
 
 import numpy as np
 from sortedcontainers import SortedList
@@ -22,7 +22,7 @@ from .geometry.primitives import Ellipse, Line
 from .geometry.projections import project_line_into_image_plane, unproject_ellipse
 
 
-class Observation(object):
+class Observation:
     def __init__(
         self, ellipse: Ellipse, confidence: float, timestamp: float, focal_length: float
     ):
@@ -50,7 +50,7 @@ class Observation(object):
         self.gaze_3d_pair = [
             Line(
                 circle_3d_pair[i].center,
-                circle_3d_pair[i].center + circle_3d_pair[i].normal,
+                circle_3d_pair[i].normal,
             )
             for i in [0, 1]
         ]
