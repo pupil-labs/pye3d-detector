@@ -50,7 +50,7 @@ class Observation:
         self.gaze_3d_pair = [
             Line(
                 circle_3d_pair[i].center,
-                circle_3d_pair[i].normal,
+                circle_3d_pair[i].center + circle_3d_pair[i].normal,
             )
             for i in [0, 1]
         ]
