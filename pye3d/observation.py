@@ -48,11 +48,7 @@ class Observation:
         self.circle_3d_pair = circle_3d_pair
 
         self.gaze_3d_pair = [
-            Line(
-                circle_3d_pair[i].center,
-                circle_3d_pair[i].center + circle_3d_pair[i].normal,
-            )
-            for i in [0, 1]
+            Line(circle_3d_pair[i].center, circle_3d_pair[i].normal) for i in [0, 1]
         ]
         self.gaze_2d = project_line_into_image_plane(self.gaze_3d_pair[0], focal_length)
         self.gaze_2d_line = np.array([*self.gaze_2d.origin, *self.gaze_2d.direction])
