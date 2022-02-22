@@ -1,11 +1,29 @@
 [build-system]
 requires = [
-    "setuptools",
+    "setuptools>=56",
     "wheel",
     "scikit-build",
     "cmake",
-    "ninja",
+    "ninja; platform_system!='Windows'",
     "numpy",
     "cython",
+    "setuptools_scm[toml]>=3.4.1"
 ]
 build-backend = "setuptools.build_meta"
+
+[tool.black]
+skip-string-normalization = true
+
+[tool.setuptools_scm]
+write_to = "pye3d/version.py"
+write_to_template = """
+\"\"\" Version information \"\"\"
+__version__ = "{version}"
+__version_info__ = {version_tuple}
+"""
+
+[pytest.enabler.mypy]
+addopts = "--mypy"
+
+[pytest.enabler.cov]
+addopts = "--cov"
