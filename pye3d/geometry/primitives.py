@@ -130,23 +130,23 @@ class Conicoid(Primitive):
         alpha = vertex[0]
         beta = vertex[1]
         gamma = vertex[2]
-        self.A = (gamma ** 2) * conic.A
-        self.B = (gamma ** 2) * conic.C
+        self.A = (gamma**2) * conic.A
+        self.B = (gamma**2) * conic.C
         self.C = (
-            conic.A * (alpha ** 2)
+            conic.A * (alpha**2)
             + conic.B * alpha * beta
-            + conic.C * (beta ** 2)
+            + conic.C * (beta**2)
             + conic.D * alpha
             + conic.E * beta
             + conic.F
         )
         self.F = -gamma * (conic.C * beta + conic.B / 2 * alpha + conic.E / 2)
         self.G = -gamma * (conic.B / 2 * beta + conic.A * alpha + conic.D / 2)
-        self.H = (gamma ** 2) * conic.B / 2
-        self.U = (gamma ** 2) * conic.D / 2
-        self.V = (gamma ** 2) * conic.E / 2
+        self.H = (gamma**2) * conic.B / 2
+        self.U = (gamma**2) * conic.D / 2
+        self.V = (gamma**2) * conic.E / 2
         self.W = -gamma * (conic.E / 2 * beta + conic.D / 2 * alpha + conic.F)
-        self.D = (gamma ** 2) * conic.F
+        self.D = (gamma**2) * conic.F
 
 
 class Conic(Primitive):
@@ -164,8 +164,8 @@ class Conic(Primitive):
             ellipse = args[0]
             ax = np.cos(ellipse.angle)
             ay = np.sin(ellipse.angle)
-            a2 = ellipse.major_radius ** 2
-            b2 = ellipse.minor_radius ** 2
+            a2 = ellipse.major_radius**2
+            b2 = ellipse.minor_radius**2
 
             self.A = a2 * ay * ay + b2 * ax * ax
             self.B = 2.0 * (b2 - a2) * ax * ay
@@ -183,4 +183,4 @@ class Conic(Primitive):
             self.A, self.B, self.C, self.D, self.E, self.F = args
 
     def discriminant(self):
-        return self.B ** 2 - 4 * self.A * self.C
+        return self.B**2 - 4 * self.A * self.C

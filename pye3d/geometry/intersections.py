@@ -43,7 +43,7 @@ def intersect_sphere_multiple_lines(sphere_center, radius, points, directions):
     # Note: Directions need to be normalized!
     intermediate = np.einsum("ij,ij->i", directions, points - sphere_center)
     discriminant = (
-        intermediate ** 2 - np.sum((points - sphere_center) ** 2, axis=1) + radius ** 2
+        intermediate**2 - np.sum((points - sphere_center) ** 2, axis=1) + radius**2
     )
     idx = discriminant > 0
     sqr = np.sqrt(discriminant[idx])
@@ -57,7 +57,7 @@ def intersect_sphere_multiple_lines(sphere_center, radius, points, directions):
 
 def intersect_sphere_line(sphere_center, radius, point, direction):
     temp = np.dot(direction, point - sphere_center)
-    discriminant = temp ** 2 - np.linalg.norm(point - sphere_center) ** 2 + radius ** 2
+    discriminant = temp**2 - np.linalg.norm(point - sphere_center) ** 2 + radius**2
     if discriminant >= 0.0:
         sqr = np.sqrt(discriminant)
         d1 = -temp + sqr
