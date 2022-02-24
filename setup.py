@@ -23,4 +23,5 @@ if __name__ == "__main__":
         cmake_args=cmake_args,
         cmake_install_dir=cpp_dir,
         cmake_source_dir=cpp_dir,
+        package_data={"pye3d": ["refraction_models/*.msgpack"]},
     )
