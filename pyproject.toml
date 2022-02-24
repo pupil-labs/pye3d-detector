@@ -16,8 +16,5 @@ skip-string-normalization = true
 
 [tool.setuptools_scm]
 
-[pytest.enabler.mypy]
-addopts = "--mypy"
-
 [pytest.enabler.cov]
 addopts = "--cov"
