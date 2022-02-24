@@ -1,6 +1,4 @@
 version: 2
-python:
-  install:
-  - path: .
-    extra_requirements:
-      - docs
+
+conda:
+  environment: conda-env.yml

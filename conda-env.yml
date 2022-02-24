@@ -1,0 +1,7 @@
+name: pye3d-conda
+dependencies:
+  - python=3.9
+  - eigen
+  - opencv
+  - pip:
+    - -e ".[docs,testing]"
