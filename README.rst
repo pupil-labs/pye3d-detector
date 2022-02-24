@@ -1,7 +1,7 @@
-.. image:: https://img.shields.io/pypi/v/skeleton.svg
+.. image:: https://img.shields.io/pypi/v/pye3d.svg
    :target: `PyPI link`_
 
-.. image:: https://img.shields.io/pypi/pyversions/skeleton.svg
+.. image:: https://img.shields.io/pypi/pyversions/pye3d.svg
    :target: `PyPI link`_
 
 .. _PyPI link: https://pypi.org/project/pye3d
@@ -14,14 +14,13 @@
    :target: https://github.com/psf/black
    :alt: Code style: Black
 
-.. .. image:: https://readthedocs.org/projects/skeleton/badge/?version=latest
-..    :target: https://skeleton.readthedocs.io/en/latest/?badge=latest
+.. image:: https://readthedocs.org/projects/pye3d-detector/badge/?version=latest
+   :target: https://pye3d-detector.readthedocs.io/en/latest/?badge=latest
 
 .. image:: https://img.shields.io/badge/skeleton-2021-informational
    :target: https://blog.jaraco.com/skeleton
 
 
-##############
 pye3d Detector
 ##############
 
@@ -32,7 +31,7 @@ and optics (see `Swirski and Dodgson, 2013`_, as well as `Dierkes, Kassner, and 
 .. _Dierkes, Kassner, and Bulling, 2019: https://www.researchgate.net/publication/333490770_A_fast_approach_to_refraction-aware_eye-model_fitting_and_gaze_prediction
 
 Installation
-############
+------------
 
 We recommend installing the pre-packaged binary wheels from PyPI:
 
@@ -41,14 +40,6 @@ We recommend installing the pre-packaged binary wheels from PyPI:
     pip install pye3d
 
 If you want to install a modified version of the source code, you will have to install
-the platform-specific dependencies first. For details, see [`INSTALL_SOURCE.md`](INSTALL_SOURCE.md).
+the platform-specific dependencies first. For details, see :ref:`install_from_source`.
 
-Usage
-#####
-
-Here's a quick example of how to pass 2D pupil detection results to `pye3d` (requires standalone
-`2D pupil detector <https://github.com/pupil-labs/pupil-detectors/>`_) installation)
-
-.. literalinclude:: examples/process_eye_video.py
-   :language: python
-   :linenos:
+For more information see the `documentation <https://pye3d-detector.readthedocs.io>`_.

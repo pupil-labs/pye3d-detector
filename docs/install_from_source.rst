@@ -1,3 +1,5 @@
+.. _install_from_source:
+
 #############################
 Build and install from source
 #############################
@@ -174,6 +176,7 @@ Build and install OpenCV
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: bash
+
    # Download OpenCV
    wget -O opencv.zip "https://github.com/opencv/opencv/archive/4.2.0.zip"
 
