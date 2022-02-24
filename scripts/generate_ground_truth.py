@@ -1,3 +1,11 @@
+"""
+Generates ground truth data for ``../tests/integration/test_synthetic_metrics.py``
+
+- Depends on ``plsd`` - Pupil Labs internal library
+- Output should be uploaded to
+  https://github.com/pupil-labs/pye3d-detector/wiki/files/pye3d_test_input.npz
+"""
+
 import argparse
 import re as regex
 import typing as T
@@ -281,7 +289,7 @@ if __name__ == "__main__":
     parser.add_argument("-fps", type=float, default=200)
     parser.add_argument("-N", "--num-samples", type=int, default=1000)
     parser.add_argument(
-        "-o", "--output", default="integration/input/pye3d_test_input.npz"
+        "-o", "--output", default="../tests/integration/input/pye3d_test_input.npz"
     )
     args = parser.parse_args()
 
