@@ -1,6 +1,10 @@
 import pytest
 
 
+def test_package_metadata() -> None:
+    assert hasattr(pytest, "__version__")
+
+
 def test_import():
     from pye3d.camera import CameraModel
     from pye3d.detector_3d import Detector3D
