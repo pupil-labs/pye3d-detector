@@ -374,9 +374,23 @@ jobs:
           name: distribution
           path: dist/
 
+  build_docs:
+    name: Ensure documentation builds correctly
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v1
+        with:
+          python-version: 3.9
+      - name: Build docs via tox
+        run: |
+          pip install tox
+          tox -e docs
+
   publish:
     runs-on: ubuntu-latest
-    needs: [build_wheels, build_sdist]
+    needs: [build_wheels, build_sdist, build_docs]
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v2
