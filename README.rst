@@ -39,7 +39,4 @@ We recommend installing the pre-packaged binary wheels from PyPI:
 
     pip install pye3d
 
-If you want to install a modified version of the source code, you will have to install
-the platform-specific dependencies first. For details, see :ref:`install_from_source`.
-
 For more information see the `documentation <https://pye3d-detector.readthedocs.io>`_.

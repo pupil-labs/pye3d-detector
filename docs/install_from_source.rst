@@ -11,20 +11,70 @@ Otherwise, we recommend installing the pre-packaged binary wheels from PyPI:
 
    pip install pye3d
 
+To install from source, see the table of contents on the right.
 
-Build Dependencies
-##################
+Installing using Conda
+#########################
+
+`Conda <https://docs.conda.io/en/latest/index.html>`_ makes it easy to install
+``pye3d``'s non-Python dependencies.
+
+Creating a new Conda environment
+--------------------------------
+
+The ``conda-env.yml`` file defines all dependencies and will install ``pye3d`` as part
+of the environment creation.
+
+.. code-block:: console
+
+   # Download pye3d code
+   git clone https://github.com/pupil-labs/pye3d-detector.git
+   cd pye3d-detector
+
+   conda env create --quiet --name <new environment name> --file conda-env.yml
+   conda activate <new environment name>
+
+Using an existing Conda environment
+-----------------------------------
+
+If you want to reuse an existing environment, you need to install the dependencies
+and ``pye3d`` manually using the commands below.
+
+.. code-block:: console
+
+   conda activate <existing environment>
+   conda install -c conda-forge eigen
+   conda install -c conda-forge opencv
+
+   git clone https://github.com/pupil-labs/pye3d-detector.git
+   cd pye3d-detector
+
+   pip install -e .
+
+.. include:: known_build_issue.rst
+
+Installing everything from scratch
+##################################
+
+.. seealso::
+
+   The pye3d Github Actions `build pipeline`_ uses this methodology.
+
+.. _build pipeline: https://github.com/pupil-labs/pye3d-detector/actions/workflows/build-pye3d.yml
+
+Build dependencies
+------------------
 
 You can skip this step if you have OpenCV and Eigen3 compiled and installed on your computer.
 Scroll to the bottom and continue with installing pye3d.
 
 Windows
--------
+^^^^^^^
 
 Building the dependencies on Windows requires running the commands in [PowerShell](https://docs.microsoft.com/en-us/powershell/scripting/overview). Requires `git` and `cmake` to be in your system PATH. Please run all three install steps in the same shell or redefine `OpenCV_DIR` and `Eigen3_DIR` before running the last step (building and installing pye3d).
 
 Build and install OpenCV
-^^^^^^^^^^^^^^^^^^^^^^^^
+""""""""""""""""""""""""
 
 .. code-block:: powershell
 
@@ -52,7 +102,7 @@ Build and install OpenCV
    cd ../..
 
 Build and install Eigen
-^^^^^^^^^^^^^^^^^^^^^^^
+"""""""""""""""""""""""
 
 .. code-block:: powershell
 
@@ -82,10 +132,10 @@ Build and install Eigen
 Go to :ref:`pyed_source_build_install` for the last step.
 
 Ubuntu
-------
+^^^^^^
 
 Build and install OpenCV
-^^^^^^^^^^^^^^^^^^^^^^^^
+""""""""""""""""""""""""
 
 .. code-block:: bash
 
@@ -131,7 +181,7 @@ Build and install OpenCV
    cd ../..
 
 Build and install Eigen
-^^^^^^^^^^^^^^^^^^^^^^^
+"""""""""""""""""""""""
 
 .. code-block:: bash
 
@@ -163,7 +213,7 @@ Build and install Eigen
 Go to :ref:`pyed_source_build_install` for the last step.
 
 macOS
------
+^^^^^
 
 Downlaoding the dependencies requires ``wget``, which can be installed on macOS with
 `Homebrew <https://brew.sh>`_:
@@ -173,7 +223,7 @@ Downlaoding the dependencies requires ``wget``, which can be installed on macOS 
    brew install wget
 
 Build and install OpenCV
-^^^^^^^^^^^^^^^^^^^^^^^^
+""""""""""""""""""""""""
 
 .. code-block:: bash
 
@@ -219,7 +269,7 @@ Build and install OpenCV
    cd ../..
 
 Build and install Eigen
-^^^^^^^^^^^^^^^^^^^^^^^
+"""""""""""""""""""""""
 
 .. code-block:: bash
 
@@ -253,7 +303,7 @@ See below for the last step.
 .. _pyed_source_build_install:
 
 Build and install ``pye3d`` (all platforms)
-###########################################
+-------------------------------------------
 
 Requires ``OpenCV_DIR`` and ``Eigen3_DIR`` environmental variables pointing to the
 appropriate install locations.
@@ -272,3 +322,5 @@ appropriate install locations.
 
    # Build and install pye3d
    python -m pip install .
+
+.. include:: known_build_issue.rst
