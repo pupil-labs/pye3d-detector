@@ -160,16 +160,17 @@ class TwoSphereModel(TwoSphereModelAbstract):
 
     def _disambiguate_dierkes_lines(self, aux_3d, gaze_2d, sphere_center_2d):
         # Disambiguate Dierkes lines
-        # We want gaze_2d to points towards the sphere center. gaze_2d was collected
+        # We want gaze_2d to point away from the 2d sphere center. gaze_2d was collected
         # from Dierkes[0]. If it points into the correct direction, we know that
         # Dierkes[0] is the correct one to use, otherwise we need to use Dierkes[1]. We
         # can check that with the sign of the dot product.
         gaze_2d_origins = gaze_2d[:, :2]
         gaze_2d_directions = gaze_2d[:, 2:]
-        gaze_2d_towards_center = gaze_2d_origins - sphere_center_2d
+        gaze_2d_towards_center = sphere_center_2d - gaze_2d_origins
 
         dot_products = np.sum(gaze_2d_towards_center * gaze_2d_directions, axis=1)
-        disambiguation_indices = np.where(dot_products < 0, 1, 0)
+        angle_larger_90_deg = dot_products < 0
+        disambiguation_indices = np.where(angle_larger_90_deg, 0, 1)
 
         obs_idc = np.arange(disambiguation_indices.shape[0])
         aux_3d_disambiguated = aux_3d[obs_idc, disambiguation_indices, :, :]
