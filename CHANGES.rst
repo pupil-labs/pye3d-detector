@@ -5,7 +5,7 @@
 - Cleanup build and transition to `Pupil Labs Python module skeleton
   <https://github.com/pupil-labs/python-module-skeleton>`_ structure - #44 and #49
 - Add :ref:`examples` - #45
-
+- Remove need to build and link OpenCV - #61
 
 0.3.0 (2021-11-10)
 ##################
