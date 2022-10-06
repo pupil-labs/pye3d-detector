@@ -1,4 +1,4 @@
-0.3.1 (WIP)
+0.3.1 (2022-10-06)
 ##################
 
 - Correctly calculate direction of ``Observation``'s ``gaze_3d_pair`` lines - #47
