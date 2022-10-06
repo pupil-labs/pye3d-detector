@@ -44,7 +44,6 @@ and ``pye3d`` manually using the commands below.
 
    conda activate <existing environment>
    conda install -c conda-forge eigen
-   conda install -c conda-forge opencv
 
    git clone https://github.com/pupil-labs/pye3d-detector.git
    cd pye3d-detector
@@ -72,34 +71,6 @@ Windows
 ^^^^^^^
 
 Building the dependencies on Windows requires running the commands in [PowerShell](https://docs.microsoft.com/en-us/powershell/scripting/overview). Requires `git` and `cmake` to be in your system PATH. Please run all three install steps in the same shell or redefine `OpenCV_DIR` and `Eigen3_DIR` before running the last step (building and installing pye3d).
-
-Build and install OpenCV
-""""""""""""""""""""""""
-
-.. code-block:: powershell
-
-   # Download OpenCV
-   Invoke-WebRequest "https://github.com/opencv/opencv/archive/4.2.0.zip" -OutFile opencv.zip
-
-   # Prepare build
-   Expand-Archive opencv.zip
-   mv opencv/opencv-4.*/* opencv/
-   mkdir opencv/build
-
-   # Enter build path
-   cd opencv/build
-
-   # Configure build
-   cmake .. -A x64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="." -DBUILD_LIST="core,highgui,videoio,imgcodecs,imgproc,video" -DBUILD_opencv_world=ON -DBUILD_EXAMPLES=OFF -DBUILD_DOCS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_TESTS=OFF -DBUILD_opencv_java=OFF -DBUILD_opencv_python=OFF -DWITH_OPENMP=ON -DWITH_IPP=ON -DWITH_CSTRIPES=ON -DWITH_OPENCL=ON -DWITH_CUDA=OFF -DWITH_TBB=OFF -DWITH_MSMF=OFF
-
-   # Compile
-   cmake --build . --target INSTALL --config Release --parallel
-
-   # Define OpenCV location for third step
-   $Env:OpenCV_DIR = (pwd)
-
-   # Exit build path
-   cd ../..
 
 Build and install Eigen
 """""""""""""""""""""""
@@ -133,52 +104,6 @@ Go to :ref:`pyed_source_build_install` for the last step.
 
 Ubuntu
 ^^^^^^
-
-Build and install OpenCV
-""""""""""""""""""""""""
-
-.. code-block:: bash
-
-   # Download OpenCV
-   wget -O opencv.zip "https://github.com/opencv/opencv/archive/4.2.0.zip"
-
-   # Prepare build
-   unzip opencv.zip
-   mv opencv-4.* opencv/
-   mkdir opencv/build
-
-   # Enter build path
-   cd opencv/build
-
-   # Configure build
-   cmake .. \
-      -DCMAKE_BUILD_TYPE=Release \
-      -DCMAKE_INSTALL_PREFIX="." \
-      -DBUILD_LIST="core,highgui,videoio,imgcodecs,imgproc,video" \
-      -DBUILD_opencv_world=ON \
-      -DBUILD_EXAMPLES=OFF \
-      -DBUILD_DOCS=OFF \
-      -DBUILD_PERF_TESTS=OFF \
-      -DBUILD_TESTS=OFF \
-      -DBUILD_opencv_java=OFF \
-      -DBUILD_opencv_python=OFF \
-      -DWITH_OPENMP=ON \
-      -DWITH_IPP=ON \
-      -DWITH_CSTRIPES=ON \
-      -DWITH_OPENCL=ON \
-      -DWITH_CUDA=OFF \
-      -DWITH_TBB=OFF \
-      -DWITH_MSMF=OFF
-
-   # Compile
-   make
-   make install
-
-   # Define OpenCV location for third step
-   OpenCV_DIR=${pwd}
-
-   # Exit build path
-   cd ../..
 
 Build and install Eigen
 """""""""""""""""""""""
@@ -222,52 +147,6 @@ Downlaoding the dependencies requires ``wget``, which can be installed on macOS 
 
    brew install wget
 
-Build and install OpenCV
-""""""""""""""""""""""""
-
-.. code-block:: bash
-
-   # Download OpenCV
-   wget -O opencv.zip "https://github.com/opencv/opencv/archive/4.2.0.zip"
-
-   # Prepare build
-   unzip opencv.zip
-   mv opencv-4.* opencv/
-   mkdir opencv/build
-
-   # Enter build path
-   cd opencv/build
-
-   # Configure build
-   cmake .. \
-      -DCMAKE_BUILD_TYPE=Release \
-      -DCMAKE_INSTALL_PREFIX="." \
-      -DBUILD_LIST="core,highgui,videoio,imgcodecs,imgproc,video" \
-      -DBUILD_opencv_world=ON \
-      -DBUILD_EXAMPLES=OFF \
-      -DBUILD_DOCS=OFF \
-      -DBUILD_PERF_TESTS=OFF \
-      -DBUILD_TESTS=OFF \
-      -DBUILD_opencv_java=OFF \
-      -DBUILD_opencv_python=OFF \
-      -DWITH_OPENMP=ON \
-      -DWITH_IPP=ON \
-      -DWITH_CSTRIPES=ON \
-      -DWITH_OPENCL=ON \
-      -DWITH_CUDA=OFF \
-      -DWITH_TBB=OFF \
-      -DWITH_MSMF=OFF
-
-   # Compile
-   make
-   make install
-
-   # Define OpenCV location for third step
-   OpenCV_DIR=${pwd}
-
-   # Exit build path
-   cd ../..
-
 Build and install Eigen
 """""""""""""""""""""""
 
@@ -285,8 +164,7 @@ Build and install Eigen
    cd eigen/build
 
    # Configure build
-   cmake .. \
-      -DCMAKE_INSTALL_PREFIX="."
+   cmake .. -DCMAKE_INSTALL_PREFIX="."
 
    # Compile
    make
@@ -305,8 +183,8 @@ See below for the last step.
 Build and install ``pye3d`` (all platforms)
 -------------------------------------------
 
-Requires ``OpenCV_DIR`` and ``Eigen3_DIR`` environmental variables pointing to the
-appropriate install locations.
+Requires ``Eigen3_DIR`` environmental variable pointing to the appropriate install
+locations.
 
 .. code-block:: bash
 
