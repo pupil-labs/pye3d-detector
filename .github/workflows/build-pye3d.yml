@@ -161,7 +161,7 @@ jobs:
         run: ls -laR
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v1.11.1.post1
+        uses: pypa/cibuildwheel@v2.9.0
         env:
           Eigen3_DIR: ${{ github.workspace }}
           CIBW_ENVIRONMENT_LINUX: >
