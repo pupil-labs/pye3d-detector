@@ -12,7 +12,7 @@ repos:
       - id: trailing-whitespace
 
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.38.2
+    rev: v3.1.0
     hooks:
       - id: pyupgrade
         name: PyUpgrade 3.6+
@@ -31,7 +31,7 @@ repos:
         args: [--profile, black]
 
   - repo: https://github.com/psf/black
-    rev: 22.8.0
+    rev: 22.10.0
     hooks:
       - id: black
 
