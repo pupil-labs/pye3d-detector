@@ -161,14 +161,14 @@ jobs:
         run: ls -laR
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v1.11.1.post1
+        uses: pypa/cibuildwheel@v2.9.0
         env:
           Eigen3_DIR: ${{ github.workspace }}
           CIBW_ENVIRONMENT_LINUX: >
             LD_LIBRARY_PATH=/project/lib64:$LD_LIBRARY_PATH
             Eigen3_DIR=/project
 
-          CIBW_SKIP: "cp27-* cp35-* pp* *win32 *_aarch64 *_ppc64le *_s390x *_i686"
+          CIBW_SKIP: "cp27-* cp35-* pp* *win32 *_aarch64 *_ppc64le *_s390x *_i686 *musllinux*"
           CIBW_ARCHS_MACOS: "x86_64"
           CIBW_ARCHS_LINUX: "x86_64"
 
