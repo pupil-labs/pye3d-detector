@@ -168,7 +168,7 @@ jobs:
             LD_LIBRARY_PATH=/project/lib64:$LD_LIBRARY_PATH
             Eigen3_DIR=/project
 
-          CIBW_SKIP: "cp27-* cp35-* pp* *win32 *_aarch64 *_ppc64le *_s390x *_i686"
+          CIBW_SKIP: "cp27-* cp35-* pp* *win32 *_aarch64 *_ppc64le *_s390x *_i686 *musllinux*"
           CIBW_ARCHS_MACOS: "x86_64"
           CIBW_ARCHS_LINUX: "x86_64"
 
