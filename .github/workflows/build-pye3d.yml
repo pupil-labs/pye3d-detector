@@ -176,7 +176,7 @@ jobs:
           CIBW_BEFORE_BUILD_WINDOWS: pip install delvewheel
           CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: python scripts\repair_wheels_windows.py {wheel} {dest_dir}
 
-          CIBW_TEST_REQUIRES: pytest opencv-python pandas scikit-image matplotlib
+          CIBW_TEST_REQUIRES: pytest opencv-python==4.6.0.66 pandas scikit-image matplotlib
           CIBW_TEST_COMMAND: >
             curl -L ${{ env.pye3d-test-input-download-url }} --silent
             --output {package}/tests/integration/input/pye3d_test_input.npz
