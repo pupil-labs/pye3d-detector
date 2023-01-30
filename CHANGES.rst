@@ -1,3 +1,12 @@
+0.3.2 (2023-01-30)
+########################
+
+- Increase physiological ranges to accomodate Neon eye camera positions
+  - `phi`: `[-80, 80]deg` -> `[-90,90]deg`
+  - `sphere_center.x`: `[-10, 10]mm` -> `[-15,15]mm`
+  - `sphere_center.z`: `[20, 75]mm` -> `[15,75]mm`
+
+
 0.3.1.post1 (2022-10-11)
 ########################
 
