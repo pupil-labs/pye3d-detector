@@ -133,7 +133,6 @@ class SklearnRefractionizer(Refractionizer):
 
 
 if __name__ == "__main__":
-
     refractionizer = Refractionizer()
 
     print(refractionizer.correct_sphere_center([[0.0, 0.0, 35.0]]))

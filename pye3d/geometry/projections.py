@@ -62,7 +62,6 @@ def project_circle_into_image_plane(
     disc_ = conic.discriminant()
 
     if disc_ < 0:
-
         A, B, C, D, E, F = conic.A, conic.B, conic.C, conic.D, conic.E, conic.F
         center_x = (2 * C * D - B * E) / disc_
         center_y = (2 * A * E - B * D) / disc_
@@ -91,7 +90,6 @@ def project_circle_into_image_plane(
         return Ellipse(np.asarray([center_x, center_y]), minor_axis, major_axis, angle)
 
     else:
-
         return False
 
 

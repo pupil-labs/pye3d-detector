@@ -300,7 +300,6 @@ def eye_center_3d_errors(dataset):
 
 @pytest.fixture(scope="module")
 def dataset():
-
     # Check all input files exist
     assert INPUT_PATH.is_file(), f"Missing test input file: {INPUT_PATH}"
 
@@ -325,7 +324,6 @@ def dataset():
     measured_data = []
 
     for i, img in enumerate(images):
-
         pupil_datum, _ = pupil_datum_from_raytraced_image(img=img)
         pupil_datum["timestamp"] = i / FPS
 
@@ -476,7 +474,6 @@ def pupil_datum_from_raytraced_image(img=None, raytracer=None, device="cpu"):
         )  # -pi/2 due to version change of regionprops
 
     if props:
-
         # adapt output of regionprops to construct pupil datum analoguous to
         # Pupil 2D Detector:
         pupil_datum["ellipse"]["axes"] = np.array(
