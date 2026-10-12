@@ -425,7 +425,7 @@ class Detector3D:
         if len(edges) <= 0:
             return no_result
 
-        (gaze_vector, pupil_radius, final_edges, edges_on_sphere) = search_on_sphere(
+        gaze_vector, pupil_radius, final_edges, edges_on_sphere = search_on_sphere(
             edges,
             best_guess.normal,
             best_guess.radius,
