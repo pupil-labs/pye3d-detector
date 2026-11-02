@@ -5,9 +5,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from pye3d.detector_3d import CameraModel
+from pye3d.detector_3d import CameraModel, DetectorMode
 from pye3d.detector_3d import Detector3D as Pye3D
-from pye3d.detector_3d import DetectorMode
 
 from .utils import abs_diff, input_dir, output_dir, remove_file
 
